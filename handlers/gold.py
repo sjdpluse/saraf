@@ -53,15 +53,14 @@ async def gold_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     if karat == "all":
-        text = _format_all(breakdown) + f"\n\n_منبع طلا: gold-api.com | منبع ارز: {source}_"
+        text = _format_all(breakdown)
     else:
         k = int(karat)
         vals = breakdown["karats"][k]
         text = (
             f"🥇 *طلای عیار {k}*\n\n"
             f"هر گرم: *{vals['afn_per_gram']:,.0f} افغانی* ({vals['usd_per_gram']:,.2f}$)\n"
-            f"هر مثقال: *{vals['afn_per_methqal']:,.0f} افغانی* ({vals['usd_per_methqal']:,.2f}$)\n\n"
-            f"_منبع طلا: gold-api.com | منبع ارز: {source}_"
+            f"هر مثقال: *{vals['afn_per_methqal']:,.0f} افغانی* ({vals['usd_per_methqal']:,.2f}$)"
         )
 
     await query.edit_message_text(text, parse_mode="Markdown")

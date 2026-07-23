@@ -1,5 +1,5 @@
 """
-نقطهٔ ورود اصلی ربات تلگرامی Sarafi.af.
+نقطهٔ ورود اصلی ربات تلگرامی Saraf.
 
 اجرا:
     python bot.py
@@ -92,7 +92,7 @@ def build_application() -> Application:
 
 def main() -> None:
     app = build_application()
-    logger.info("ربات Sarafi.af در حال اجراست...")
+    logger.info("ربات Saraf در حال اجراست...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
