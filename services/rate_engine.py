@@ -11,10 +11,18 @@
 اگر اسکرپ محلی برای یک ارز در دسترس نباشد (مثلاً به‌خاطر قطعی سایت یا نبود آن ارز
 در جدول سرای‌شهزاده)، موتور به‌صورت خودکار روی نرخ مرجع جهانی + اسپرد سقوط می‌کند
 (graceful degradation) و این را در فیلد `basis` مشخص می‌کند.
+
+نکتهٔ مهم برای مقایسهٔ تاریخی: get_historical_basis_rate دقیقاً همان اولویت
+(محلی -> جهانی) را برای داده‌های گذشته اعمال می‌کند تا «نرخ فعلی» و «نرخ گذشته»
+که در منوی مقایسه نمایش داده می‌شوند از یک منبع همگن باشند و با آنچه در منوی
+«نرخ ارزها» می‌بیند مطابقت داشته باشد.
 """
 import logging
+from datetime import datetime
+from typing import Optional
 
 from services import currency_service, local_market_service, spread_service
+from services import supabase_service as db
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +38,7 @@ async def get_full_quote(code: str) -> dict:
           "market_label": "سرای شهزاده (کابل)",
           "buy": 65.90, "sell": 65.95,
       },
-      "saraf_quote": {"buy": 65.60, "sell": 66.25, "basis": "local"},
+      "saraf_quote": {"buy": 65.60, "sell": 66.25, "basis": "local", "basis_rate": 65.925},
       "spread_percent": 0.6,
     }
     """
@@ -74,7 +82,12 @@ async def get_full_quote(code: str) -> dict:
         "code": code,
         "reference_rate": reference_rate,
         "local": local_entry,
-        "saraf_quote": {"buy": saraf_buy, "sell": saraf_sell, "basis": basis},
+        "saraf_quote": {
+            "buy": saraf_buy,
+            "sell": saraf_sell,
+            "basis": basis,
+            "basis_rate": round(basis_rate, 4),
+        },
         "spread_percent": spread_pct,
     }
 
@@ -87,3 +100,25 @@ async def get_full_quotes(codes: list[str]) -> dict[str, dict]:
         except Exception:
             logger.exception("خطا در ساخت quote کامل برای %s", code)
     return result
+
+
+async def get_historical_basis_rate(code: str, when: datetime) -> tuple[Optional[float], str]:
+    """
+    نرخ پایهٔ تاریخی یک ارز را با همان اولویتی که get_full_quote برای «اکنون» استفاده
+    می‌کند برمی‌گرداند: اول بازار محلی (سرای شهزاده)، سپس نرخ مرجع جهانی.
+
+    خروجی: (نرخ_پایه یا None, basis: "local" | "reference" | "none")
+    """
+    code = code.lower()
+    primary = local_market_service.PRIMARY_MARKET
+
+    local_hist = db.get_closest_local_market_rate(primary, code, when)
+    if local_hist:
+        mid = (local_hist["buy"] + local_hist["sell"]) / 2
+        return round(mid, 4), "local"
+
+    ref_hist = db.get_closest_currency_rate(code, when)
+    if ref_hist is not None:
+        return round(ref_hist, 4), "reference"
+
+    return None, "none"
