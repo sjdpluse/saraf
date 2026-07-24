@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 
 from config import TRACKED_CURRENCIES
 from keyboards import currency_list_keyboard
-from services import currency_service
+from services import rate_engine
 
 logger = logging.getLogger(__name__)
 
@@ -13,21 +13,34 @@ logger = logging.getLogger(__name__)
 THOUSAND_UNIT_CURRENCIES = {"pkr", "irr", "inr"}
 
 
-def _format_all(rates: dict[str, float], source: str) -> str:
-    lines = ["💵 *نرخ لحظه‌یی ارزها در برابر افغانی*\n"]
-    for code, name in TRACKED_CURRENCIES.items():
-        rate = rates.get(code)
-        if rate is not None:
-            # برای تومان، نرخ ریال را به تومان تبدیل می‌کنیم (۱ تومان = ۱۰ ریال)
-            if code == "irr":
-                rate *= 10
+def _unit_label(code: str) -> str:
+    return "هزار" if code in THOUSAND_UNIT_CURRENCIES else "یک"
 
-            if code in THOUSAND_UNIT_CURRENCIES:
-                lines.append(
-                    f"▫️ هزار {name}: *{rate * 1000:,.4f}* افغانی"
-                )
-            else:
-                lines.append(f"▫️ {name}: *{rate:,.2f}* افغانی")
+
+def _scale(code: str, value: float) -> float:
+    return value * 1000 if code in THOUSAND_UNIT_CURRENCIES else value
+
+
+def _format_quote_block(code: str, name: str, quote: dict) -> str:
+    unit = _unit_label(code)
+    lines = [f"▫️ *{name}*"]
+
+    saraf = quote["saraf_quote"]
+    lines.append(
+        f"   نرخ Saraf — خرید: *{_scale(code, saraf['buy']):,.2f}* | "
+        f"فروش: *{_scale(code, saraf['sell']):,.2f}* افغانی ({unit})"
+    )
+
+    local = quote.get("local")
+    if local:
+        lines.append(
+            f"   نرخ واقعی {local['market_label']} — خرید: {_scale(code, local['buy']):,.2f} | "
+            f"فروش: {_scale(code, local['sell']):,.2f}"
+        )
+
+    if quote.get("reference_rate"):
+        lines.append(f"   نرخ بازار آزاد جهانی: {_scale(code, quote['reference_rate']):,.2f}")
+
     return "\n".join(lines)
 
 
@@ -43,34 +56,30 @@ async def currency_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.answer()
     _, code = query.data.split(":", 1)
 
-    try:
-        rates, source = await currency_service.get_afn_rates()
-    except Exception as exc:
-        logger.exception("خطا در دریافت نرخ ارز")
-        await query.edit_message_text(f"⚠️ خطا در دریافت نرخ ارز: {exc}")
-        return
-
     if code == "all":
-        text = _format_all(rates, source)
+        await query.edit_message_text("در حال دریافت نرخ‌ها... ⏳")
+        quotes = await rate_engine.get_full_quotes(list(TRACKED_CURRENCIES.keys()))
+        if not quotes:
+            await query.edit_message_text("⚠️ در حال حاضر هیچ نرخی در دسترس نیست.")
+            return
+        blocks = ["💵 *نرخ‌های Saraf — خرید و فروش*\n"]
+        for c, name in TRACKED_CURRENCIES.items():
+            if c in quotes:
+                blocks.append(_format_quote_block(c, name, quotes[c]))
+        text = "\n\n".join(blocks)
     else:
         name = TRACKED_CURRENCIES.get(code, code.upper())
-        rate = rates.get(code)
-        if rate is None:
-            text = f"متأسفانه در حال حاضر نرخ {name} در دسترس نیست."
-        else:
-            # برای تومان، نرخ ریال را به تومان تبدیل می‌کنیم (۱ تومان = ۱۰ ریال)
-            if code == "irr":
-                rate *= 10
+        await query.edit_message_text("در حال دریافت نرخ... ⏳")
+        try:
+            quote = await rate_engine.get_full_quote(code)
+        except Exception as exc:
+            logger.exception("خطا در دریافت نرخ ارز")
+            await query.edit_message_text(f"⚠️ خطا در دریافت نرخ ارز: {exc}")
+            return
+        text = f"💵 *نرخ {name}*\n\n" + _format_quote_block(code, name, quote)
 
-            if code in THOUSAND_UNIT_CURRENCIES:
-                text = (
-                    f"💵 *نرخ {name}*\n\n"
-                    f"هزار ({name}): *{rate * 1000:,.4f}* افغانی"
-                )
-            else:
-                text = (
-                    f"💵 *نرخ {name}*\n\n"
-                    f"یک ({name}): *{rate:,.2f}* افغانی"
-                )
+    # پیام‌های طولانی تلگرام محدودیت طول دارند؛ در صورت نیاز کوتاه می‌کنیم
+    if len(text) > 4000:
+        text = text[:3990] + "\n…"
 
     await query.edit_message_text(text, parse_mode="Markdown")

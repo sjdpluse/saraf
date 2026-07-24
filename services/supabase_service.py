@@ -2,7 +2,9 @@
 لایهٔ ارتباط با Supabase.
 مسئولیت‌ها:
   - ثبت/به‌روزرسانی کاربران ربات (برای پیام همگانی / broadcast)
-  - ذخیرهٔ تاریخچهٔ نرخ ارز و طلا
+  - ذخیرهٔ تاریخچهٔ نرخ ارز و طلا (نرخ مرجع بین‌المللی)
+  - ذخیرهٔ تاریخچهٔ نرخ بازارهای محلی افغانستان (سرای شهزاده، خراسان، د افغانستان بانک)
+  - مدیریت تنظیمات حاشیهٔ سود صراف (spread) به ازای هر ارز
   - بازیابی نزدیک‌ترین رکورد تاریخی برای مقایسه
 """
 import logging
@@ -88,7 +90,7 @@ def count_active_users() -> int:
 
 
 # ---------------------------------------------------------------------------
-# تاریخچهٔ نرخ ارز
+# تاریخچهٔ نرخ ارز (مرجع بین‌المللی)
 # ---------------------------------------------------------------------------
 def insert_currency_snapshot(rates: dict[str, float]) -> None:
     """rates: {"usd": 71.20, "eur": 77.5, ...} -> افغانی به ازای ۱ واحد ارز"""
@@ -156,6 +158,81 @@ def get_closest_gold_rate(when: datetime) -> Optional[float]:
         return None
     except Exception:
         logger.exception("خطا در بازیابی نرخ تاریخی طلا")
+        return None
+
+
+# ---------------------------------------------------------------------------
+# تنظیمات حاشیهٔ سود صراف (spread) — به ازای هر ارز
+# ---------------------------------------------------------------------------
+def get_all_spread_settings() -> dict[str, float]:
+    """{"usd": 1.2, "eur": 1.5, ...} -> درصد اسپرد هر ارز"""
+    try:
+        res = get_client().table("spread_settings").select("currency, spread_percent").execute()
+        return {row["currency"]: float(row["spread_percent"]) for row in res.data}
+    except Exception:
+        logger.exception("خطا در خواندن تنظیمات اسپرد")
+        return {}
+
+
+def set_spread(currency: str, spread_percent: float) -> None:
+    try:
+        get_client().table("spread_settings").upsert(
+            {
+                "currency": currency.lower(),
+                "spread_percent": spread_percent,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+            on_conflict="currency",
+        ).execute()
+    except Exception:
+        logger.exception("خطا در ذخیرهٔ تنظیم اسپرد")
+        raise
+
+
+# ---------------------------------------------------------------------------
+# تاریخچهٔ نرخ بازارهای محلی (سرای شهزاده / خراسان / د افغانستان بانک)
+# ---------------------------------------------------------------------------
+def insert_local_market_snapshot(market: str, rates: dict[str, dict]) -> None:
+    """rates: {"usd": {"buy": 65.9, "sell": 65.95}, ...}"""
+    now = datetime.now(timezone.utc).isoformat()
+    rows = [
+        {
+            "market": market,
+            "currency": code,
+            "buy": vals["buy"],
+            "sell": vals["sell"],
+            "recorded_at": now,
+        }
+        for code, vals in rates.items()
+    ]
+    if not rows:
+        return
+    try:
+        get_client().table("local_market_history").insert(rows).execute()
+    except Exception:
+        logger.exception("خطا در ذخیرهٔ تاریخچهٔ بازار محلی")
+
+
+def get_closest_local_market_rate(
+    market: str, currency: str, when: datetime
+) -> Optional[dict]:
+    try:
+        res = (
+            get_client()
+            .table("local_market_history")
+            .select("buy, sell, recorded_at")
+            .eq("market", market)
+            .eq("currency", currency)
+            .lte("recorded_at", when.isoformat())
+            .order("recorded_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if res.data:
+            return {"buy": float(res.data[0]["buy"]), "sell": float(res.data[0]["sell"])}
+        return None
+    except Exception:
+        logger.exception("خطا در بازیابی نرخ تاریخی بازار محلی")
         return None
 
 

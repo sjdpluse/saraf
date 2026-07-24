@@ -18,10 +18,10 @@ from telegram.ext import (
     filters,
 )
 
-from config import BOT_TOKEN, FETCH_INTERVAL_MINUTES
-from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_ADVISOR, BTN_ABOUT
-from handlers import start, currency, gold, compare, advisor, admin
-from jobs import fetch_and_store_snapshot
+from config import BOT_TOKEN, FETCH_INTERVAL_MINUTES, LOCAL_MARKET_FETCH_INTERVAL_MINUTES
+from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ADVISOR, BTN_ABOUT
+from handlers import start, currency, gold, compare, advisor, admin, converter
+from jobs import fetch_and_store_snapshot, fetch_and_store_local_market
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -31,9 +31,13 @@ logger = logging.getLogger(__name__)
 
 
 async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """پیام‌های متنی معمولی را بر اساس دکمهٔ منوی فشرده‌شده هدایت می‌کند."""
-    # اول: اگر کاربر منتظر سوال برای مشاور هوشمند بود، پاسخ بده و از تابع خارج شو
+    """پیام‌های متنی معمولی را بر اساس دکمهٔ منوی فشرده‌شده یا حالت انتظار هدایت می‌کند."""
+    # اولویت با حالت‌های «در انتظار ورودی» است (مشاور، ماشین‌حساب طلا، مبدل ارز)
     if await advisor.handle_advisor_question(update, context):
+        return
+    if await gold.handle_gold_grams_input(update, context):
+        return
+    if await converter.handle_converter_input(update, context):
         return
 
     text = update.message.text
@@ -43,6 +47,8 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await gold.gold_menu(update, context)
     elif text == BTN_COMPARE:
         await compare.compare_menu(update, context)
+    elif text == BTN_CONVERTER:
+        await converter.converter_prompt(update, context)
     elif text == BTN_ADVISOR:
         await advisor.advisor_prompt(update, context)
     elif text == BTN_ABOUT:
@@ -65,6 +71,8 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("stop", start.stop))
     app.add_handler(CommandHandler("broadcast", admin.broadcast))
     app.add_handler(CommandHandler("stats", admin.stats))
+    app.add_handler(CommandHandler("setspread", admin.set_spread))
+    app.add_handler(CommandHandler("spreads", admin.list_spreads))
 
     # منوی اصلی (متن دکمه‌ها)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu_router))
@@ -73,18 +81,29 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(currency.currency_callback, pattern=r"^cur:"))
     app.add_handler(CallbackQueryHandler(gold.gold_callback, pattern=r"^gold:"))
     app.add_handler(
+        CallbackQueryHandler(gold.gold_calc_mode_callback, pattern=r"^goldcalc_mode:")
+    )
+    app.add_handler(
+        CallbackQueryHandler(gold.gold_calc_karat_callback, pattern=r"^goldcalc_karat:")
+    )
+    app.add_handler(
         CallbackQueryHandler(compare.compare_target_callback, pattern=r"^cmp_target:")
     )
     app.add_handler(
         CallbackQueryHandler(compare.compare_period_callback, pattern=r"^cmp_period:")
     )
 
-    # وظیفهٔ زمان‌بندی‌شده برای ذخیرهٔ تاریخچه
+    # وظایف زمان‌بندی‌شده
     if app.job_queue:
         app.job_queue.run_repeating(
             fetch_and_store_snapshot,
             interval=FETCH_INTERVAL_MINUTES * 60,
             first=10,
+        )
+        app.job_queue.run_repeating(
+            fetch_and_store_local_market,
+            interval=LOCAL_MARKET_FETCH_INTERVAL_MINUTES * 60,
+            first=20,
         )
 
     return app

@@ -34,12 +34,27 @@ TRACKED_CURRENCIES = {
     "sar": "ریال سعودی",
     "try": "لیرهٔ ترکی",
     "cny": "یوان چین",
+    "aud": "دالر آسترالیا",
+    "cad": "دالر کانادا",
+    "chf": "فرانک سویس",
+    "sek": "کرون سویدن",
 }
 
-# --- فاصلهٔ زمانی جمع‌آوری خودکار نرخ‌ها (به دقیقه) برای تاریخچه ---
+# --- فاصلهٔ زمانی جمع‌آوری خودکار نرخ‌های مرجع (به دقیقه) برای تاریخچه ---
 FETCH_INTERVAL_MINUTES = int(os.getenv("FETCH_INTERVAL_MINUTES", "30"))
+
+# --- فاصلهٔ زمانی اسکرپ نرخ بازارهای محلی (سرای‌شهزاده/خراسان/بانک) به دقیقه ---
+LOCAL_MARKET_FETCH_INTERVAL_MINUTES = int(
+    os.getenv("LOCAL_MARKET_FETCH_INTERVAL_MINUTES", "15")
+)
 
 # --- واحدهای طلا ---
 GRAMS_PER_TROY_OUNCE = 31.1034768
 GRAMS_PER_METHQAL = 4.608  # مثقال افغانی/ایرانی (تقریبی و رایج)
 GOLD_KARATS = {24: 1.0, 22: 22 / 24, 21: 21 / 24, 18: 18 / 24}
+
+# --- ماشین‌حساب خرید و فروش طلا ---
+# اجرت ساخت هنگام خرید طلای ساخته‌شده (٪ روی قیمت پایهٔ فلز)
+GOLD_MAKING_CHARGE_PERCENT = float(os.getenv("GOLD_MAKING_CHARGE_PERCENT", "5"))
+# کسر صرافی هنگام فروش طلا توسط مشتری (٪ کسر از قیمت پایه)
+GOLD_SELL_DEDUCTION_PERCENT = float(os.getenv("GOLD_SELL_DEDUCTION_PERCENT", "2"))

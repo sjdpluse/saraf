@@ -5,16 +5,19 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from config import ADMIN_CHAT_IDS
-from services import supabase_service as db
+from config import ADMIN_CHAT_IDS, TRACKED_CURRENCIES
+from services import supabase_service as db, spread_service
 
 logger = logging.getLogger(__name__)
 
 
+def _is_admin(update: Update) -> bool:
+    return update.effective_user.id in ADMIN_CHAT_IDS
+
+
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/broadcast <پیام> — فقط برای مدیران. پیام به همهٔ کاربران فعال ارسال می‌شود."""
-    user_id = update.effective_user.id
-    if user_id not in ADMIN_CHAT_IDS:
+    if not _is_admin(update):
         await update.message.reply_text("این دستور فقط برای مدیران ربات است.")
         return
 
@@ -43,8 +46,56 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id
-    if user_id not in ADMIN_CHAT_IDS:
+    if not _is_admin(update):
         return
     count = db.count_active_users()
     await update.message.reply_text(f"📈 تعداد کاربران فعال ربات: {count}")
+
+
+async def set_spread(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/setspread <کد_ارز> <درصد> — تنظیم حاشیهٔ سود صراف برای یک ارز خاص."""
+    if not _is_admin(update):
+        await update.message.reply_text("این دستور فقط برای مدیران ربات است.")
+        return
+
+    args = context.args
+    if len(args) != 2:
+        await update.message.reply_text(
+            "استفاده: /setspread usd 0.8\n(کد ارز و درصد اسپرد را وارد کنید)"
+        )
+        return
+
+    code, pct_str = args
+    code = code.lower()
+    if code not in TRACKED_CURRENCIES:
+        await update.message.reply_text(
+            f"⚠️ ارز «{code}» در لیست ارزهای پیگیری‌شده نیست."
+        )
+        return
+
+    try:
+        pct = float(pct_str)
+        spread_service.set_spread_percent(code, pct)
+    except ValueError as exc:
+        await update.message.reply_text(f"⚠️ {exc}")
+        return
+    except Exception:
+        logger.exception("خطا در تنظیم اسپرد")
+        await update.message.reply_text("⚠️ خطا در ذخیرهٔ تنظیم اسپرد.")
+        return
+
+    name = TRACKED_CURRENCIES[code]
+    await update.message.reply_text(f"✅ اسپرد {name} به {pct}٪ تنظیم شد.")
+
+
+async def list_spreads(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/spreads — نمایش اسپرد فعلی همهٔ ارزها."""
+    if not _is_admin(update):
+        return
+
+    lines = ["📐 *اسپرد فعلی ارزها*\n"]
+    for code, name in TRACKED_CURRENCIES.items():
+        pct = spread_service.get_spread_percent(code)
+        lines.append(f"▫️ {name} ({code.upper()}): {pct}٪")
+
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)

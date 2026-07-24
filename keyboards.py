@@ -8,6 +8,7 @@ from config import TRACKED_CURRENCIES, GOLD_KARATS
 BTN_CURRENCY = "💵 نرخ ارزها"
 BTN_GOLD = "🥇 نرخ طلا"
 BTN_COMPARE = "📊 مقایسه با گذشته"
+BTN_CONVERTER = "🔄 مبدل ارز جهانی"
 BTN_ADVISOR = "🤖 مشاور هوشمند"
 BTN_ABOUT = "ℹ️ درباره ربات"
 
@@ -16,8 +17,8 @@ def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [BTN_CURRENCY, BTN_GOLD],
-            [BTN_COMPARE, BTN_ADVISOR],
-            [BTN_ABOUT],
+            [BTN_COMPARE, BTN_CONVERTER],
+            [BTN_ADVISOR, BTN_ABOUT],
         ],
         resize_keyboard=True,
     )
@@ -43,6 +44,28 @@ def gold_karat_keyboard() -> InlineKeyboardMarkup:
         for k in GOLD_KARATS
     ]
     rows.append([InlineKeyboardButton("🔄 نمایش همهٔ عیارها", callback_data="gold:all")])
+    rows.append(
+        [InlineKeyboardButton("🧮 ماشین‌حساب خرید/فروش طلا", callback_data="gold:calc")]
+    )
+    return InlineKeyboardMarkup(rows)
+
+
+def gold_calc_mode_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🟢 خرید طلا", callback_data="goldcalc_mode:buy"),
+                InlineKeyboardButton("🔴 فروش طلا", callback_data="goldcalc_mode:sell"),
+            ]
+        ]
+    )
+
+
+def gold_calc_karat_keyboard(mode: str) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(f"عیار {k}", callback_data=f"goldcalc_karat:{mode}:{k}")]
+        for k in GOLD_KARATS
+    ]
     return InlineKeyboardMarkup(rows)
 
 
