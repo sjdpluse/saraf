@@ -19,8 +19,8 @@ from telegram.ext import (
 )
 
 from config import BOT_TOKEN, FETCH_INTERVAL_MINUTES, LOCAL_MARKET_FETCH_INTERVAL_MINUTES
-from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ADVISOR, BTN_ABOUT
-from handlers import start, currency, gold, compare, advisor, admin, converter
+from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT
+from handlers import start, currency, gold, compare, admin, converter
 from jobs import fetch_and_store_snapshot, fetch_and_store_local_market
 
 logging.basicConfig(
@@ -32,9 +32,6 @@ logger = logging.getLogger(__name__)
 
 async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """پیام‌های متنی معمولی را بر اساس دکمهٔ منوی فشرده‌شده یا حالت انتظار هدایت می‌کند."""
-    # اولویت با حالت‌های «در انتظار ورودی» است (مشاور، ماشین‌حساب طلا، مبدل ارز)
-    if await advisor.handle_advisor_question(update, context):
-        return
     if await gold.handle_gold_grams_input(update, context):
         return
     if await converter.handle_converter_input(update, context):
@@ -49,8 +46,6 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await compare.compare_menu(update, context)
     elif text == BTN_CONVERTER:
         await converter.converter_prompt(update, context)
-    elif text == BTN_ADVISOR:
-        await advisor.advisor_prompt(update, context)
     elif text == BTN_ABOUT:
         await start.about(update, context)
     else:
@@ -91,6 +86,15 @@ def build_application() -> Application:
     )
     app.add_handler(
         CallbackQueryHandler(compare.compare_period_callback, pattern=r"^cmp_period:")
+    )
+    app.add_handler(
+        CallbackQueryHandler(converter.converter_from_callback, pattern=r"^convfrom:")
+    )
+    app.add_handler(
+        CallbackQueryHandler(converter.converter_to_callback, pattern=r"^convto:")
+    )
+    app.add_handler(
+        CallbackQueryHandler(converter.converter_amount_callback, pattern=r"^convamt:")
     )
 
     # وظایف زمان‌بندی‌شده

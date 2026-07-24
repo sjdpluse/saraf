@@ -3,32 +3,30 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config import TRACKED_CURRENCIES
+from config import TRACKED_CURRENCIES, CURRENCY_FLAGS, THOUSAND_UNIT_CURRENCIES
 from keyboards import currency_list_keyboard
 from services import rate_engine
 
 logger = logging.getLogger(__name__)
 
-# ارزهایی که باید به ازای هر ۱۰۰۰ واحد نمایش داده شوند
-THOUSAND_UNIT_CURRENCIES = {"pkr", "irr", "inr"}
 
-
-def _unit_label(code: str) -> str:
-    return "هزار" if code in THOUSAND_UNIT_CURRENCIES else "یک"
+def _unit_amount(code: str) -> int:
+    return 1000 if code in THOUSAND_UNIT_CURRENCIES else 1
 
 
 def _scale(code: str, value: float) -> float:
-    return value * 1000 if code in THOUSAND_UNIT_CURRENCIES else value
+    return value * _unit_amount(code)
 
 
 def _format_quote_block(code: str, name: str, quote: dict) -> str:
-    unit = _unit_label(code)
-    lines = [f"▫️ *{name}*"]
+    flag = CURRENCY_FLAGS.get(code, "")
+    amount = _unit_amount(code)
+    lines = [f"{flag} *{amount:,} {name}*"]
 
     saraf = quote["saraf_quote"]
     lines.append(
         f"خرید: *{_scale(code, saraf['buy']):,.2f}* | "
-        f"فروش: *{_scale(code, saraf['sell']):,.2f}* افغانی ({unit})"
+        f"فروش: *{_scale(code, saraf['sell']):,.2f}* افغانی"
     )
 
     local = quote.get("local")
@@ -76,9 +74,8 @@ async def currency_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             logger.exception("خطا در دریافت نرخ ارز")
             await query.edit_message_text(f"⚠️ خطا در دریافت نرخ ارز: {exc}")
             return
-        text = f"💵 *نرخ {name}*\n\n" + _format_quote_block(code, name, quote)
+        text = _format_quote_block(code, name, quote)
 
-    # پیام‌های طولانی تلگرام محدودیت طول دارند؛ در صورت نیاز کوتاه می‌کنیم
     if len(text) > 4000:
         text = text[:3990] + "\n…"
 

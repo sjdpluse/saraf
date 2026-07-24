@@ -18,10 +18,6 @@ ADMIN_CHAT_IDS = [
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")  # service_role key (سرور-ساید فقط)
 
-# --- Groq (مشاور هوشمند) ---
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-
 # --- ارزهایی که ربات پیگیری می‌کند (کد سه‌حرفی ISO) ---
 TRACKED_CURRENCIES = {
     "usd": "دالر امریکایی",
@@ -40,6 +36,27 @@ TRACKED_CURRENCIES = {
     "sek": "کرون سویدن",
 }
 
+# --- بیرق کشورها به ازای هر ارز (برای نمایش جذاب‌تر) ---
+CURRENCY_FLAGS = {
+    "usd": "🇺🇸",
+    "eur": "🇪🇺",
+    "gbp": "🇬🇧",
+    "pkr": "🇵🇰",
+    "irr": "🇮🇷",
+    "aed": "🇦🇪",
+    "inr": "🇮🇳",
+    "sar": "🇸🇦",
+    "try": "🇹🇷",
+    "cny": "🇨🇳",
+    "aud": "🇦🇺",
+    "cad": "🇨🇦",
+    "chf": "🇨🇭",
+    "sek": "🇸🇪",
+}
+
+# --- ارزهایی که باید به ازای هر ۱۰۰۰ واحد نمایش داده شوند ---
+THOUSAND_UNIT_CURRENCIES = {"pkr", "irr", "inr"}
+
 # --- فاصلهٔ زمانی جمع‌آوری خودکار نرخ‌های مرجع (به دقیقه) برای تاریخچه ---
 FETCH_INTERVAL_MINUTES = int(os.getenv("FETCH_INTERVAL_MINUTES", "30"))
 
@@ -54,7 +71,5 @@ GRAMS_PER_METHQAL = 4.608  # مثقال افغانی/ایرانی (تقریبی 
 GOLD_KARATS = {24: 1.0, 22: 22 / 24, 21: 21 / 24, 18: 18 / 24}
 
 # --- ماشین‌حساب خرید و فروش طلا ---
-# اجرت ساخت هنگام خرید طلای ساخته‌شده (٪ روی قیمت پایهٔ فلز)
 GOLD_MAKING_CHARGE_PERCENT = float(os.getenv("GOLD_MAKING_CHARGE_PERCENT", "5"))
-# کسر صرافی هنگام فروش طلا توسط مشتری (٪ کسر از قیمت پایه)
 GOLD_SELL_DEDUCTION_PERCENT = float(os.getenv("GOLD_SELL_DEDUCTION_PERCENT", "2"))

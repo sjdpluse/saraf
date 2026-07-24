@@ -3,11 +3,19 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config import TRACKED_CURRENCIES
+from config import TRACKED_CURRENCIES, CURRENCY_FLAGS
 from keyboards import compare_target_keyboard, compare_period_keyboard
 from services import currency_service, gold_service, supabase_service as db
 
 logger = logging.getLogger(__name__)
+
+GOLD_LABEL = "🥇 طلا (عیار ۲۴)"
+
+
+def _label(code: str) -> str:
+    name = TRACKED_CURRENCIES.get(code, code.upper())
+    flag = CURRENCY_FLAGS.get(code, "")
+    return f"{flag} {name}".strip()
 
 
 async def compare_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -21,9 +29,11 @@ async def compare_target_callback(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
     _, target = query.data.split(":", 1)
+    target_name = GOLD_LABEL if target == "gold" else _label(target)
+
     await query.edit_message_text(
-        "با چند روز پیش مقایسه شود؟",
-        reply_markup=compare_period_keyboard(target),
+        f"{target_name}\n\nبا چند وقت پیش مقایسه شود؟",
+        reply_markup=compare_period_keyboard(target, target_name),
     )
 
 
@@ -48,19 +58,19 @@ async def compare_period_callback(update: Update, context: ContextTypes.DEFAULT_
             breakdown = gold_service.build_gold_breakdown(price_usd, afn_per_usd)
             current = breakdown["afn_per_gram_24k"]
             old = db.get_closest_gold_rate(when)
-            label = "طلا (عیار ۲۴ / هر گرم)"
+            label = GOLD_LABEL
         else:
             rates, _ = await currency_service.get_afn_rates()
             current = rates.get(target)
             old = db.get_closest_currency_rate(target, when)
-            label = TRACKED_CURRENCIES.get(target, target.upper())
+            label = _label(target)
     except Exception as exc:
         logger.exception("خطا در مقایسهٔ نرخ‌ها")
         await query.edit_message_text(f"⚠️ خطا در دریافت اطلاعات: {exc}")
         return
 
     if current is None:
-        await query.edit_message_text("متأسفانه نرخ فعلی در دسترس نیست.")
+        await query.edit_message_text("⚠️ متأسفانه نرخ فعلی در دسترس نیست.")
         return
 
     if old is None:
