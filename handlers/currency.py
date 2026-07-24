@@ -27,7 +27,7 @@ def _format_quote_block(code: str, name: str, quote: dict) -> str:
 
     saraf = quote["saraf_quote"]
     lines.append(
-        f"   نرخ Saraf — خرید: *{_scale(code, saraf['buy']):,.2f}* | "
+        f"خرید: *{_scale(code, saraf['buy']):,.2f}* | "
         f"فروش: *{_scale(code, saraf['sell']):,.2f}* افغانی ({unit})"
     )
 

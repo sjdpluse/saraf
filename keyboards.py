@@ -83,16 +83,16 @@ def compare_target_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def compare_period_keyboard(target: str) -> InlineKeyboardMarkup:
+def compare_period_keyboard(target_code: str, target_name: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("۲۴ ساعت پیش", callback_data=f"cmp_period:{target}:1"),
-                InlineKeyboardButton("۷ روز پیش", callback_data=f"cmp_period:{target}:7"),
+                InlineKeyboardButton(f"نرخ {target_name} - ۲۴ ساعت پیش", callback_data=f"cmp_period:{target_code}:1"),
+                InlineKeyboardButton(f"نرخ {target_name} - ۷ روز پیش", callback_data=f"cmp_period:{target_code}:7"),
             ],
             [
-                InlineKeyboardButton("۳۰ روز پیش", callback_data=f"cmp_period:{target}:30"),
-                InlineKeyboardButton("۹۰ روز پیش", callback_data=f"cmp_period:{target}:90"),
+                InlineKeyboardButton(f"نرخ {target_name} - ۳۰ روز پیش", callback_data=f"cmp_period:{target_code}:30"),
+                InlineKeyboardButton(f"نرخ {target_name} - ۹۰ روز پیش", callback_data=f"cmp_period:{target_code}:90"),
             ],
         ]
     )

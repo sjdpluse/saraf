@@ -120,7 +120,7 @@ async def _fetch_and_parse() -> dict:
 
     if not any(data[key] for key in data):
         raise RuntimeError(
-            "هیچ نرخی از sarafi.af استخراج نشد؛ احتمالاً ساختار سایت تغییر کرده است."
+            "هیچ نرخی از sarafi استخراج نشد؛ احتمالاً ساختار سایت تغییر کرده است."
         )
     return data
 
@@ -143,7 +143,7 @@ async def get_local_market_rates(force_refresh: bool = False) -> dict:
         _cache["fetched_at"] = now
         return data
     except Exception as exc:
-        logger.warning("خطا در اسکرپ sarafi.af: %s", exc)
+        logger.warning("خطا در اسکرپ saraf: %s", exc)
         if _cache["data"] is not None:
             logger.info("استفاده از کش قدیمی نرخ‌های محلی به‌جای شکست کامل.")
             return _cache["data"]
