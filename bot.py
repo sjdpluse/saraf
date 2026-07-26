@@ -21,11 +21,7 @@ from telegram.ext import (
 from config import BOT_TOKEN, FETCH_INTERVAL_MINUTES, LOCAL_MARKET_FETCH_INTERVAL_MINUTES
 from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT
 from handlers import start, currency, gold, compare, admin, converter
-from jobs import (
-    fetch_and_store_snapshot,
-    fetch_and_store_local_market,
-    fetch_and_store_gold_market,
-)
+from jobs import fetch_and_store_snapshot, fetch_and_store_local_market
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -36,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """پیام‌های متنی معمولی را بر اساس دکمهٔ منوی فشرده‌شده یا حالت انتظار هدایت می‌کند."""
-    # اولویت با حالت‌های «در انتظار ورودی» است (ماشین‌حساب طلا، مبدل ارز)
     if await gold.handle_gold_grams_input(update, context):
         return
     if await converter.handle_converter_input(update, context):
@@ -92,6 +87,15 @@ def build_application() -> Application:
     app.add_handler(
         CallbackQueryHandler(compare.compare_period_callback, pattern=r"^cmp_period:")
     )
+    app.add_handler(
+        CallbackQueryHandler(converter.converter_from_callback, pattern=r"^convfrom:")
+    )
+    app.add_handler(
+        CallbackQueryHandler(converter.converter_to_callback, pattern=r"^convto:")
+    )
+    app.add_handler(
+        CallbackQueryHandler(converter.converter_amount_callback, pattern=r"^convamt:")
+    )
 
     # وظایف زمان‌بندی‌شده
     if app.job_queue:
@@ -104,11 +108,6 @@ def build_application() -> Application:
             fetch_and_store_local_market,
             interval=LOCAL_MARKET_FETCH_INTERVAL_MINUTES * 60,
             first=20,
-        )
-        app.job_queue.run_repeating(
-            fetch_and_store_gold_market,
-            interval=LOCAL_MARKET_FETCH_INTERVAL_MINUTES * 60,
-            first=30,
         )
 
     return app

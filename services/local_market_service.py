@@ -1,42 +1,26 @@
 """
-سرویس نرخ واقعی طلا در بازار افغانستان (وب‌اسکرپینگ از afaaq.af).
+سرویس نرخ واقعی بازارهای محلی افغانستان (وب‌اسکرپینگ از sarafi.af).
 
-منبع: https://afaaq.af/economic-fa/gold-price/  (صفحهٔ دسته‌بندی که همیشه
-تازه‌ترین گزارش روزانه را اول نشان می‌دهد؛ چون آدرس مقالهٔ روزانه ثابت نیست
-و هر بار قالب متفاوتی دارد، ابتدا لینک اولین مقاله از این صفحه استخراج و
-سپس خودِ مقاله واکشی و پارس می‌شود.)
+منبع: https://sarafi.af/fa/exchange-rates/sarai-shahzada
+این صفحه به‌طور هم‌زمان سه بازار را نمایش می‌دهد و همه را در یک درخواست استخراج می‌کنیم:
+  - سرای شهزاده (کابل)      -> market key: "sarai_shahzada"   (منبع اصلی/اولویت اول)
+  - مارکیت خراسان (هرات)     -> market key: "khorasan_market"
+  - د افغانستان بانک (رسمی)  -> market key: "da_afg_bank"
 
-نکتهٔ مهم دربارهٔ ساختار واقعی بازار (که باید در نمایش به کاربر هم منعکس شود):
+خروجی هر بازار: {"usd": {"buy": 65.90, "sell": 65.95}, ...}
+مقادیر «افغانی به ازای ۱ واحد ارز خارجی» است (نرخ خرید/فروش صرافی، نه نرخ مرجع بین‌المللی).
 
-  - برای طلای «نو»/استاندارد در کابل (عیار ۲۲، ۲۱، ۱۸، ۱۴) این منبع فقط
-    یک عدد «نرخ رسمی اتحادیهٔ زرگران» منتشر می‌کند، نه خرید/فروش جداگانه.
-    (این محدودیت منبع است، نه محدودیت کد ما.)
-  - برای طلای «آبشده» (دست‌دوم/ذوب‌شده، هم کابل هم هرات) و سکه‌های کارتی
-    هرات، خرید و فروش واقعی و جداگانه منتشر می‌شود.
-
-نکتهٔ مهم دربارهٔ استحکام پارسر:
-  منبع همیشه ترتیب «خرید ... | فروش ...» را رعایت نمی‌کند و گاهی فاصله‌بندی
-  یا حتی ترتیب را عوض می‌کند. به همین دلیل به‌جای فرض ثابت روی ترتیب متن،
-  مقدار «خرید» و «فروش» را مستقل از هم و بر اساس برچسبشان استخراج می‌کنیم
-  (تابع _extract_buy_sell) و اگر به هر دلیلی خرید از فروش بزرگ‌تر درآمد
-  (که در بازار طلا منطقاً غلط است)، آن دو را جابه‌جا می‌کنیم تا داده‌ی
-  نمایش‌داده‌شده به کاربر همیشه منطقی باشد.
-
-خروجی get_gold_market_data():
-{
-  "kabul_official": {22: 9820.0, 21: 9409.0, 18: 7930.0, 14: 6300.0},
-  "melted": {
-      "kabul": {18: {"buy": 7930.0, "sell": 8030.0}},
-      "herat": {21: {"buy": 8440.0, "sell": 8500.0}, 18: {"buy": 7200.0, "sell": 7250.0}},
-  },
-  "herat_coins": {"ربع": {"buy":..,"sell":..}, "نیم": {...}, "کامل": {...}},
-  "ounce_usd": 4726.0,
-}
+نکات مهم:
+  - این یک وب‌اسکرپر است و به ساختار HTML سایت وابسته است؛ اگر سایت تغییر کند ممکن
+    است نیاز به به‌روزرسانی HREF_RE یا منطق پارس داشته باشد.
+  - نتیجه به مدت CACHE_TTL_SECONDS در حافظه کش می‌شود تا فشار زیادی به سایت مبدأ
+    وارد نشود (رعایت ادب در اسکرپینگ).
+  - در صورت شکست اسکرپ (تغییر ساختار سایت، قطعی، مسدودشدن و...) استثنا پرتاب می‌شود
+    تا لایه‌های بالاتر بتوانند به نرخ مرجع بین‌المللی (currency_service) بازگردند.
 """
 import logging
 import re
 import time
-from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -44,14 +28,9 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
-CATEGORY_URL = "https://afaaq.af/economic-fa/gold-price/"
+SARAFI_URL = "https://sarafi.af/fa/exchange-rates/sarai-shahzada"
 _TIMEOUT = 12.0
-CACHE_TTL_SECONDS = 900  # ۱۵ دقیقه (این منبع مقاله‌ای/روزانه است، نیازی به کش کوتاه نیست)
-
-# اگر بیش از این مدت اسکرپ پی‌درپی شکست بخورد، داده‌ی کش‌شده را «بسیار قدیمی»
-# در نظر می‌گیریم و به‌جای warning ساده، ERROR واضح در لاگ ثبت می‌کنیم تا
-# در Railway/هر جای دیگر فوراً دیده شود.
-STALE_ALERT_SECONDS = 3 * 60 * 60  # ۳ ساعت
+CACHE_TTL_SECONDS = 300  # ۵ دقیقه
 
 _HEADERS = {
     "User-Agent": (
@@ -61,160 +40,97 @@ _HEADERS = {
     "Accept-Language": "fa,en;q=0.8",
 }
 
-# نوهای ثابت (nav) که نباید به‌عنوان مقالهٔ روزانه در نظر گرفته شوند
-_NAV_PATH_SUFFIXES = {"economic-fa", "economic-fa/exchange-rate", "economic-fa/gold-price"}
+HREF_RE = re.compile(
+    r"/exchange-rates/(sarai-shahzada|khorasan-market|da-afg-bank)/([A-Za-z]{3})-AFN"
+)
 
-PERSIAN_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
+_MARKET_KEY = {
+    "sarai-shahzada": "sarai_shahzada",
+    "khorasan-market": "khorasan_market",
+    "da-afg-bank": "da_afg_bank",
+}
 
-_cache: dict = {"data": None, "fetched_at": 0.0, "last_success_wall": None}
+# نام بازارها برای نمایش در پیام‌های ربات
+MARKET_LABELS = {
+    "sarai_shahzada": "سرای شهزاده (کابل)",
+    "khorasan_market": "مارکیت خراسان (هرات)",
+    "da_afg_bank": "د افغانستان بانک",
+}
+
+# بازار پیش‌فرض/اولویت‌دار برای نرخ «واقعی صرافی»
+PRIMARY_MARKET = "sarai_shahzada"
+
+_cache: dict = {"data": None, "fetched_at": 0.0}
 
 
-def _to_num(s: str) -> Optional[float]:
-    if not s:
+def _to_float(text: str) -> Optional[float]:
+    if not text:
         return None
-    cleaned = s.translate(PERSIAN_DIGITS).replace(",", "").strip()
+    cleaned = re.sub(r"[^\d.]", "", text.strip().replace(",", ""))
+    if not cleaned:
+        return None
     try:
         return float(cleaned)
     except ValueError:
         return None
 
 
-def _extract_buy_sell(segment: str) -> Optional[dict]:
-    """
-    با جستجوی مستقل «خرید» و «فروش» در یک تکه از متن (بدون فرض بر ترتیب
-    ظاهرشدنشان)، جفت (buy, sell) را استخراج می‌کند.
+def _parse_html(html: str) -> dict:
+    soup = BeautifulSoup(html, "lxml")
+    result: dict = {key: {} for key in _MARKET_KEY.values()}
 
-    اگر منبع یک روز به‌اشتباه ترتیب را برعکس نوشته باشد و در نتیجه خرید از
-    فروش بزرگ‌تر دربیاید (که از نظر بازار طلا منطقاً نادرست است، چون صراف
-    هیچ‌وقت گران‌تر نمی‌خرد تا ارزان‌تر بفروشد)، این دو مقدار جابه‌جا
-    می‌شوند تا داده‌ی نهایی همیشه منطقی باشد.
-    """
-    buy_m = re.search(r"خرید\s*([۰-۹\d,]+)", segment)
-    sell_m = re.search(r"فروش\s*([۰-۹\d,]+)", segment)
-    if not buy_m or not sell_m:
-        return None
-
-    buy = _to_num(buy_m.group(1))
-    sell = _to_num(sell_m.group(1))
-    if buy is None or sell is None or buy <= 0 or sell <= 0:
-        return None
-
-    if buy > sell:
-        logger.warning(
-            "خرید (%s) از فروش (%s) بزرگ‌تر بود؛ مقادیر جابه‌جا شدند تا داده منطقی بماند.",
-            buy, sell,
-        )
-        buy, sell = sell, buy
-
-    return {"buy": round(buy, 1), "sell": round(sell, 1)}
-
-
-async def _fetch(url: str) -> str:
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        return resp.text
-
-
-def _find_latest_article_url(category_html: str) -> Optional[str]:
-    soup = BeautifulSoup(category_html, "lxml")
-    for a in soup.find_all("a", href=True):
-        href = a["href"].split("?")[0].rstrip("/")
-        if "afaaq.af/economic-fa/" not in href:
+    for a_tag in soup.find_all("a", href=True):
+        match = HREF_RE.search(a_tag["href"])
+        if not match:
             continue
-        path = href.split("afaaq.af/")[-1]
-        if path in _NAV_PATH_SUFFIXES:
+        market_slug, code = match.groups()
+        market_key = _MARKET_KEY[market_slug]
+        code = code.lower()
+
+        row = a_tag.find_parent("tr")
+        if row is None:
             continue
-        # اولین لینک مقالهٔ واقعی که پیدا شود، تازه‌ترین گزارش روزانه است
-        return href + "/"
-    return None
+        cells = row.find_all("td")
+        if len(cells) < 3:
+            continue
 
+        buy = _to_float(cells[1].get_text())
+        sell = _to_float(cells[2].get_text())
+        if buy is None or sell is None or buy <= 0 or sell <= 0:
+            continue
 
-def _parse_article(text: str) -> dict:
-    result = {"kabul_official": {}, "melted": {}, "herat_coins": {}, "ounce_usd": None}
+        # ارزهایی مثل تومان/کلدار/ین که به‌صورت «هزار واحد» نمایش داده می‌شوند
+        # را به نرخ «هر ۱ واحد» عادی‌سازی می‌کنیم (هم‌راستا با currency_service)
+        if "هزار" in a_tag.get_text():
+            buy /= 1000
+            sell /= 1000
 
-    # ۱) خط تیتر «آبشدهٔ کابل/هرات» — بازار مستقیماً در پرانتز مشخص است.
-    #    از finditer استفاده می‌کنیم (نه search) چون ممکن است بیش از یک عیار
-    #    در این قالب ظاهر شود، و خرید/فروش را مستقل از ترتیب استخراج می‌کنیم.
-    for market_fa, market_key in (("کابل", "kabul"), ("هرات", "herat")):
-        pattern = (
-            r"طلای\s*([۰-۹\d]+)\s*عیار\s*\(آبشده\s*" + market_fa + r"\)\s*:\s*(.*?)(?=\n|$)"
-        )
-        for m in re.finditer(pattern, text):
-            karat = int(m.group(1).translate(PERSIAN_DIGITS))
-            pair = _extract_buy_sell(m.group(2))
-            if pair:
-                result["melted"].setdefault(market_key, {})[karat] = pair
-
-    # ۲) نرخ رسمی تک‌عددی کابل (طلای نو/استاندارد)
-    kabul_block_match = re.search(
-        r"نرخ طلای اعلامی اتحادیه زرگران کابل امروز:(.*?)(?:نرخ طلا در بازار هرات|$)",
-        text, re.S,
-    )
-    if kabul_block_match:
-        for m in re.finditer(
-            r"طلای\s*[۰-۹\d]+\s*یا\s*([۰-۹\d]+)\s*عیار\**\s*:\s*یک\s*گرم\s*([۰-۹\d,]+)\s*افغانی",
-            kabul_block_match.group(1),
-        ):
-            karat = int(m.group(1).translate(PERSIAN_DIGITS))
-            price = _to_num(m.group(2))
-            if price:
-                result["kabul_official"][karat] = price
-
-    # ۳) بلاک هرات: طلای آبشده (بدون برچسب صریح شهر در همین خط، پس اسکوپ می‌کنیم) + سکه‌های کارتی
-    herat_block_match = re.search(
-        r"طبق نرخ اتحادیه زرگران هرات:(.*?)(?:قیمت انس جهانی|$)",
-        text, re.S,
-    )
-    if herat_block_match:
-        block = herat_block_match.group(1)
-        melted_sub = re.search(r"طلای آبشده:(.*?)(?:####|$)", block, re.S)
-        if melted_sub:
-            for m in re.finditer(
-                r"طلای\s*([۰-۹\d]+)\s*عیار\s*:\s*(.*?)(?=\n|$)",
-                melted_sub.group(1),
-            ):
-                karat = int(m.group(1).translate(PERSIAN_DIGITS))
-                pair = _extract_buy_sell(m.group(2))
-                if pair:
-                    result["melted"].setdefault("herat", {})[karat] = pair
-
-        for m in re.finditer(
-            r"سکه\s*(ربع|نیم|کامل)\s*کارتی\s*:\s*(.*?)(?=\n|$)",
-            block,
-        ):
-            pair = _extract_buy_sell(m.group(2))
-            if pair:
-                result["herat_coins"][m.group(1)] = pair
-
-    # ۴) انس جهانی (به‌عنوان مرجع اضافی؛ منبع اصلی انس همچنان gold-api.com است)
-    ounce_match = re.search(r"یک\s*انس\s*طلا\s*:\s*حدود\s*([۰-۹\d,]+)\s*دلار", text)
-    if ounce_match:
-        result["ounce_usd"] = _to_num(ounce_match.group(1))
+        if code not in result[market_key]:
+            result[market_key][code] = {"buy": round(buy, 6), "sell": round(sell, 6)}
 
     return result
 
 
 async def _fetch_and_parse() -> dict:
-    category_html = await _fetch(CATEGORY_URL)
-    article_url = _find_latest_article_url(category_html)
-    if not article_url:
-        raise RuntimeError("لینک تازه‌ترین گزارش نرخ طلا در afaaq.af پیدا نشد.")
+    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True) as client:
+        resp = await client.get(SARAFI_URL)
+        resp.raise_for_status()
 
-    article_html = await _fetch(article_url)
-    soup = BeautifulSoup(article_html, "lxml")
-    text = soup.get_text("\n")
+    data = _parse_html(resp.text)
 
-    data = _parse_article(text)
-    if not data["kabul_official"] and not data["melted"]:
-        raise RuntimeError("هیچ نرخ طلایی از مقالهٔ afaaq.af استخراج نشد؛ احتمالاً قالب صفحه تغییر کرده.")
-
-    data["source_url"] = article_url
+    if not any(data[key] for key in data):
+        raise RuntimeError(
+            "هیچ نرخی از sarafi استخراج نشد؛ احتمالاً ساختار سایت تغییر کرده است."
+        )
     return data
 
 
-async def get_gold_market_data(force_refresh: bool = False) -> dict:
-    """نرخ واقعی طلای افغانستان را برمی‌گرداند (با کش ۱۵ دقیقه‌یی)."""
+async def get_local_market_rates(force_refresh: bool = False) -> dict:
+    """
+    نرخ‌های واقعی بازارهای محلی را برمی‌گرداند (با کش ۵ دقیقه‌یی).
+    خروجی: {"sarai_shahzada": {...}, "khorasan_market": {...}, "da_afg_bank": {...}}
+    در صورت شکست اسکرپ و نبود کش معتبر، استثنا پرتاب می‌شود.
+    """
     now = time.monotonic()
     is_fresh = _cache["data"] is not None and (now - _cache["fetched_at"]) < CACHE_TTL_SECONDS
 
@@ -225,30 +141,16 @@ async def get_gold_market_data(force_refresh: bool = False) -> dict:
         data = await _fetch_and_parse()
         _cache["data"] = data
         _cache["fetched_at"] = now
-        _cache["last_success_wall"] = datetime.now(timezone.utc)
         return data
     except Exception as exc:
+        logger.warning("خطا در اسکرپ saraf: %s", exc)
         if _cache["data"] is not None:
-            age_seconds = (
-                (datetime.now(timezone.utc) - _cache["last_success_wall"]).total_seconds()
-                if _cache["last_success_wall"]
-                else None
-            )
-            if age_seconds is not None and age_seconds > STALE_ALERT_SECONDS:
-                logger.error(
-                    "اسکرپ نرخ طلای afaaq.af پی‌درپی شکست می‌خورد؛ داده‌ی نمایش‌داده‌شده "
-                    "حدود %.1f ساعت قدیمی است! خطای آخر: %s",
-                    age_seconds / 3600, exc,
-                )
-            else:
-                logger.warning("خطا در اسکرپ afaaq.af (نرخ طلا)، استفاده از کش اخیر: %s", exc)
+            logger.info("استفاده از کش قدیمی نرخ‌های محلی به‌جای شکست کامل.")
             return _cache["data"]
-        logger.exception("خطا در اسکرپ afaaq.af (نرخ طلا) و نبود هیچ کش قبلی")
         raise
 
 
-def get_cache_age_seconds() -> Optional[float]:
-    """برای دیباگ/دستور ادمین: چند ثانیه از آخرین اسکرپ موفق گذشته است."""
-    if _cache["last_success_wall"] is None:
-        return None
-    return (datetime.now(timezone.utc) - _cache["last_success_wall"]).total_seconds()
+async def get_primary_market_rate(code: str) -> Optional[dict]:
+    """نرخ خرید/فروش یک ارز خاص را از بازار اصلی (سرای شهزاده) برمی‌گرداند، یا None."""
+    data = await get_local_market_rates()
+    return data.get(PRIMARY_MARKET, {}).get(code.lower())

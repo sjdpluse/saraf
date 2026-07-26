@@ -8,13 +8,7 @@ import logging
 
 from telegram.ext import ContextTypes
 
-from services import (
-    currency_service,
-    gold_service,
-    local_market_service,
-    gold_market_service,
-    supabase_service as db,
-)
+from services import currency_service, gold_service, local_market_service, supabase_service as db
 
 logger = logging.getLogger(__name__)
 
@@ -47,33 +41,3 @@ async def fetch_and_store_local_market(context: ContextTypes.DEFAULT_TYPE) -> No
                 )
     except Exception:
         logger.exception("خطا در وظیفهٔ زمان‌بندی‌شدهٔ ذخیرهٔ نرخ بازار محلی")
-
-
-async def fetch_and_store_gold_market(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """نرخ واقعی طلای افغانستان (afaaq.af) را می‌گیرد و در local_market_history ذخیره می‌کند
-    (با استفاده مجدد از همان جدول ارز؛ فیلد currency این‌جا عیار یا نام سکه است)."""
-    try:
-        data = await gold_market_service.get_gold_market_data(force_refresh=True)
-
-        official = data.get("kabul_official", {})
-        if official:
-            rows = {str(k): {"buy": v, "sell": v} for k, v in official.items()}
-            db.insert_local_market_snapshot("kabul_gold_official", rows)
-
-        melted_kabul = data.get("melted", {}).get("kabul", {})
-        if melted_kabul:
-            rows = {str(k): v for k, v in melted_kabul.items()}
-            db.insert_local_market_snapshot("kabul_gold_melted", rows)
-
-        melted_herat = data.get("melted", {}).get("herat", {})
-        if melted_herat:
-            rows = {str(k): v for k, v in melted_herat.items()}
-            db.insert_local_market_snapshot("herat_gold_melted", rows)
-
-        coins = data.get("herat_coins", {})
-        if coins:
-            db.insert_local_market_snapshot("herat_gold_coins", coins)
-
-        logger.info("تاریخچهٔ نرخ طلای واقعی افغانستان ذخیره شد.")
-    except Exception:
-        logger.exception("خطا در وظیفهٔ زمان‌بندی‌شدهٔ ذخیرهٔ نرخ طلای محلی")

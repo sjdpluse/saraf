@@ -3,9 +3,8 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config import GOLD_KARATS
 from keyboards import gold_karat_keyboard, gold_calc_mode_keyboard, gold_calc_karat_keyboard
-from services import gold_service, gold_rate_engine
+from services import currency_service, gold_service
 
 logger = logging.getLogger(__name__)
 
@@ -14,31 +13,17 @@ GOLD_CALC_MODE = "gold_calc_mode"
 GOLD_CALC_KARAT = "gold_calc_karat"
 
 
-def _format_quote_block(quote: dict) -> str:
-    karat = quote["karat"]
-    saraf = quote["saraf_quote"]
+def _format_all(breakdown: dict) -> str:
     lines = [
-        f"▫️ *عیار {karat}*",
-        f"   نرخ Saraf — خرید: *{saraf['buy']:,.0f}* | فروش: *{saraf['sell']:,.0f}* افغانی/گرم",
+        "🥇 *نرخ لحظه‌یی طلا*\n",
+        f"قیمت جهانی: *{breakdown['price_usd_per_oz']:,.2f} دالر* برای هر اونس تروی\n",
     ]
-
-    melted_kabul = quote["melted"].get("kabul")
-    melted_herat = quote["melted"].get("herat")
-    if melted_kabul:
+    for karat, vals in breakdown["karats"].items():
         lines.append(
-            f"   طلای آبشدهٔ کابل (واقعی) — خرید: {melted_kabul['buy']:,.0f} | "
-            f"فروش: {melted_kabul['sell']:,.0f}"
+            f"▫️ عیار {karat}: *{vals['afn_per_gram']:,.0f} افغانی* "
+            f"({vals['usd_per_gram']:,.2f}$) به ازای هر گرم — "
+            f"مثقال: {vals['afn_per_methqal']:,.0f} افغانی"
         )
-    if melted_herat:
-        lines.append(
-            f"   طلای آبشدهٔ هرات (واقعی) — خرید: {melted_herat['buy']:,.0f} | "
-            f"فروش: {melted_herat['sell']:,.0f}"
-        )
-    if quote.get("kabul_official"):
-        lines.append(f"   نرخ رسمی اتحادیهٔ زرگران کابل: {quote['kabul_official']:,.0f}")
-    if quote.get("reference"):
-        lines.append(f"   نرخ مرجع جهانی: {quote['reference']['afn_per_gram']:,.0f}")
-
     return "\n".join(lines)
 
 
@@ -48,6 +33,16 @@ async def gold_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "ماشین‌حساب خرید/فروش استفاده کنید.",
         reply_markup=gold_karat_keyboard(),
     )
+
+
+async def _get_breakdown() -> tuple[dict, str]:
+    price_usd = await gold_service.get_gold_price_usd_per_oz()
+    rates, source = await currency_service.get_afn_rates()
+    afn_per_usd = rates.get("usd")
+    if not afn_per_usd:
+        raise RuntimeError("نرخ دالر برای محاسبهٔ طلا در دسترس نیست.")
+    breakdown = gold_service.build_gold_breakdown(price_usd, afn_per_usd)
+    return breakdown, source
 
 
 async def gold_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -61,43 +56,23 @@ async def gold_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
         return
 
-    await query.edit_message_text("در حال دریافت نرخ طلا... ⏳")
+    try:
+        breakdown, source = await _get_breakdown()
+    except Exception as exc:
+        logger.exception("خطا در دریافت نرخ طلا")
+        await query.edit_message_text(f"⚠️ خطا در دریافت نرخ طلا: {exc}")
+        return
 
     if karat == "all":
-        blocks = ["🥇 *نرخ‌های Saraf — طلا (خرید و فروش هر گرم)*\n"]
-        any_success = False
-        for k in GOLD_KARATS:
-            try:
-                quote = await gold_rate_engine.get_full_gold_quote(k)
-                blocks.append(_format_quote_block(quote))
-                any_success = True
-            except Exception:
-                logger.exception("خطا در دریافت نرخ طلا برای عیار %s", k)
-        if not any_success:
-            await query.edit_message_text("⚠️ در حال حاضر هیچ نرخ طلایی در دسترس نیست.")
-            return
-
-        coins = await gold_rate_engine.get_herat_coins()
-        if coins:
-            blocks.append("🪙 *سکه‌های کارتی هرات (خرید/فروش واقعی)*")
-            coin_names = {"ربع": "ربع کارتی", "نیم": "نیم کارتی", "کامل": "کامل کارتی"}
-            for key, vals in coins.items():
-                label = coin_names.get(key, key)
-                blocks.append(f"▫️ {label} — خرید: {vals['buy']:,.0f} | فروش: {vals['sell']:,.0f}")
-
-        text = "\n\n".join(blocks)
+        text = _format_all(breakdown)
     else:
         k = int(karat)
-        try:
-            quote = await gold_rate_engine.get_full_gold_quote(k)
-        except Exception as exc:
-            logger.exception("خطا در دریافت نرخ طلا")
-            await query.edit_message_text(f"⚠️ خطا در دریافت نرخ طلا: {exc}")
-            return
-        text = f"🥇 *طلای عیار {k}*\n\n" + _format_quote_block(quote)
-
-    if len(text) > 4000:
-        text = text[:3990] + "\n…"
+        vals = breakdown["karats"][k]
+        text = (
+            f"🥇 *طلای عیار {k}*\n\n"
+            f"هر گرم: *{vals['afn_per_gram']:,.0f} افغانی* ({vals['usd_per_gram']:,.2f}$)\n"
+            f"هر مثقال: *{vals['afn_per_methqal']:,.0f} افغانی* ({vals['usd_per_methqal']:,.2f}$)"
+        )
 
     await query.edit_message_text(text, parse_mode="Markdown")
 
@@ -150,15 +125,9 @@ async def handle_gold_grams_input(update: Update, context: ContextTypes.DEFAULT_
 
     thinking_msg = await update.message.reply_text("در حال محاسبه... ⏳")
     try:
-        quote = await gold_rate_engine.get_full_gold_quote(karat)
-        saraf = quote["saraf_quote"]
+        breakdown, _source = await _get_breakdown()
         result = gold_service.calculate_gold_transaction(
-            per_gram_buy_afn=saraf["buy"],
-            per_gram_sell_afn=saraf["sell"],
-            karat=karat,
-            grams=grams,
-            is_buying=(mode == "buy"),
-            basis=saraf["basis"],
+            breakdown, karat, grams, is_buying=(mode == "buy")
         )
     except Exception as exc:
         logger.exception("خطا در محاسبهٔ خرید/فروش طلا")
@@ -166,18 +135,12 @@ async def handle_gold_grams_input(update: Update, context: ContextTypes.DEFAULT_
         return True
 
     label = "خرید" if result["is_buying"] else "فروش"
-    basis_labels = {
-        "melted_kabul": "طلای آبشدهٔ کابل (واقعی)",
-        "kabul_official": "نرخ رسمی اتحادیهٔ زرگران کابل",
-        "melted_herat": "طلای آبشدهٔ هرات (واقعی)",
-        "reference": "نرخ مرجع جهانی (نبود دادهٔ محلی)",
-    }
     text = (
         f"🧮 *نتیجهٔ محاسبهٔ {label} طلا*\n\n"
         f"عیار: {result['karat']} | مقدار: {result['grams']:g} گرم\n"
-        f"نرخ هر گرم ({label}): {result['per_gram_afn']:,.0f} افغانی\n"
-        f"مبنای محاسبه: {basis_labels.get(result['basis'], result['basis'])}\n\n"
-        f"💰 مبلغ نهایی: *{result['final_afn']:,.0f} افغانی*"
+        f"قیمت پایه: {result['base_afn']:,.0f} افغانی ({result['base_usd']:,.2f}$)\n"
+        f"{result['adjustment_label']}: {result['adjustment_pct']:.1f}٪\n\n"
+        f"💰 مبلغ نهایی: *{result['final_afn']:,.0f} افغانی* ({result['final_usd']:,.2f}$)"
     )
     await thinking_msg.edit_text(text, parse_mode="Markdown")
     return True

@@ -36,7 +36,7 @@ TRACKED_CURRENCIES = {
     "sek": "کرون سویدن",
 }
 
-# --- پرچم هر ارز (برای نمایش زیباتر در منوها) ---
+# --- بیرق کشورها به ازای هر ارز (برای نمایش جذاب‌تر) ---
 CURRENCY_FLAGS = {
     "usd": "🇺🇸",
     "eur": "🇪🇺",
@@ -54,8 +54,8 @@ CURRENCY_FLAGS = {
     "sek": "🇸🇪",
 }
 
-# --- ارزهایی که نرخشان به‌صورت «هزار واحد» نمایش داده می‌شود (مثلاً تومان ایران) ---
-THOUSAND_UNIT_CURRENCIES = {"irr"}
+# --- ارزهایی که باید به ازای هر ۱۰۰۰ واحد نمایش داده شوند ---
+THOUSAND_UNIT_CURRENCIES = {"pkr", "irr", "inr"}
 
 # --- فاصلهٔ زمانی جمع‌آوری خودکار نرخ‌های مرجع (به دقیقه) برای تاریخچه ---
 FETCH_INTERVAL_MINUTES = int(os.getenv("FETCH_INTERVAL_MINUTES", "30"))
@@ -68,4 +68,8 @@ LOCAL_MARKET_FETCH_INTERVAL_MINUTES = int(
 # --- واحدهای طلا ---
 GRAMS_PER_TROY_OUNCE = 31.1034768
 GRAMS_PER_METHQAL = 4.608  # مثقال افغانی/ایرانی (تقریبی و رایج)
-GOLD_KARATS = {24: 1.0, 22: 22 / 24, 21: 21 / 24, 18: 18 / 24, 14: 14 / 24}
+GOLD_KARATS = {24: 1.0, 22: 22 / 24, 21: 21 / 24, 18: 18 / 24}
+
+# --- ماشین‌حساب خرید و فروش طلا ---
+GOLD_MAKING_CHARGE_PERCENT = float(os.getenv("GOLD_MAKING_CHARGE_PERCENT", "5"))
+GOLD_SELL_DEDUCTION_PERCENT = float(os.getenv("GOLD_SELL_DEDUCTION_PERCENT", "2"))

@@ -5,10 +5,8 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from config import ADMIN_CHAT_IDS, TRACKED_CURRENCIES, GOLD_KARATS
+from config import ADMIN_CHAT_IDS, TRACKED_CURRENCIES
 from services import supabase_service as db, spread_service
-
-GOLD_SPREAD_KEYS = {f"gold{k}": f"طلای عیار {k}" for k in GOLD_KARATS}
 
 logger = logging.getLogger(__name__)
 
@@ -63,20 +61,15 @@ async def set_spread(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     args = context.args
     if len(args) != 2:
         await update.message.reply_text(
-            "استفاده: /setspread usd 0.8  یا  /setspread gold18 1.2\n"
-            "(کد ارز یا کلید طلا — gold24/gold22/gold21/gold18/gold14 — و درصد اسپرد)"
+            "استفاده: /setspread usd 0.8\n(کد ارز و درصد اسپرد را وارد کنید)"
         )
         return
 
     code, pct_str = args
     code = code.lower()
-    if code in TRACKED_CURRENCIES:
-        name = TRACKED_CURRENCIES[code]
-    elif code in GOLD_SPREAD_KEYS:
-        name = GOLD_SPREAD_KEYS[code]
-    else:
+    if code not in TRACKED_CURRENCIES:
         await update.message.reply_text(
-            f"⚠️ «{code}» نه یک ارز پیگیری‌شده و نه یک کلید طلای معتبر است."
+            f"⚠️ ارز «{code}» در لیست ارزهای پیگیری‌شده نیست."
         )
         return
 
@@ -91,6 +84,7 @@ async def set_spread(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text("⚠️ خطا در ذخیرهٔ تنظیم اسپرد.")
         return
 
+    name = TRACKED_CURRENCIES[code]
     await update.message.reply_text(f"✅ اسپرد {name} به {pct}٪ تنظیم شد.")
 
 
@@ -103,10 +97,5 @@ async def list_spreads(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     for code, name in TRACKED_CURRENCIES.items():
         pct = spread_service.get_spread_percent(code)
         lines.append(f"▫️ {name} ({code.upper()}): {pct}٪")
-
-    lines.append("\n📐 *اسپرد فعلی طلا (فقط برای نرخ رسمی تک‌عددی کابل)*\n")
-    for code, name in GOLD_SPREAD_KEYS.items():
-        pct = spread_service.get_spread_percent(code)
-        lines.append(f"▫️ {name}: {pct}٪")
 
     await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
