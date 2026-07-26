@@ -18,10 +18,6 @@ ADMIN_CHAT_IDS = [
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")  # service_role key (سرور-ساید فقط)
 
-# --- Groq (مشاور هوشمند) ---
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-
 # --- ارزهایی که ربات پیگیری می‌کند (کد سه‌حرفی ISO) ---
 TRACKED_CURRENCIES = {
     "usd": "دالر امریکایی",
@@ -39,6 +35,27 @@ TRACKED_CURRENCIES = {
     "chf": "فرانک سویس",
     "sek": "کرون سویدن",
 }
+
+# --- پرچم هر ارز (برای نمایش زیباتر در منوها) ---
+CURRENCY_FLAGS = {
+    "usd": "🇺🇸",
+    "eur": "🇪🇺",
+    "gbp": "🇬🇧",
+    "pkr": "🇵🇰",
+    "irr": "🇮🇷",
+    "aed": "🇦🇪",
+    "inr": "🇮🇳",
+    "sar": "🇸🇦",
+    "try": "🇹🇷",
+    "cny": "🇨🇳",
+    "aud": "🇦🇺",
+    "cad": "🇨🇦",
+    "chf": "🇨🇭",
+    "sek": "🇸🇪",
+}
+
+# --- ارزهایی که نرخشان به‌صورت «هزار واحد» نمایش داده می‌شود (مثلاً تومان ایران) ---
+THOUSAND_UNIT_CURRENCIES = {"irr"}
 
 # --- فاصلهٔ زمانی جمع‌آوری خودکار نرخ‌های مرجع (به دقیقه) برای تاریخچه ---
 FETCH_INTERVAL_MINUTES = int(os.getenv("FETCH_INTERVAL_MINUTES", "30"))
