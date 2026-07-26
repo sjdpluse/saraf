@@ -12,13 +12,7 @@ from typing import Optional
 
 import httpx
 
-from config import (
-    GRAMS_PER_TROY_OUNCE,
-    GRAMS_PER_METHQAL,
-    GOLD_KARATS,
-    GOLD_MAKING_CHARGE_PERCENT,
-    GOLD_SELL_DEDUCTION_PERCENT,
-)
+from config import GRAMS_PER_TROY_OUNCE, GRAMS_PER_METHQAL, GOLD_KARATS
 
 logger = logging.getLogger(__name__)
 
@@ -69,46 +63,31 @@ def build_gold_breakdown(price_usd_per_oz: float, afn_per_usd: float) -> dict:
 
 
 def calculate_gold_transaction(
-    breakdown: dict, karat: int, grams: float, is_buying: bool
+    per_gram_buy_afn: float,
+    per_gram_sell_afn: float,
+    karat: int,
+    grams: float,
+    is_buying: bool,
+    basis: str = "reference",
 ) -> dict:
     """
-    ماشین‌حساب خرید/فروش طلا.
+    ماشین‌حساب خرید/فروش طلا — بر مبنای نرخ خرید/فروش واقعیِ Saraf برای هر گرم
+    (خروجی gold_rate_engine.get_full_gold_quote)، نه یک درصد ثابت فرضی.
 
-    is_buying=True  -> مشتری می‌خواهد طلا بخرد: قیمت پایه + اجرت ساخت (GOLD_MAKING_CHARGE_PERCENT)
-    is_buying=False -> مشتری می‌خواهد طلای خود را بفروشد: قیمت پایه - کسر صرافی (GOLD_SELL_DEDUCTION_PERCENT)
-
-    خروجی شامل قیمت پایه، کسورات/اضافات، و مبلغ نهایی به افغانی و دالر است.
+    is_buying=True  -> مشتری طلا می‌خرد   -> per_gram_sell_afn استفاده می‌شود (نرخ فروش صراف)
+    is_buying=False -> مشتری طلا می‌فروشد -> per_gram_buy_afn استفاده می‌شود (نرخ خرید صراف)
     """
-    if karat not in breakdown["karats"]:
-        raise ValueError(f"عیار {karat} پشتیبانی نمی‌شود.")
     if grams <= 0:
         raise ValueError("مقدار گرم باید بزرگ‌تر از صفر باشد.")
 
-    per_gram_afn = breakdown["karats"][karat]["afn_per_gram"]
-    per_gram_usd = breakdown["karats"][karat]["usd_per_gram"]
-
-    base_afn = per_gram_afn * grams
-    base_usd = per_gram_usd * grams
-
-    if is_buying:
-        adjustment_pct = GOLD_MAKING_CHARGE_PERCENT
-        final_afn = base_afn * (1 + adjustment_pct / 100)
-        final_usd = base_usd * (1 + adjustment_pct / 100)
-        adjustment_label = "اجرت ساخت"
-    else:
-        adjustment_pct = GOLD_SELL_DEDUCTION_PERCENT
-        final_afn = base_afn * (1 - adjustment_pct / 100)
-        final_usd = base_usd * (1 - adjustment_pct / 100)
-        adjustment_label = "کسر صرافی"
+    per_gram = per_gram_sell_afn if is_buying else per_gram_buy_afn
+    final_afn = per_gram * grams
 
     return {
         "karat": karat,
         "grams": grams,
         "is_buying": is_buying,
-        "base_afn": round(base_afn, 1),
-        "base_usd": round(base_usd, 2),
-        "adjustment_pct": adjustment_pct,
-        "adjustment_label": adjustment_label,
+        "per_gram_afn": round(per_gram, 1),
         "final_afn": round(final_afn, 1),
-        "final_usd": round(final_usd, 2),
+        "basis": basis,
     }
