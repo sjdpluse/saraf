@@ -8,8 +8,15 @@
 خروجی نهایی همیشه یک دیکشنری از نوع:
     {"usd": 71.23, "eur": 77.50, ...}
 یعنی «چند افغانی به ازای ۱ واحد آن ارز» — همان شکلی که صرافی‌های افغانستان نمایش می‌دهند.
+
+نکتهٔ مهم دربارهٔ تازگی داده:
+  jsDelivr گاهی برای بعضی از ارزهای پایه، نسخهٔ کش‌شدهٔ خیلی قدیمی (حتی چند
+  ماه!) برمی‌گرداند در حالی که خودِ درخواست HTTP موفق است. برای همین فیلد
+  "date" پاسخ چک می‌شود؛ اگر بیش از MAX_DATA_AGE_DAYS روز قدیمی باشد، آن
+  پاسخ را نامعتبر در نظر گرفته و به منبع بعدی سقوط می‌کنیم.
 """
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -23,14 +30,34 @@ PAGES_DEV_URL = "https://latest.currency-api.pages.dev/v1/currencies/afn.json"
 EXCHANGERATE_API_URL = "https://api.exchangerate-api.com/v4/latest/USD"
 
 _TIMEOUT = 10.0
+MAX_DATA_AGE_DAYS = 2
 
 
-async def _fetch_json(url: str) -> Optional[dict]:
+def _is_fresh(data: dict) -> bool:
+    date_str = data.get("date")
+    if not date_str:
+        return False
+    try:
+        data_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return False
+    age_days = (datetime.now(timezone.utc) - data_date).days
+    return age_days <= MAX_DATA_AGE_DAYS
+
+
+async def _fetch_json(url: str, *, check_freshness: bool = False) -> Optional[dict]:
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.get(url)
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            if check_freshness and not _is_fresh(data):
+                logger.warning(
+                    "دادهٔ برگشتی از %s قدیمی است (تاریخ=%s)؛ نادیده گرفته و به منبع بعدی سقوط می‌شود.",
+                    url, data.get("date"),
+                )
+                return None
+            return data
     except Exception as exc:
         logger.warning("خطا در دریافت %s: %s", url, exc)
         return None
@@ -38,7 +65,7 @@ async def _fetch_json(url: str) -> Optional[dict]:
 
 async def _from_afn_base(url: str) -> Optional[dict[str, float]]:
     """پاسخ این منابع به شکل {"afn": {"usd": 0.0143, ...}} است -> معکوس می‌کنیم."""
-    data = await _fetch_json(url)
+    data = await _fetch_json(url, check_freshness=True)
     if not data or "afn" not in data:
         return None
     afn_rates = data["afn"]
@@ -54,7 +81,7 @@ async def _from_exchangerate_api() -> Optional[dict[str, float]]:
     """این منبع بر مبنای USD است: rates["afn"] و rates[code] هر دو نسبت به ۱ دالر.
     afn_per_unit(code) = rates["afn"] / rates[code]
     """
-    data = await _fetch_json(EXCHANGERATE_API_URL)
+    data = await _fetch_json(EXCHANGERATE_API_URL, check_freshness=False)
     if not data or "rates" not in data:
         return None
     rates = data["rates"]
