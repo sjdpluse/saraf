@@ -27,7 +27,7 @@ from services import (
     currency_service,
     converter_service,
     gold_service,
-    gold_rate_engine,
+    rate_engine,
     gold_market_service,
     rate_engine,
     spread_service,
