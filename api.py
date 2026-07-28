@@ -28,7 +28,7 @@ from services import (
     converter_service,
     gold_service,
     rate_engine,
-    gold_market_service,
+    local_market_service,
     rate_engine,
     spread_service,
 )
