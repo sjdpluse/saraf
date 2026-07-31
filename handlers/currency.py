@@ -124,10 +124,13 @@ async def currency_calc_callback(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data[AWAITING_CURRENCY_CALC] = True
     context.user_data[CURRENCY_CALC_CODE] = code
 
+    date_str = get_afghan_datetime_str()
+
     await query.edit_message_text(
-        f"{name}: مقدار به افغانی\n\n"
-        f"لطفاً مقداری که می‌خواهید به افغانی تبدیل کنید را فقط بصورت عدد بنویسید. "
-        f"مثال (100)"
+        f"{name} شما به افغانی چند می‌شود؟\n"
+        f"{date_str}\n\n"
+        f"لطفاً مقدار {name} که می‌خواهید به افغانی تبدیل کنید، را فقط بصورت عدد "
+        f"بنویسید. مثلاً (100)"
     )
 
 
