@@ -94,7 +94,8 @@ async def currency_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             if c in quotes:
                 blocks.append(_format_quote_block(c, name, quotes[c]))
         text = "\n\n".join(blocks)
-        reply_markup = currency_list_keyboard()
+        # برای حالت «نمایش همهٔ نرخ‌ها» دیگر کیبورد لیست ارزها نمایش داده نمی‌شود
+        reply_markup = None
     else:
         name = TRACKED_CURRENCIES.get(code, code.upper())
         await query.edit_message_text("در حال دریافت نرخ... ⏳")
