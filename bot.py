@@ -34,6 +34,8 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     """پیام‌های متنی معمولی را بر اساس دکمهٔ منوی فشرده‌شده یا حالت انتظار هدایت می‌کند."""
     if await gold.handle_gold_grams_input(update, context):
         return
+    if await currency.handle_currency_calc_input(update, context):
+        return
     if await converter.handle_converter_input(update, context):
         return
 
@@ -74,6 +76,9 @@ def build_application() -> Application:
 
     # کال‌بک‌های اینلاین
     app.add_handler(CallbackQueryHandler(currency.currency_callback, pattern=r"^cur:"))
+    app.add_handler(
+        CallbackQueryHandler(currency.currency_calc_callback, pattern=r"^curcalc:")
+    )
     app.add_handler(CallbackQueryHandler(gold.gold_callback, pattern=r"^gold:"))
     app.add_handler(
         CallbackQueryHandler(gold.gold_calc_mode_callback, pattern=r"^goldcalc_mode:")

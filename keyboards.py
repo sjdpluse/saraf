@@ -42,6 +42,15 @@ def currency_list_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
+def currency_quote_keyboard(code: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🧮 محاسبه ارز", callback_data=f"curcalc:{code}")],
+            [InlineKeyboardButton("🔙 بازگشت به لیست ارزها", callback_data="cur:list")],
+        ]
+    )
+
+
 def gold_karat_keyboard() -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton(f"عیار {k}", callback_data=f"gold:{k}")]
