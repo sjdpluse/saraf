@@ -72,7 +72,7 @@ def _format_quote_block_for_all(code: str, name: str, quote: dict) -> str:
 
     lines = [
         DIVIDER,
-        f"{flag} *({amount}) {name} — نرخ ارزها ربات صراف*",
+        f"{flag} *({amount}) {name}*",
         "",
     ]
 
@@ -132,7 +132,7 @@ async def currency_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             return
 
         date_str = get_afghan_datetime_str()
-        header = f"💵 *نرخ ارزهای خارجی در برابر پول افغانی امروز — صراف*\n{date_str}\n"
+        header = f"💵 *(Saraf) نرخ ارزهای خارجی در برابر پول افغانی امروز — صراف*\n{date_str}\n"
 
         blocks = []
         for c, name in TRACKED_CURRENCIES.items():
