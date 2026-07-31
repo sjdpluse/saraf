@@ -64,6 +64,47 @@ def _format_quote_block(code: str, name: str, quote: dict) -> str:
     return "\n".join(lines)
 
 
+def _format_quote_block_for_all(code: str, name: str, quote: dict) -> str:
+    """فرمت هر ارز برای پیام «نمایش همهٔ نرخ‌ها» — بدون تاریخ تکراری،
+    خط جداکننده فقط در ابتدا و انتهای بلوکِ هر ارز قرار می‌گیرد."""
+    flag = CURRENCY_FLAGS.get(code, "")
+    amount = _unit_amount(code)
+
+    lines = [
+        DIVIDER,
+        f"{flag} *({amount}) {name} — نرخ ارزها ربات صراف*",
+        "",
+    ]
+
+    # ۱) نرخ سرای شهزاده
+    local = quote.get("local")
+    if local:
+        lines.append(f"🏛 *نرخ {local['market_label']}*")
+        lines.append(
+            f"خرید: {_scale(code, local['buy']):,.2f}   |   "
+            f"فروش: {_scale(code, local['sell']):,.2f}"
+        )
+        lines.append("")
+
+    # ۲) نرخ خرید/فروش صرافی‌های محلی (نرخ Saraf)
+    saraf = quote["saraf_quote"]
+    lines.append("💱 *نرخ صرافی‌های محلی*")
+    lines.append(
+        f"خرید: {_scale(code, saraf['buy']):,.2f}   |   "
+        f"فروش: {_scale(code, saraf['sell']):,.2f}"
+    )
+    lines.append("")
+
+    # ۳) نرخ بازار آزاد جهانی
+    if quote.get("reference_rate"):
+        lines.append("🌍 *نرخ بازار آزاد جهانی*")
+        lines.append(f"{_scale(code, quote['reference_rate']):,.2f} افغانی")
+
+    lines.append(DIVIDER)
+
+    return "\n".join(lines)
+
+
 async def currency_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "کدام ارز مدنظر شماست؟ یا «نمایش همهٔ نرخ‌ها» را بزنید.",
@@ -89,11 +130,16 @@ async def currency_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         if not quotes:
             await query.edit_message_text("⚠️ در حال حاضر هیچ نرخی در دسترس نیست.")
             return
-        blocks = ["💵 *نرخ‌های Saraf — خرید و فروش*\n"]
+
+        date_str = get_afghan_datetime_str()
+        header = f"💵 *نرخ ارزهای خارجی در برابر پول افغانی امروز — صراف*\n{date_str}\n"
+
+        blocks = []
         for c, name in TRACKED_CURRENCIES.items():
             if c in quotes:
-                blocks.append(_format_quote_block(c, name, quotes[c]))
-        text = "\n\n".join(blocks)
+                blocks.append(_format_quote_block_for_all(c, name, quotes[c]))
+
+        text = header + "\n" + "\n\n".join(blocks)
         # برای حالت «نمایش همهٔ نرخ‌ها» دیگر کیبورد لیست ارزها نمایش داده نمی‌شود
         reply_markup = None
     else:
