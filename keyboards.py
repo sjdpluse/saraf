@@ -45,8 +45,7 @@ def currency_list_keyboard() -> InlineKeyboardMarkup:
 def currency_quote_keyboard(code: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🧮 محاسبه ارز", callback_data=f"curcalc:{code}")],
-            [InlineKeyboardButton("🔙 بازگشت به لیست ارزها", callback_data="cur:list")],
+            [InlineKeyboardButton("🧮 صراف", callback_data=f"curcalc:{code}")],
         ]
     )
 

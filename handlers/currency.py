@@ -5,11 +5,12 @@ from telegram.ext import ContextTypes
 
 from config import TRACKED_CURRENCIES, CURRENCY_FLAGS, THOUSAND_UNIT_CURRENCIES
 from keyboards import currency_list_keyboard, currency_quote_keyboard
+from persian_date import get_afghan_datetime_str
 from services import rate_engine
 
 logger = logging.getLogger(__name__)
 
-DIVIDER = "➖➖➖➖➖➖➖➖➖➖"
+DIVIDER = "━━━━━━━━━━"
 
 AWAITING_CURRENCY_CALC = "awaiting_currency_calc_amount"
 CURRENCY_CALC_CODE = "currency_calc_code"
@@ -26,32 +27,39 @@ def _scale(code: str, value: float) -> float:
 def _format_quote_block(code: str, name: str, quote: dict) -> str:
     flag = CURRENCY_FLAGS.get(code, "")
     amount = _unit_amount(code)
+    date_str = get_afghan_datetime_str()
 
-    lines = [f"{flag} *نرخ ارز صراف  — {amount:,} — {name}*"]
+    lines = [
+        f"{flag} *({amount}) {name} — نرخ ارزها ربات صراف*",
+        date_str,
+        "",
+    ]
 
     # ۱) نرخ سرای شهزاده
     local = quote.get("local")
     if local:
         lines.append(f"🏛 *نرخ {local['market_label']}*")
         lines.append(
-            f"خرید: `{_scale(code, local['buy']):,.2f}`   |   "
-            f"فروش: `{_scale(code, local['sell']):,.2f}`"
+            f"خرید: {_scale(code, local['buy']):,.2f}   |   "
+            f"فروش: {_scale(code, local['sell']):,.2f}"
         )
         lines.append(DIVIDER)
+        lines.append("")
 
     # ۲) نرخ خرید/فروش صرافی‌های محلی (نرخ Saraf)
     saraf = quote["saraf_quote"]
     lines.append("💱 *نرخ صرافی‌های محلی*")
     lines.append(
-        f"خرید: `{_scale(code, saraf['buy']):,.2f}`   |   "
-        f"فروش: `{_scale(code, saraf['sell']):,.2f}`"
+        f"خرید: {_scale(code, saraf['buy']):,.2f}   |   "
+        f"فروش: {_scale(code, saraf['sell']):,.2f}"
     )
     lines.append(DIVIDER)
+    lines.append("")
 
     # ۳) نرخ بازار آزاد جهانی
     if quote.get("reference_rate"):
         lines.append("🌍 *نرخ بازار آزاد جهانی*")
-        lines.append(f"`{_scale(code, quote['reference_rate']):,.2f}` افغانی")
+        lines.append(f"{_scale(code, quote['reference_rate']):,.2f} افغانی")
 
     return "\n".join(lines)
 
@@ -106,7 +114,7 @@ async def currency_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def currency_calc_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """وقتی کاربر دکمهٔ «🧮 محاسبه ارز» را می‌زند."""
+    """وقتی کاربر دکمهٔ «🧮 صراف» را می‌زند."""
     query = update.callback_query
     await query.answer()
     _, code = query.data.split(":", 1)
@@ -116,10 +124,9 @@ async def currency_calc_callback(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data[CURRENCY_CALC_CODE] = code
 
     await query.edit_message_text(
-        f"🧮 *محاسبهٔ {name}*\n\n"
-        f"لطفاً مقداری که می‌خواهید محاسبه شود را فقط به‌صورت عدد بنویسید "
-        f"(مثال: `100`)",
-        parse_mode="Markdown",
+        f"{name}: مقدار به افغانی\n\n"
+        f"لطفاً مقداری که می‌خواهید به افغانی تبدیل کنید را فقط بصورت عدد بنویسید. "
+        f"مثال (100)"
     )
 
 
@@ -162,8 +169,8 @@ async def handle_currency_calc_input(update: Update, context: ContextTypes.DEFAU
         buy_afn = amount * local["sell"]
         lines.append(f"🏛 *بر اساس نرخ {local['market_label']}*")
         lines.append(
-            f"اگر بفروشید: `{sell_afn:,.1f}` افغانی\n"
-            f"اگر بخرید: `{buy_afn:,.1f}` افغانی"
+            f"اگر بفروشید: {sell_afn:,.1f} افغانی\n"
+            f"اگر بخرید: {buy_afn:,.1f} افغانی"
         )
         lines.append(DIVIDER)
 
@@ -172,8 +179,8 @@ async def handle_currency_calc_input(update: Update, context: ContextTypes.DEFAU
     buy_afn = amount * saraf["sell"]
     lines.append("💱 *بر اساس نرخ صرافی‌های محلی*")
     lines.append(
-        f"اگر بفروشید: `{sell_afn:,.1f}` افغانی\n"
-        f"اگر بخرید: `{buy_afn:,.1f}` افغانی"
+        f"اگر بفروشید: {sell_afn:,.1f} افغانی\n"
+        f"اگر بخرید: {buy_afn:,.1f} افغانی"
     )
 
     await thinking_msg.edit_text("\n".join(lines), parse_mode="Markdown")
