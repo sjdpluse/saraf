@@ -17,11 +17,19 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-
-from config import BOT_TOKEN, FETCH_INTERVAL_MINUTES, LOCAL_MARKET_FETCH_INTERVAL_MINUTES
+from config import (
+    BOT_TOKEN,
+    FETCH_INTERVAL_MINUTES,
+    LOCAL_MARKET_FETCH_INTERVAL_MINUTES,
+    FACEBOOK_CHECK_INTERVAL_MINUTES,
+)
 from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT
 from handlers import start, currency, gold, compare, admin, converter
-from jobs import fetch_and_store_snapshot, fetch_and_store_local_market
+from jobs import (
+    fetch_and_store_snapshot,
+    fetch_and_store_local_market,
+    check_and_post_facebook_update,
+)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -113,6 +121,11 @@ def build_application() -> Application:
             fetch_and_store_local_market,
             interval=LOCAL_MARKET_FETCH_INTERVAL_MINUTES * 60,
             first=20,
+        )
+        app.job_queue.run_repeating(
+            check_and_post_facebook_update,
+            interval=FACEBOOK_CHECK_INTERVAL_MINUTES * 60,
+            first=90,
         )
 
     return app

@@ -49,6 +49,35 @@ def upsert_user(chat_id: int, username: str | None, full_name: str | None) -> No
     except Exception:
         logger.exception("خطا در ثبت کاربر در Supabase")
 
+# ---------------------------------------------------------------------------
+# وضعیت آخرین پست فیسبوک (برای تشخیص تغییر محسوس نرخ)
+# ---------------------------------------------------------------------------
+def get_fb_post_state() -> dict:
+    try:
+        res = (
+            get_client()
+            .table("fb_post_state")
+            .select("rates")
+            .eq("id", 1)
+            .limit(1)
+            .execute()
+        )
+        if res.data:
+            return res.data[0]["rates"] or {}
+        return {}
+    except Exception:
+        logger.exception("خطا در خواندن وضعیت پست فیسبوک")
+        return {}
+
+
+def set_fb_post_state(state: dict) -> None:
+    try:
+        get_client().table("fb_post_state").upsert(
+            {"id": 1, "rates": state, "updated_at": datetime.now(timezone.utc).isoformat()},
+            on_conflict="id",
+        ).execute()
+    except Exception:
+        logger.exception("خطا در ذخیرهٔ وضعیت پست فیسبوک")
 
 def deactivate_user(chat_id: int) -> None:
     try:

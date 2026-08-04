@@ -73,3 +73,12 @@ GOLD_KARATS = {24: 1.0, 22: 22 / 24, 21: 21 / 24, 18: 18 / 24}
 # --- ماشین‌حساب خرید و فروش طلا ---
 GOLD_MAKING_CHARGE_PERCENT = float(os.getenv("GOLD_MAKING_CHARGE_PERCENT", "5"))
 GOLD_SELL_DEDUCTION_PERCENT = float(os.getenv("GOLD_SELL_DEDUCTION_PERCENT", "2"))
+# --- فیسبوک (پست خودکار نرخ‌ها هنگام تغییر محسوس) ---
+FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "")
+FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "")
+# حداقل درصد تغییر (نسبت به آخرین پست) که باعث ارسال پست جدید شود
+FACEBOOK_CHANGE_THRESHOLD_PERCENT = float(os.getenv("FACEBOOK_CHANGE_THRESHOLD_PERCENT", "0.5"))
+# لینکی که در پایان هر پست فیسبوک درج می‌شود
+FACEBOOK_POST_SITE_URL = os.getenv("FACEBOOK_POST_SITE_URL", "")
+# هر چند دقیقه یک‌بار بررسی شود که آیا تغییر محسوس رخ داده یا نه
+FACEBOOK_CHECK_INTERVAL_MINUTES = int(os.getenv("FACEBOOK_CHECK_INTERVAL_MINUTES", "30"))
