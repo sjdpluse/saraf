@@ -1,6 +1,11 @@
 """
 سرویس ارسال خودکار پست به صفحهٔ فیسبوک.
 
+از نسخهٔ فعلی به بعد، ربات به‌جای پست متنی ساده، یک تصویر ۱۰۸۰×۱۰۸۰ حرفه‌یی
+(طراحی‌شده در post_image_service با داده‌های لحظه‌یی نرخ دالر و طلا) به همراه یک
+کپشن کامل (شامل نرخ همهٔ ارزها، تفکیک کامل عیارهای طلا، لینک ربات و هشتگ‌ها) در
+صفحهٔ فیسبوک منتشر می‌کند.
+
 فقط زمانی پست جدید ارسال می‌شود که تغییر محسوس نرخ (بیشتر یا مساوی
 FACEBOOK_CHANGE_THRESHOLD_PERCENT) نسبت به آخرین پست ارسال‌شده رخ داده باشد؛
 این وضعیت در جدول Supabase (`fb_post_state`) نگهداری می‌شود تا با ری‌استارت
@@ -20,14 +25,17 @@ from config import (
     FACEBOOK_PAGE_ACCESS_TOKEN,
     FACEBOOK_CHANGE_THRESHOLD_PERCENT,
     FACEBOOK_POST_SITE_URL,
+    FACEBOOK_HASHTAGS,
+    TELEGRAM_BOT_LINK,
 )
 from persian_date import get_afghan_datetime_str
+from services import post_image_service
 from services import supabase_service as db
 
 logger = logging.getLogger(__name__)
 
-GRAPH_API_URL = "https://graph.facebook.com/v19.0/{page_id}/feed"
-_TIMEOUT = 15.0
+PHOTO_API_URL = "https://graph.facebook.com/v19.0/{page_id}/photos"
+_TIMEOUT = 30.0
 
 
 def _primary_rate(quote: dict) -> Optional[float]:
@@ -47,14 +55,14 @@ def _primary_sell(quote: dict) -> Optional[float]:
     return saraf["sell"] if saraf else None
 
 
-def _build_current_state(quotes: dict, gold_afn_gram: Optional[float]) -> dict:
+def _build_current_state(quotes: dict, gold_breakdown: Optional[dict]) -> dict:
     state = {}
     for code, quote in quotes.items():
         rate = _primary_rate(quote)
         if rate:
             state[code] = rate
-    if gold_afn_gram:
-        state["gold_24k"] = gold_afn_gram
+    if gold_breakdown:
+        state["gold_24k"] = gold_breakdown["karats"][24]["afn_per_gram"]
     return state
 
 
@@ -71,7 +79,8 @@ def _has_significant_change(current: dict, last: dict) -> bool:
     return False
 
 
-def _build_message(quotes: dict, gold_afn_gram: Optional[float]) -> str:
+def _build_caption(quotes: dict, gold_breakdown: Optional[dict]) -> str:
+    """کپشن کامل پست فیسبوک: نرخ همهٔ ارزها + تفکیک کامل طلا + لینک ربات + هشتگ‌ها."""
     date_str = get_afghan_datetime_str()
     lines = ["💠 نرخ لحظه‌یی ارز و طلا — Saraf", date_str, ""]
 
@@ -84,46 +93,68 @@ def _build_message(quotes: dict, gold_afn_gram: Optional[float]) -> str:
         if not buy:
             continue
         flag = CURRENCY_FLAGS.get(code, "")
-        lines.append(f"{flag} {name}: خرید {buy:,.2f}  |  فروش {sell:,.2f}")
+        lines.append(f"{flag} {name}: خرید {buy:,.2f} | فروش {sell:,.2f}")
 
-    if gold_afn_gram:
+    if gold_breakdown:
         lines.append("")
-        lines.append(f"🥇 طلای ۲۴ عیار: {gold_afn_gram:,.0f} افغانی (هر گرم)")
+        lines.append("🥇 نرخ لحظه‌یی طلا")
+        lines.append("")
+        lines.append(
+            f"قیمت جهانی: {gold_breakdown['price_usd_per_oz']:,.2f} دالر برای هر اونس تروی"
+        )
+        lines.append("")
+        for karat in sorted(gold_breakdown["karats"].keys(), reverse=True):
+            vals = gold_breakdown["karats"][karat]
+            lines.append(
+                f"▫️ عیار {karat}: {vals['afn_per_gram']:,.0f} افغانی "
+                f"({vals['usd_per_gram']:,.2f}$) به ازای هر گرم — "
+                f"مثقال: {vals['afn_per_methqal']:,.0f} افغانی"
+            )
 
     lines.append("")
-    lines.append("همهٔ نرخ‌ها و مبدل ارز جهانی، لحظه‌یی:")
+    lines.append("🚀 نمایش همهٔ نرخ‌ها، مبدل ارز جهانی و ماشین‌حساب طلا، کاملاً رایگان و لحظه‌یی؛")
+    lines.append("همین حالا به ربات صراف بپیوندید:")
+    lines.append(TELEGRAM_BOT_LINK)
+
     if FACEBOOK_POST_SITE_URL:
         lines.append(FACEBOOK_POST_SITE_URL)
+
+    if FACEBOOK_HASHTAGS:
+        lines.append("")
+        lines.append(FACEBOOK_HASHTAGS)
 
     return "\n".join(lines)
 
 
-async def _post_to_page(message: str) -> bool:
+async def _post_photo_to_page(image_bytes: bytes, caption: str) -> bool:
     if not FACEBOOK_PAGE_ID or not FACEBOOK_PAGE_ACCESS_TOKEN:
         logger.warning("FACEBOOK_PAGE_ID یا FACEBOOK_PAGE_ACCESS_TOKEN تنظیم نشده؛ پست انجام نشد.")
         return False
 
-    url = GRAPH_API_URL.format(page_id=FACEBOOK_PAGE_ID)
-    payload = {"message": message, "access_token": FACEBOOK_PAGE_ACCESS_TOKEN}
-    if FACEBOOK_POST_SITE_URL:
-        payload["link"] = FACEBOOK_POST_SITE_URL
+    url = PHOTO_API_URL.format(page_id=FACEBOOK_PAGE_ID)
+    data = {"caption": caption, "access_token": FACEBOOK_PAGE_ACCESS_TOKEN}
+    files = {"source": ("saraf-rates.png", image_bytes, "image/png")}
 
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-            resp = await client.post(url, data=payload)
+            resp = await client.post(url, data=data, files=files)
             resp.raise_for_status()
-        logger.info("پست فیسبوک با موفقیت ارسال شد.")
+        logger.info("پست تصویری فیسبوک با موفقیت ارسال شد.")
         return True
     except Exception:
-        logger.exception("خطا در ارسال پست به فیسبوک")
+        logger.exception("خطا در ارسال پست تصویری به فیسبوک")
         return False
 
 
-async def check_and_maybe_post(quotes: dict, gold_afn_gram: Optional[float]) -> None:
+async def check_and_maybe_post(quotes: dict, gold_breakdown: Optional[dict]) -> None:
+    """
+    gold_breakdown: خروجی کامل gold_service.build_gold_breakdown(...) —
+    نه فقط یک عدد، چون هم برای طراحی تصویر و هم برای کپشن (تفکیک همهٔ عیارها) لازم است.
+    """
     if not quotes:
         return
 
-    current_state = _build_current_state(quotes, gold_afn_gram)
+    current_state = _build_current_state(quotes, gold_breakdown)
     if not current_state:
         return
 
@@ -132,6 +163,21 @@ async def check_and_maybe_post(quotes: dict, gold_afn_gram: Optional[float]) -> 
     if not _has_significant_change(current_state, last_state):
         return
 
-    message = _build_message(quotes, gold_afn_gram)
-    if await _post_to_page(message):
+    usd_quote = quotes.get("usd")
+    if not usd_quote or not gold_breakdown:
+        logger.warning("نرخ دالر یا اطلاعات طلا در دسترس نیست؛ تولید تصویر پست فیسبوک ممکن نیست.")
+        return
+
+    try:
+        date_str = get_afghan_datetime_str()
+        image_bytes = await post_image_service.generate_facebook_post_image(
+            usd_quote, gold_breakdown, date_str
+        )
+    except Exception:
+        logger.exception("خطا در تولید تصویر پست فیسبوک")
+        return
+
+    caption = _build_caption(quotes, gold_breakdown)
+
+    if await _post_photo_to_page(image_bytes, caption):
         db.set_fb_post_state(current_state)

@@ -3,6 +3,8 @@
   - fetch_and_store_snapshot: نرخ ارز و طلای مرجع (بین‌المللی) را می‌گیرد و ذخیره می‌کند.
   - fetch_and_store_local_market: نرخ واقعی بازارهای محلی افغانستان (اسکرپ sarafi.af)
     را می‌گیرد و ذخیره می‌کند؛ این داده مبنای نمایش bid/ask واقعی و محاسبهٔ نرخ Saraf است.
+  - check_and_post_facebook_update: نرخ‌ها را بررسی و در صورت تغییر محسوس، تصویر
+    پست فیسبوک (نرخ دالر + طلا) را می‌سازد و به همراه کپشن کامل منتشر می‌کند.
 """
 import logging
 from services import (
@@ -15,8 +17,6 @@ from services import (
 )
 from config import TRACKED_CURRENCIES
 from telegram.ext import ContextTypes
-
-from services import currency_service, gold_service, local_market_service, supabase_service as db
 
 logger = logging.getLogger(__name__)
 
@@ -50,22 +50,24 @@ async def fetch_and_store_local_market(context: ContextTypes.DEFAULT_TYPE) -> No
     except Exception:
         logger.exception("خطا در وظیفهٔ زمان‌بندی‌شدهٔ ذخیرهٔ نرخ بازار محلی")
 
+
 async def check_and_post_facebook_update(context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         quotes = await rate_engine.get_full_quotes(list(TRACKED_CURRENCIES.keys()))
         if not quotes:
             return
 
-        gold_afn_gram = None
+        gold_breakdown = None
         usd_quote = quotes.get("usd")
         afn_per_usd = None
         if usd_quote:
             afn_per_usd = usd_quote.get("reference_rate") or usd_quote["saraf_quote"]["basis_rate"]
         if afn_per_usd:
             price_usd = await gold_service.get_gold_price_usd_per_oz()
-            breakdown = gold_service.build_gold_breakdown(price_usd, afn_per_usd)
-            gold_afn_gram = breakdown["afn_per_gram_24k"]
+            gold_breakdown = gold_service.build_gold_breakdown(price_usd, afn_per_usd)
 
-        await facebook_service.check_and_maybe_post(quotes, gold_afn_gram)
+        # به facebook_service خروجی کامل build_gold_breakdown پاس داده می‌شود (نه فقط یک عدد)
+        # چون هم برای طراحی تصویر پست و هم برای تفکیک کامل عیارها در کپشن لازم است.
+        await facebook_service.check_and_maybe_post(quotes, gold_breakdown)
     except Exception:
         logger.exception("خطا در وظیفهٔ بررسی/ارسال پست فیسبوک")
