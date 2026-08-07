@@ -10,9 +10,10 @@
   :root{
     --bg:#ECECEC;
     --surface:#F4F4F5;
-    --ink:#141416;
-    --ink-2:#5C6069;
-    --ink-3:#9AA0A8;
+    --ink:#6E6E73;
+    --ink-2:#86868B;
+    --ink-3:#A5A5AA;
+    --ink-deep:#5A5A5F;
     --navy:#0B3B66;
     --blue:#2C7BE5;
     --gold:#C9962C;
@@ -28,7 +29,7 @@
 
   html,body {
     width:1080px; height:1080px;
-    font-family:'Vazirmatn', sans-serif;
+    font-family:'Peyda', sans-serif;
     color:var(--ink);
     background:
       radial-gradient(circle at 82% 6%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 46%),
@@ -135,7 +136,7 @@
   .datebadge svg{ width:18px; height:18px; }
 
   /* ---------- title ---------- */
-  .hero-title { text-align:center; margin-top:18px; position:relative; z-index:3; }
+  .hero-title { text-align:center; margin-top:26px; position:relative; z-index:3; }
   .eyebrow{
     display:inline-flex; align-items:center; gap:10px;
     padding:10px 24px; border-radius:999px;
@@ -147,7 +148,7 @@
     width:9px; height:9px; border-radius:50%; background:#22C55E;
     box-shadow:0 0 0 5px rgba(34,197,94,0.18), 0 0 10px rgba(34,197,94,.8);
   }
-  .h1 { font-size:44px; font-weight:900; color:var(--ink); margin-top:18px; line-height:1.3; letter-spacing:-0.5px; }
+  .h1 { font-size:46px; font-weight:700; color:var(--ink-deep); margin-top:0; line-height:1.3; letter-spacing:-0.5px; }
   .h1 span{
     background:linear-gradient(120deg,#E9A93B 0%, #C9962C 45%, #8B6A16 100%);
     -webkit-background-clip:text; background-clip:text; color:transparent;
@@ -189,8 +190,8 @@
     background:linear-gradient(145deg,#FFFFFF,#E9EBEE);
     box-shadow: var(--soft-sm); border:1px solid rgba(255,255,255,0.9);
   }
-  .coin svg{ width:32px; height:32px; }
-  .cur-name{ font-size:25px; font-weight:800; color:var(--ink); letter-spacing:-0.2px; }
+  .coin svg{ width:44px; height:44px; filter:drop-shadow(0 2px 4px rgba(120,128,140,.35)); }
+  .cur-name{ font-size:25px; font-weight:800; color:var(--ink-deep); letter-spacing:-0.2px; }
   .cur-sub{ font-size:14px; color:var(--ink-3); font-weight:500; margin-top:4px; }
   .chip{
     display:inline-flex; align-items:center; gap:9px;
@@ -200,18 +201,32 @@
   }
   .chip svg{ width:17px; height:17px; }
 
-  .hero-values{ display:flex; align-items:stretch; margin-top:26px; position:relative; z-index:2; }
+  .hero-values{ display:flex; align-items:stretch; margin-top:30px; position:relative; z-index:2; }
   .hv{ flex:1; text-align:center; padding:14px 10px 12px; border-radius:26px; }
   .hv.inset{ box-shadow: var(--inset); background:rgba(255,255,255,0.35); }
-  .hv-label{
+  .hv-label{ text-transform:uppercase;
     display:inline-flex; align-items:center; gap:8px; justify-content:center;
     font-size:14px; font-weight:700; color:var(--ink-3); letter-spacing:1px; margin-bottom:8px;
   }
   .hv-label i{ width:9px; height:9px; border-radius:50%; display:block; }
   .dot-buy{ background:#22C55E; box-shadow:0 0 0 4px rgba(34,197,94,.16); }
   .dot-sell{ background:#EF4444; box-shadow:0 0 0 4px rgba(239,68,68,.16); }
-  .hv-num{ font-size:50px; font-weight:900; color:var(--ink); letter-spacing:-1.5px; line-height:1.05; }
-  .hv-unit{ font-size:14px; color:var(--ink-3); font-weight:600; margin-top:6px; }
+  .hv-num{
+    font-family:'Peyda','SF Pro Display','Poppins',sans-serif;
+    font-size:66px; font-weight:900; letter-spacing:-2.5px; line-height:1;
+    font-variant-numeric: tabular-nums lining-nums; font-feature-settings:"tnum" 1;
+    background:linear-gradient(180deg,#8E8E93 0%, #6E6E73 55%, #5A5A5F 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter: drop-shadow(0 2px 1px rgba(255,255,255,.95)) drop-shadow(0 3px 8px rgba(150,156,166,.35));
+  }
+  .hv.buy .hv-num{ background:linear-gradient(180deg,#3FCB86 0%, #16A34A 60%, #0E7A38 100%); -webkit-background-clip:text; background-clip:text; }
+  .hv.sell .hv-num{ background:linear-gradient(180deg,#FF7B7B 0%, #EF4444 60%, #C0342F 100%); -webkit-background-clip:text; background-clip:text; }
+  .hv-unit{
+    display:inline-block; margin-top:12px; padding:5px 16px; border-radius:999px;
+    font-size:13px; color:var(--ink-2); font-weight:700; letter-spacing:.6px;
+    background:rgba(255,255,255,0.72); border:1px solid rgba(255,255,255,0.95);
+    box-shadow: var(--soft-sm);
+  }
   .hv-divider{ width:1px; background:linear-gradient(180deg, transparent, rgba(150,156,166,.35), transparent); margin:10px 26px; }
 
   /* ---------- secondary cards ---------- */
@@ -224,14 +239,24 @@
     box-shadow: var(--soft-sm); border:1px solid rgba(255,255,255,0.9);
   }
   .card-ic svg{ width:22px; height:22px; }
-  .card-title{ font-size:17px; font-weight:800; color:var(--ink); }
+  .card-title{ font-size:17px; font-weight:800; color:var(--ink-deep); }
   .card-body-split{ display:flex; align-items:center; position:relative; z-index:2; }
   .cv{ flex:1; text-align:center; }
   .cv-label{ font-size:12px; color:var(--ink-3); font-weight:700; margin-bottom:6px; letter-spacing:1px; }
-  .cv-num{ font-size:30px; font-weight:900; color:var(--ink); letter-spacing:-0.8px; }
+  .cv-num{ font-size:38px; font-weight:900; letter-spacing:-1.4px;
+    font-variant-numeric: tabular-nums lining-nums; font-feature-settings:"tnum" 1;
+    background:linear-gradient(180deg,#96969B 0%, #6E6E73 60%, #5A5A5F 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,.9));
+  }
   .cv-divider{ width:1px; height:40px; background:linear-gradient(180deg,transparent,rgba(150,156,166,.35),transparent); margin:0 14px; }
   .card-body-single{ text-align:center; padding:4px 0 2px; position:relative; z-index:2; }
-  .cs-num{ font-size:34px; font-weight:900; color:var(--ink); letter-spacing:-0.8px; }
+  .cs-num{ font-size:42px; font-weight:900; letter-spacing:-1.5px;
+    font-variant-numeric: tabular-nums lining-nums; font-feature-settings:"tnum" 1;
+    background:linear-gradient(180deg,#A9A9AE 0%, #6E6E73 55%, #55555A 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,.9));
+  }
   .cs-unit{ font-size:13px; color:var(--ink-3); font-weight:600; margin-top:6px; }
 
   /* ---------- gold ---------- */
@@ -250,10 +275,15 @@
     box-shadow:8px 10px 20px rgba(176,132,42,0.38), inset 0 1px 0 rgba(255,255,255,.7);
   }
   .gold-ic svg{ width:30px; height:30px; }
-  .gold-title{ font-size:19px; font-weight:800; color:#4A3A11; }
+  .gold-title{ font-size:19px; font-weight:800; color:#8A6418; }
   .gold-sub{ font-size:14px; color:#A08A52; font-weight:500; margin-top:3px; }
   .gold-right{ text-align:left; }
-  .gold-num{ font-size:36px; font-weight:900; color:#4A3A11; letter-spacing:-1px; }
+  .gold-num{ font-size:44px; font-weight:900; letter-spacing:-1.6px;
+    font-variant-numeric: tabular-nums lining-nums;
+    background:linear-gradient(180deg,#E0B75C 0%, #B0842A 55%, #8A6418 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter: drop-shadow(0 1px 0 rgba(255,255,255,.75));
+  }
   .gold-usd{ font-size:15px; color:#A08A52; font-weight:700; margin-top:2px; }
 
   /* ---------- footer ---------- */
@@ -333,7 +363,7 @@
         <img src="__LOGO_SRC__"/>
       </div>
       <div class="datebadge glass">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#5C6069" stroke-width="1.8" stroke-linecap="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#86868B" stroke-width="1.8" stroke-linecap="round">
           <rect x="3" y="5" width="18" height="16" rx="5"/><path d="M8 3v4M16 3v4M3 10h18"/>
         </svg>
         __DATE__
@@ -341,9 +371,8 @@
     </div>
 
     <div class="hero-title">
-      <div class="eyebrow"><span class="pulse"></span> بروزرسانی لحظه‌یی نرخ ارز</div>
-      <div class="h1">نرخ لحظه‌یی اسعار <span>سرای‌شهزاده</span> + طلا</div>
-      <div class="h1-sub">دالر امریکایی — صرافی‌های محلی و بازار آزاد جهانی نیز</div>
+      <div class="h1">نرخ لحظه‌یی ارزها <span>سرای‌شهزاده</span> +<span>طــلا</span></div>
+      <div class="h1-sub">دالر امریکایی، صرافی‌های محلی و بازار آزاد جهانی </div>
     </div>
 
     <div class="hero-wrap">
@@ -354,19 +383,42 @@
           <div class="hero-top">
             <div class="hero-cur">
               <div class="coin">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <defs><linearGradient id="gUsd" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stop-color="#34D399"/><stop offset="100%" stop-color="#0F766E"/>
-                  </linearGradient></defs>
-                  <circle cx="12" cy="12" r="9.2" stroke="url(#gUsd)" stroke-width="1.9"/>
-                  <path d="M14.6 9.1c-.5-1-1.5-1.5-2.7-1.5-1.5 0-2.6.8-2.6 2 0 1.3 1 1.8 2.7 2.2 1.9.4 3 1 3 2.4 0 1.4-1.2 2.3-2.9 2.3-1.4 0-2.5-.6-3-1.7"
-                        stroke="url(#gUsd)" stroke-width="1.9" stroke-linecap="round"/>
-                  <path d="M12 5.6v12.8" stroke="url(#gUsd)" stroke-width="1.9" stroke-linecap="round"/>
+                <svg viewBox="0 0 36 36">
+                  <defs>
+                    <clipPath id="flagClip"><circle cx="18" cy="18" r="16"/></clipPath>
+                    <linearGradient id="flagShine" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".55"/>
+                      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <g clip-path="url(#flagClip)">
+                    <rect x="2" y="2" width="32" height="32" fill="#F5F5F7"/>
+                    <g fill="#C8102E">
+                      <rect x="2" y="2"    width="32" height="2.46"/>
+                      <rect x="2" y="6.92" width="32" height="2.46"/>
+                      <rect x="2" y="11.85" width="32" height="2.46"/>
+                      <rect x="2" y="16.77" width="32" height="2.46"/>
+                      <rect x="2" y="21.69" width="32" height="2.46"/>
+                      <rect x="2" y="26.62" width="32" height="2.46"/>
+                      <rect x="2" y="31.54" width="32" height="2.46"/>
+                    </g>
+                    <rect x="2" y="2" width="16" height="17.2" fill="#0A3161"/>
+                    <g fill="#FFFFFF">
+                      <circle cx="5" cy="4.6" r=".85"/><circle cx="9" cy="4.6" r=".85"/><circle cx="13" cy="4.6" r=".85"/><circle cx="17" cy="4.6" r=".85"/>
+                      <circle cx="7" cy="7.6" r=".85"/><circle cx="11" cy="7.6" r=".85"/><circle cx="15" cy="7.6" r=".85"/>
+                      <circle cx="5" cy="10.6" r=".85"/><circle cx="9" cy="10.6" r=".85"/><circle cx="13" cy="10.6" r=".85"/><circle cx="17" cy="10.6" r=".85"/>
+                      <circle cx="7" cy="13.6" r=".85"/><circle cx="11" cy="13.6" r=".85"/><circle cx="15" cy="13.6" r=".85"/>
+                      <circle cx="5" cy="16.6" r=".85"/><circle cx="9" cy="16.6" r=".85"/><circle cx="13" cy="16.6" r=".85"/><circle cx="17" cy="16.6" r=".85"/>
+                    </g>
+                    <rect x="2" y="2" width="32" height="32" fill="url(#flagShine)"/>
+                  </g>
+                  <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="1.6"/>
+                  <circle cx="18" cy="18" r="17" fill="none" stroke="rgba(150,156,166,.28)" stroke-width="1"/>
                 </svg>
               </div>
               <div>
                 <div class="cur-name">دالر امریکایی / افغانی</div>
-                <div class="cur-sub">سرای شهزاده — کابل</div>
+                <div class="cur-sub">سرای شهزاده کابــل</div>
               </div>
             </div>
             <div class="chip">
@@ -378,13 +430,13 @@
           </div>
 
           <div class="hero-values">
-            <div class="hv inset">
+            <div class="hv inset buy">
               <div class="hv-label"><i class="dot-buy"></i> خرید</div>
               <div class="hv-num">__SS_BUY__</div>
               <div class="hv-unit">افغانی</div>
             </div>
             <div class="hv-divider"></div>
-            <div class="hv inset">
+            <div class="hv inset sell">
               <div class="hv-label"><i class="dot-sell"></i> فروش</div>
               <div class="hv-num">__SS_SELL__</div>
               <div class="hv-unit">افغانی</div>
@@ -450,7 +502,7 @@
     <div class="footer glass">
       <div class="foot-brand">
         <img src="__LOGO_SRC__"/>
-        <div class="foot-brand-text">t.me/sarafiaf_bot</div>
+        <div class="foot-brand-text">Saraf | </div>
       </div>
       <div class="foot-social">
         <div class="foot-social-label">ما را دنبال کنید</div>

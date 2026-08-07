@@ -34,13 +34,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 FONTS_DIR = BASE_DIR / "assets" / "fonts"
 TEMPLATE_PATH = BASE_DIR / "services" / "templates" / "facebook_post_template.html"
 
-# وزن‌های فونت Vazirmatn مورد استفاده در قالب
+# وزن‌های فونت Peyda مورد استفاده در قالب
 _FONT_FILES = {
-    400: "Vazirmatn-Regular.ttf",
-    500: "Vazirmatn-Medium.ttf",
-    600: "Vazirmatn-SemiBold.ttf",
-    700: "Vazirmatn-Bold.ttf",
-    900: "Vazirmatn-Black.ttf",
+    400: "Peyda-Regular.ttf",
+    500: "Peyda-Medium.ttf",
+    600: "Peyda-SemiBold.ttf",
+    700: "Peyda-Bold.ttf",
+    900: "Peyda-Black.ttf",
 }
 
 _LOGO_CACHE_TTL_SECONDS = 3600  # ۱ ساعت
@@ -64,7 +64,7 @@ def _load_fonts_css() -> str:
             )
         b64 = base64.b64encode(path.read_bytes()).decode()
         rules.append(
-            f"@font-face {{ font-family:'Vazirmatn'; font-weight:{weight}; "
+            f"@font-face {{ font-family:'Peyda'; font-weight:{weight}; "
             f"src:url(data:font/ttf;base64,{b64}) format('truetype'); }}"
         )
     _fonts_css_cache = "\n  ".join(rules)
