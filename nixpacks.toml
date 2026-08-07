@@ -1,11 +1,17 @@
 # Railway Nixpacks Build Configuration
-# نصب Chromium برای Playwright در زمان build
+# نصب Chromium برای Playwright در مسیر persistشده (/app)
 
 [phases.setup]
 nixPkgs = ["chromium", "nss", "nspr", "atk", "at-spi2-atk", "at-spi2-core", "gtk3", "pango", "cairo", "gdk-pixbuf", "libxkbcommon", "libdrm", "mesa"]
 
 [phases.install]
+# مهم: PLAYWRIGHT_BROWSERS_PATH را تنظیم می‌کنیم تا Chromium در /app نصب شود
+# /app تنها پوشه‌ای است که Railway از build به runtime منتقل می‌کند
 cmds = [
     "pip install -r requirements.txt",
-    "playwright install --with-deps chromium"
+    "PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers playwright install --with-deps chromium"
 ]
+
+[variables]
+# این متغیر را برای runtime هم تنظیم می‌کنیم
+PLAYWRIGHT_BROWSERS_PATH = "/app/.playwright-browsers"
