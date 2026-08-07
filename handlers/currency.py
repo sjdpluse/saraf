@@ -30,9 +30,10 @@ def _format_quote_block(code: str, name: str, quote: dict) -> str:
     date_str = get_afghan_datetime_str()
 
     lines = [
-        f"{flag} *({amount}) {name} — نرخ ارزها ربات صراف*",
+        "آخرین بروزرسانی امروز؛",
         date_str,
         "",
+        f"{flag} *({amount}) {name}*",
     ]
 
     # ۱) نرخ سرای شهزاده
