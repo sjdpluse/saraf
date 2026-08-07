@@ -6,6 +6,11 @@
 کپشن کامل (شامل نرخ همهٔ ارزها، تفکیک کامل عیارهای طلا، لینک ربات و هشتگ‌ها) در
 صفحهٔ فیسبوک منتشر می‌کند.
 
+بخش نرخ ارزهای کپشن دقیقاً همان قالبی را دارد که در ربات تلگرام («نمایش همهٔ
+نرخ‌ها») نمایش داده می‌شود: برای هر ارز یک بلوکِ جداگانه شامل نرخ سرای شهزاده،
+نرخ صرافی‌های محلی (Saraf) و نرخ بازار آزاد جهانی، با خط‌جداکننده در ابتدا و
+انتهای هر بلوک.
+
 فقط زمانی پست جدید ارسال می‌شود که تغییر محسوس نرخ (بیشتر یا مساوی
 FACEBOOK_CHANGE_THRESHOLD_PERCENT) نسبت به آخرین پست ارسال‌شده رخ داده باشد؛
 این وضعیت در جدول Supabase (`fb_post_state`) نگهداری می‌شود تا با ری‌استارت
@@ -21,6 +26,7 @@ import httpx
 from config import (
     TRACKED_CURRENCIES,
     CURRENCY_FLAGS,
+    THOUSAND_UNIT_CURRENCIES,
     FACEBOOK_PAGE_ID,
     FACEBOOK_PAGE_ACCESS_TOKEN,
     FACEBOOK_CHANGE_THRESHOLD_PERCENT,
@@ -36,6 +42,17 @@ logger = logging.getLogger(__name__)
 
 PHOTO_API_URL = "https://graph.facebook.com/v19.0/{page_id}/photos"
 _TIMEOUT = 30.0
+DIVIDER = "━━━━━━━━━━"
+
+
+def _unit_amount(code: str) -> int:
+    """ارزهایی مثل تومان/کلدار/روپیه به ازای هر ۱۰۰۰ واحد نمایش داده می‌شوند
+    (هم‌راستا با handlers/currency.py تا کپشن فیسبوک با ربات تلگرام یکسان باشد)."""
+    return 1000 if code in THOUSAND_UNIT_CURRENCIES else 1
+
+
+def _scale(code: str, value: float) -> float:
+    return value * _unit_amount(code)
 
 
 def _primary_rate(quote: dict) -> Optional[float]:
@@ -79,24 +96,65 @@ def _has_significant_change(current: dict, last: dict) -> bool:
     return False
 
 
+def _build_currency_block(code: str, name: str, quote: dict) -> str:
+    """دقیقاً هم‌شکل با _format_quote_block_for_all در handlers/currency.py؛
+    برای اینکه کپشن فیسبوک هم مثل «نمایش همهٔ نرخ‌ها» در ربات تلگرام نمایش داده شود."""
+    flag = CURRENCY_FLAGS.get(code, "")
+    amount = _unit_amount(code)
+
+    lines = [
+        DIVIDER,
+        f"{flag} ({amount}) {name}",
+        "",
+    ]
+
+    # ۱) نرخ سرای شهزاده
+    local = quote.get("local")
+    if local:
+        lines.append(f"🏛 نرخ {local['market_label']}")
+        lines.append(
+            f"خرید: {_scale(code, local['buy']):,.2f}   |   "
+            f"فروش: {_scale(code, local['sell']):,.2f}"
+        )
+        lines.append("")
+
+    # ۲) نرخ خرید/فروش صرافی‌های محلی (نرخ Saraf)
+    saraf = quote["saraf_quote"]
+    lines.append("💱 نرخ صرافی‌های محلی")
+    lines.append(
+        f"خرید: {_scale(code, saraf['buy']):,.2f}   |   "
+        f"فروش: {_scale(code, saraf['sell']):,.2f}"
+    )
+    lines.append("")
+
+    # ۳) نرخ بازار آزاد جهانی
+    if quote.get("reference_rate"):
+        lines.append("🌍 نرخ بازار آزاد جهانی")
+        lines.append(f"{_scale(code, quote['reference_rate']):,.2f} افغانی")
+
+    lines.append(DIVIDER)
+
+    return "\n".join(lines)
+
+
 def _build_caption(quotes: dict, gold_breakdown: Optional[dict]) -> str:
-    """کپشن کامل پست فیسبوک: نرخ همهٔ ارزها + تفکیک کامل طلا + لینک ربات + هشتگ‌ها."""
+    """کپشن کامل پست فیسبوک: نرخ همهٔ ارزها (به‌سبک نمایش تلگرام) + تفکیک کامل
+    طلا + لینک ربات + هشتگ‌ها."""
     date_str = get_afghan_datetime_str()
-    lines = ["💠 نرخ لحظه‌یی ارز و طلا — Saraf", date_str, ""]
+    lines = [
+        "💵 (Saraf) نرخ ارزهای خارجی در برابر پول افغانی امروز — صراف",
+        date_str,
+        "",
+    ]
 
     for code, name in TRACKED_CURRENCIES.items():
         quote = quotes.get(code)
         if not quote:
             continue
-        buy = _primary_rate(quote)
-        sell = _primary_sell(quote)
-        if not buy:
-            continue
-        flag = CURRENCY_FLAGS.get(code, "")
-        lines.append(f"{flag} {name}: خرید {buy:,.2f} | فروش {sell:,.2f}")
+        lines.append(_build_currency_block(code, name, quote))
+        lines.append("")
 
     if gold_breakdown:
-        lines.append("")
         lines.append("🥇 نرخ لحظه‌یی طلا")
         lines.append("")
         lines.append(

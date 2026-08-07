@@ -12,16 +12,25 @@ nixPkgs = [
     "gdk-pixbuf",
     "libxkbcommon",
     "libdrm",
-    "mesa"
+    "mesa",
+    "alsa-lib",
+    "cups",
+    "dbus",
+    "expat",
+    "xorg.libX11",
+    "xorg.libXcomposite",
+    "xorg.libXdamage",
+    "xorg.libXext",
+    "xorg.libXfixes",
+    "xorg.libXrandr",
+    "xorg.libxshmfence",
+    "libglvnd"
 ]
 
 [phases.install]
-# نصب requirements + نصب Chromium در مسیر persistشده /app
 cmds = [
-    "pip install -r requirements.txt",
-    "PLAYWRIGHT_BROWSERS_PATH=/app/.playwright-browsers playwright install --with-deps chromium"
+    "pip install -r requirements.txt"
 ]
 
 [variables]
-PLAYWRIGHT_BROWSERS_PATH = "/app/.playwright-browsers"
 PYTHONUNBUFFERED = "1"
