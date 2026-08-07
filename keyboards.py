@@ -16,7 +16,7 @@ BTN_CURRENCY = "💵 نرخ ارزها"
 BTN_GOLD = "🥇 نرخ طلا"
 BTN_COMPARE = "📊 مقایسه با گذشته"
 BTN_CONVERTER = "🔄 مبدل ارز جهانی"
-BTN_USDT = "🪙 خرید و فروش تتر (USDT)"
+BTN_USDT = "🥇 USDT - تتر"
 BTN_ABOUT = "ℹ️ درباره ربات"
 
 
