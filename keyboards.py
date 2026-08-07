@@ -4,7 +4,80 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from config import TRACKED_CURRENCIES, GOLD_KARATS, CURRENCY_FLAGS
+from config import USDT_NETWORKS, USDT_EXCHANGES  # به importهای بالای فایل اضافه شود
 
+BTN_USDT = "🪙 خرید و فروش تتر (USDT)"
+
+# main_menu() را این‌طور به‌روزرسانی کن:
+def main_menu() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [
+            [BTN_CURRENCY, BTN_GOLD],
+            [BTN_COMPARE, BTN_CONVERTER],
+            [BTN_USDT],
+            [BTN_ABOUT],
+        ],
+        resize_keyboard=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# خرید و فروش تتر (USDT)
+# ---------------------------------------------------------------------------
+def usdt_menu_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🟢 خرید تتر", callback_data="usdt_action:buy"),
+                InlineKeyboardButton("🔴 فروش تتر", callback_data="usdt_action:sell"),
+            ]
+        ]
+    )
+
+
+def usdt_continue_keyboard(action: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton("✅ ادامه", callback_data=f"usdt_continue:{action}")]]
+    )
+
+
+def usdt_payment_method_keyboard(action: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🏢 حضوری", callback_data=f"usdt_pay:{action}:in_person"),
+                InlineKeyboardButton("🏦 آنلاین (بانکی)", callback_data=f"usdt_pay:{action}:online"),
+            ]
+        ]
+    )
+
+
+def usdt_in_person_paid_keyboard(action: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton("✅ پرداخت را انجام دادم", callback_data=f"usdt_paid:{action}")]]
+    )
+
+
+def usdt_network_keyboard(action: str) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(net, callback_data=f"usdt_net:{action}:{net}")]
+        for net in USDT_NETWORKS
+    ]
+    rows.append([InlineKeyboardButton("✏️ شبکهٔ دیگر", callback_data=f"usdt_net:{action}:other")])
+    return InlineKeyboardMarkup(rows)
+
+
+def usdt_exchange_keyboard() -> InlineKeyboardMarkup:
+    rows, row = [], []
+    for ex in USDT_EXCHANGES:
+        row.append(InlineKeyboardButton(ex, callback_data=f"usdt_exch:{ex}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([InlineKeyboardButton("✏️ صرافی دیگر", callback_data="usdt_exch:other")])
+    return InlineKeyboardMarkup(rows)
 BTN_CURRENCY = "💵 نرخ ارزها"
 BTN_GOLD = "🥇 نرخ طلا"
 BTN_COMPARE = "📊 مقایسه با گذشته"

@@ -1,0 +1,524 @@
+import logging
+import time
+
+from telegram import Update
+from telegram.ext import ContextTypes
+
+from config import (
+    ADMIN_CHAT_IDS,
+    IN_PERSON_ADDRESS,
+    IN_PERSON_PHONE,
+    BANK_NAME,
+    BANK_ACCOUNT_HOLDER,
+    BANK_ACCOUNT_NUMBER,
+    USDT_MIN_AMOUNT,
+    USDT_MAX_AMOUNT,
+    USDT_QUOTE_VALIDITY_MINUTES,
+    USDT_DEPOSIT_WALLETS,
+)
+from keyboards import (
+    usdt_menu_keyboard,
+    usdt_continue_keyboard,
+    usdt_payment_method_keyboard,
+    usdt_in_person_paid_keyboard,
+    usdt_network_keyboard,
+    usdt_exchange_keyboard,
+)
+from services import usdt_service
+from services import supabase_service as db
+
+logger = logging.getLogger(__name__)
+
+# --- کلیدهای user_data ---
+AMOUNT = "usdt_amount"
+QUOTE = "usdt_quote"
+QUOTE_TIME = "usdt_quote_time"
+PAYMENT_METHOD = "usdt_payment_method"
+NETWORK = "usdt_network"
+EXCHANGE = "usdt_exchange"
+WALLET_ADDRESS = "usdt_wallet_address"
+BANK_INFO = "usdt_bank_info"
+TX_PROOF = "usdt_tx_proof"
+RECEIPT_FILE_ID = "usdt_receipt_file_id"
+
+AWAITING_AMOUNT = "usdt_awaiting_amount"
+AWAITING_WALLET = "usdt_awaiting_wallet"
+AWAITING_EXCHANGE_CUSTOM = "usdt_awaiting_exchange_custom"
+AWAITING_NETWORK_CUSTOM = "usdt_awaiting_network_custom"
+AWAITING_TX_PROOF = "usdt_awaiting_tx_proof"
+AWAITING_RECEIPT = "usdt_awaiting_receipt"
+AWAITING_BANK_INFO = "usdt_awaiting_bank_info"
+
+_ALL_KEYS = (
+    AMOUNT, QUOTE, QUOTE_TIME, PAYMENT_METHOD, NETWORK, EXCHANGE,
+    WALLET_ADDRESS, BANK_INFO, TX_PROOF, RECEIPT_FILE_ID,
+    AWAITING_AMOUNT, AWAITING_WALLET, AWAITING_EXCHANGE_CUSTOM,
+    AWAITING_NETWORK_CUSTOM, AWAITING_TX_PROOF, AWAITING_RECEIPT,
+    AWAITING_BANK_INFO,
+)
+
+
+def _reset_state(context: ContextTypes.DEFAULT_TYPE) -> None:
+    for key in _ALL_KEYS:
+        context.user_data.pop(key, None)
+
+
+def _quote_expired(context: ContextTypes.DEFAULT_TYPE) -> bool:
+    ts = context.user_data.get(QUOTE_TIME)
+    if not ts:
+        return True
+    return (time.time() - ts) > USDT_QUOTE_VALIDITY_MINUTES * 60
+
+
+async def _notify_admins(context: ContextTypes.DEFAULT_TYPE, text: str) -> None:
+    for admin_id in ADMIN_CHAT_IDS:
+        try:
+            await context.bot.send_message(chat_id=admin_id, text=text, parse_mode="Markdown")
+        except Exception:
+            logger.exception("خطا در اطلاع‌رسانی به ادمین %s", admin_id)
+
+
+# ---------------------------------------------------------------------------
+# ورودی منو
+# ---------------------------------------------------------------------------
+async def usdt_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    _reset_state(context)
+    await update.message.reply_text(
+        "🪙 *خرید و فروش تتر (USDT)*\n\n"
+        f"حداقل مقدار معامله: {USDT_MIN_AMOUNT:g} USDT | حداکثر: {USDT_MAX_AMOUNT:g} USDT\n\n"
+        "می‌خواهید تتر بخرید یا بفروشید؟",
+        parse_mode="Markdown",
+        reply_markup=usdt_menu_keyboard(),
+    )
+
+
+async def usdt_action_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    _, action = query.data.split(":", 1)
+    _reset_state(context)
+    context.user_data[AWAITING_AMOUNT] = action
+
+    verb = "خرید" if action == "buy" else "فروش"
+    await query.edit_message_text(
+        f"چند USDT می‌خواهید {verb} کنید؟\n\n"
+        f"(بین {USDT_MIN_AMOUNT:g} تا {USDT_MAX_AMOUNT:g} — فقط عدد بنویسید، مثال: `50`)",
+        parse_mode="Markdown",
+    )
+
+
+# ---------------------------------------------------------------------------
+# دریافت مقدار و نمایش نرخ
+# ---------------------------------------------------------------------------
+async def handle_usdt_amount_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    action = context.user_data.get(AWAITING_AMOUNT)
+    if not action:
+        return False
+
+    text = update.message.text.strip().replace(",", ".")
+    try:
+        amount = float(text)
+    except ValueError:
+        await update.message.reply_text("⚠️ لطفاً یک عدد معتبر بنویسید (مثال: 50)")
+        return True
+
+    try:
+        if action == "buy":
+            quote = await usdt_service.get_buy_quote(amount)
+        else:
+            quote = await usdt_service.get_sell_quote(amount)
+    except usdt_service.UsdtAmountError as exc:
+        await update.message.reply_text(f"⚠️ {exc}")
+        return True
+    except Exception as exc:
+        logger.exception("خطا در محاسبهٔ نرخ تتر")
+        await update.message.reply_text(f"⚠️ خطا در دریافت نرخ: {exc}")
+        return True
+
+    context.user_data[AWAITING_AMOUNT] = None
+    context.user_data[AMOUNT] = amount
+    context.user_data[QUOTE] = quote
+    context.user_data[QUOTE_TIME] = time.time()
+
+    if action == "buy":
+        text_out = (
+            f"🟢 *خرید {amount:g} USDT*\n\n"
+            f"نرخ دالر (صرافی محلی): {quote['usd_rate']:,.2f}\n"
+            f"مبلغ پایه: {quote['base_afn']:,.0f} افغانی\n"
+            f"کارمزد ({quote['fee_percent']}٪): {quote['fee_afn']:,.0f} افغانی\n\n"
+            f"💰 مبلغ نهایی قابل پرداخت: *{quote['total_afn']:,.0f} افغانی*\n\n"
+            f"_این نرخ برای {USDT_QUOTE_VALIDITY_MINUTES} دقیقه معتبر است._"
+        )
+    else:
+        text_out = (
+            f"🔴 *فروش {amount:g} USDT*\n\n"
+            f"{amount:g} تتر شما به نرخ روز، *{quote['usd_rate']:,.2f}* دالر برای هر واحد "
+            f"و مجموعاً *{quote['total_afn']:,.0f} افغانی* می‌شود.\n\n"
+            f"_این نرخ برای {USDT_QUOTE_VALIDITY_MINUTES} دقیقه معتبر است._"
+        )
+
+    await update.message.reply_text(
+        text_out, parse_mode="Markdown", reply_markup=usdt_continue_keyboard(action)
+    )
+    return True
+
+
+async def usdt_continue_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    _, action = query.data.split(":", 1)
+
+    if action == "buy":
+        await query.edit_message_text(
+            "روش پرداخت خود را انتخاب کنید:",
+            reply_markup=usdt_payment_method_keyboard("buy"),
+        )
+    else:
+        await query.edit_message_text(
+            "معاملهٔ خود را از کدام صرافی انجام می‌دهید؟",
+            reply_markup=usdt_exchange_keyboard(),
+        )
+
+
+# ---------------------------------------------------------------------------
+# خرید — روش پرداخت
+# ---------------------------------------------------------------------------
+async def usdt_pay_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    _, action, method = query.data.split(":", 2)
+    context.user_data[PAYMENT_METHOD] = method
+
+    quote = context.user_data.get(QUOTE)
+    if not quote:
+        await query.edit_message_text("⚠️ لطفاً دوباره از منوی تتر شروع کنید.")
+        return
+
+    if action == "buy":
+        if method == "in_person":
+            await query.edit_message_text(
+                "🏢 *پرداخت حضوری*\n\n"
+                f"لطفاً مبلغ *{quote['total_afn']:,.0f} افغانی* را به نمایندهٔ حضوری صراف "
+                "به آدرس زیر پرداخت کنید:\n\n"
+                f"📍 {IN_PERSON_ADDRESS}\n"
+                f"📞 {IN_PERSON_PHONE}\n\n"
+                "پس از پرداخت، دکمهٔ زیر را بزنید:",
+                parse_mode="Markdown",
+                reply_markup=usdt_in_person_paid_keyboard("buy"),
+            )
+        else:
+            context.user_data[AWAITING_RECEIPT] = True
+            await query.edit_message_text(
+                "🏦 *پرداخت آنلاین (بانکی)*\n\n"
+                f"لطفاً مبلغ *{quote['total_afn']:,.0f} افغانی* را به حساب بانکی زیر واریز کنید:\n\n"
+                f"🏦 بانک: {BANK_NAME}\n"
+                f"👤 صاحب حساب: {BANK_ACCOUNT_HOLDER}\n"
+                f"🔢 شماره حساب: `{BANK_ACCOUNT_NUMBER}`\n\n"
+                "پس از واریز، لطفاً *عکس رسید بانکی* را همینجا ارسال کنید.",
+                parse_mode="Markdown",
+            )
+        return
+
+    # action == "sell" -> این مرحله دربارهٔ نحوهٔ دریافت مبلغ فروش است
+    if method == "in_person":
+        await _finalize_sell_order(
+            query.edit_message_text, context, update.effective_chat.id,
+            update.effective_user, payment_note="حضوری",
+        )
+    else:
+        context.user_data[AWAITING_BANK_INFO] = True
+        await query.edit_message_text(
+            "🏦 *دریافت آنلاین*\n\n"
+            "لطفاً نام صاحب حساب و شمارهٔ حساب بانکی خود را برای واریز مبلغ ارسال کنید\n"
+            "(مثال: `احمد احمدی — 0123456789 — بانک ...`)",
+            parse_mode="Markdown",
+        )
+
+
+async def usdt_paid_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    _, action = query.data.split(":", 1)
+    if action != "buy":
+        return
+    await query.edit_message_text(
+        "بسیار خوب ✅\n\nحالا شبکهٔ مورد نظر برای دریافت تتر را انتخاب کنید:",
+        reply_markup=usdt_network_keyboard("buy"),
+    )
+
+
+async def handle_usdt_receipt_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if not context.user_data.get(AWAITING_RECEIPT):
+        return False
+    context.user_data[AWAITING_RECEIPT] = False
+    context.user_data[RECEIPT_FILE_ID] = update.message.photo[-1].file_id
+    await update.message.reply_text(
+        "✅ رسید پرداخت شما دریافت شد.\n\nحالا شبکهٔ مورد نظر برای دریافت تتر را انتخاب کنید:",
+        reply_markup=usdt_network_keyboard("buy"),
+    )
+    return True
+
+
+# ---------------------------------------------------------------------------
+# فروش — انتخاب صرافی
+# ---------------------------------------------------------------------------
+async def usdt_exch_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    _, exch = query.data.split(":", 1)
+
+    if exch == "other":
+        context.user_data[AWAITING_EXCHANGE_CUSTOM] = True
+        await query.edit_message_text("لطفاً نام صرافی مورد نظر خود را بنویسید:")
+        return
+
+    context.user_data[EXCHANGE] = exch
+    await query.edit_message_text(
+        f"صرافی: *{exch}*\n\nحالا شبکهٔ مورد نظر برای ارسال تتر را انتخاب کنید:",
+        parse_mode="Markdown",
+        reply_markup=usdt_network_keyboard("sell"),
+    )
+
+
+async def handle_usdt_exchange_custom_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if not context.user_data.get(AWAITING_EXCHANGE_CUSTOM):
+        return False
+    context.user_data[AWAITING_EXCHANGE_CUSTOM] = False
+    exch = update.message.text.strip()
+    context.user_data[EXCHANGE] = exch
+    await update.message.reply_text(
+        f"صرافی: *{exch}*\n\nحالا شبکهٔ مورد نظر برای ارسال تتر را انتخاب کنید:",
+        parse_mode="Markdown",
+        reply_markup=usdt_network_keyboard("sell"),
+    )
+    return True
+
+
+# ---------------------------------------------------------------------------
+# انتخاب شبکه (مشترک بین خرید و فروش)
+# ---------------------------------------------------------------------------
+async def _after_network_selected(send_func, context: ContextTypes.DEFAULT_TYPE, action: str, network: str) -> None:
+    context.user_data[NETWORK] = network
+
+    if action == "buy":
+        context.user_data[AWAITING_WALLET] = True
+        await send_func(
+            f"شبکهٔ انتخابی: *{network}*\n\n"
+            "لطفاً آدرس ولت (کیف پول) خودتان برای دریافت تتر در همین شبکه را ارسال کنید.",
+            parse_mode="Markdown",
+        )
+        return
+
+    # action == "sell"
+    wallet = USDT_DEPOSIT_WALLETS.get(network.upper())
+    if not wallet:
+        supported = "، ".join(USDT_DEPOSIT_WALLETS.keys())
+        await send_func(
+            f"⚠️ در حال حاضر فقط شبکهٔ {supported} برای دریافت تتر پشتیبانی می‌شود.\n\n"
+            "لطفاً یکی از شبکه‌های زیر را انتخاب کنید:",
+            reply_markup=usdt_network_keyboard("sell"),
+        )
+        return
+
+    context.user_data[AWAITING_TX_PROOF] = True
+    amount = context.user_data.get(AMOUNT, 0)
+    await send_func(
+        f"لطفاً مقدار *{amount:g} USDT* را به آدرس زیر در شبکهٔ *{network}* ارسال کنید:\n\n"
+        f"`{wallet}`\n\n"
+        "⚠️ لطفاً پیش از ارسال، آدرس و شبکه را با دقت بررسی کنید؛ ارسال در شبکهٔ اشتباه "
+        "ممکن است باعث از دست رفتن دارایی شود.\n\n"
+        "پس از انتقال، لطفاً *کد تراکنش (TxID)* یا *عکس رسید تراکنش* را ارسال کنید.",
+        parse_mode="Markdown",
+    )
+
+
+async def usdt_network_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    _, action, network = query.data.split(":", 2)
+
+    if network == "other":
+        context.user_data[AWAITING_NETWORK_CUSTOM] = action
+        await query.edit_message_text("لطفاً نام شبکهٔ مورد نظر خود را بنویسید (مثال: Polygon):")
+        return
+
+    await _after_network_selected(query.edit_message_text, context, action, network)
+
+
+async def handle_usdt_network_custom_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    action = context.user_data.get(AWAITING_NETWORK_CUSTOM)
+    if not action:
+        return False
+    context.user_data[AWAITING_NETWORK_CUSTOM] = None
+    network = update.message.text.strip()
+    await _after_network_selected(update.message.reply_text, context, action, network)
+    return True
+
+
+# ---------------------------------------------------------------------------
+# خرید — دریافت آدرس ولت و نهایی‌سازی
+# ---------------------------------------------------------------------------
+async def handle_usdt_wallet_address_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if not context.user_data.get(AWAITING_WALLET):
+        return False
+    context.user_data[AWAITING_WALLET] = False
+    context.user_data[WALLET_ADDRESS] = update.message.text.strip()
+
+    if _quote_expired(context):
+        await update.message.reply_text(
+            "⚠️ نرخ نمایش‌داده‌شده منقضی شده است. لطفاً دوباره از منوی «🪙 خرید و فروش تتر» شروع کنید."
+        )
+        _reset_state(context)
+        return True
+
+    await _finalize_buy_order(update.message.reply_text, context, update.effective_chat.id, update.effective_user)
+    return True
+
+
+async def _finalize_buy_order(send_func, context: ContextTypes.DEFAULT_TYPE, chat_id: int, user) -> None:
+    quote = context.user_data.get(QUOTE)
+    order = {
+        "chat_id": chat_id,
+        "username": user.username,
+        "full_name": user.full_name,
+        "order_type": "buy",
+        "usdt_amount": context.user_data.get(AMOUNT),
+        "usd_rate": quote["usd_rate"],
+        "fee_percent": quote["fee_percent"],
+        "total_afn": quote["total_afn"],
+        "total_usd": quote["total_usd"],
+        "payment_method": context.user_data.get(PAYMENT_METHOD),
+        "network": context.user_data.get(NETWORK),
+        "wallet_address": context.user_data.get(WALLET_ADDRESS),
+        "receipt_file_id": context.user_data.get(RECEIPT_FILE_ID),
+        "status": "pending",
+    }
+    row = db.insert_usdt_order(order)
+    order_code = f"USDT-{row['id']:05d}" if row else "USDT-?????"
+
+    await send_func(
+        f"✅ *سفارش شما ثبت شد*\n\n"
+        f"کد سفارش: `{order_code}`\n"
+        f"مقدار: {context.user_data.get(AMOUNT):g} USDT\n"
+        f"شبکه: {context.user_data.get(NETWORK)}\n"
+        f"آدرس دریافت: `{context.user_data.get(WALLET_ADDRESS)}`\n\n"
+        "تتر شما پس از تأیید پرداخت، ظرف کمتر از *۱ ساعت* به آدرس فوق واریز خواهد شد.",
+        parse_mode="Markdown",
+    )
+
+    await _notify_admins(
+        context,
+        "🆕 *سفارش خرید تتر*\n\n"
+        f"کد: `{order_code}`\n"
+        f"کاربر: @{user.username or '-'} ({chat_id})\n"
+        f"مقدار: {context.user_data.get(AMOUNT):g} USDT\n"
+        f"مبلغ: {quote['total_afn']:,.0f} افغانی (کارمزد {quote['fee_percent']}٪)\n"
+        f"روش پرداخت: {context.user_data.get(PAYMENT_METHOD)}\n"
+        f"شبکه: {context.user_data.get(NETWORK)}\n"
+        f"آدرس ولت: `{context.user_data.get(WALLET_ADDRESS)}`",
+    )
+    _reset_state(context)
+
+
+# ---------------------------------------------------------------------------
+# فروش — دریافت اثبات تراکنش و نهایی‌سازی
+# ---------------------------------------------------------------------------
+async def _ask_sell_receive_method(send_func) -> None:
+    await send_func(
+        "✅ رسید تراکنش دریافت شد.\n\nمی‌خواهید مبلغ فروش را چگونه دریافت کنید؟",
+        reply_markup=usdt_payment_method_keyboard("sell"),
+    )
+
+
+async def handle_usdt_tx_proof_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if not context.user_data.get(AWAITING_TX_PROOF):
+        return False
+    context.user_data[AWAITING_TX_PROOF] = False
+    context.user_data[TX_PROOF] = update.message.text.strip()
+    await _ask_sell_receive_method(update.message.reply_text)
+    return True
+
+
+async def handle_usdt_tx_proof_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if not context.user_data.get(AWAITING_TX_PROOF):
+        return False
+    context.user_data[AWAITING_TX_PROOF] = False
+    context.user_data[TX_PROOF] = update.message.photo[-1].file_id
+    await _ask_sell_receive_method(update.message.reply_text)
+    return True
+
+
+async def handle_usdt_bank_info_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if not context.user_data.get(AWAITING_BANK_INFO):
+        return False
+    context.user_data[AWAITING_BANK_INFO] = False
+    context.user_data[BANK_INFO] = update.message.text.strip()
+
+    if _quote_expired(context):
+        await update.message.reply_text(
+            "⚠️ نرخ نمایش‌داده‌شده منقضی شده است. لطفاً دوباره از منوی «🪙 خرید و فروش تتر» شروع کنید."
+        )
+        _reset_state(context)
+        return True
+
+    await _finalize_sell_order(
+        update.message.reply_text, context, update.effective_chat.id,
+        update.effective_user, payment_note="آنلاین (بانکی)",
+    )
+    return True
+
+
+async def _finalize_sell_order(send_func, context: ContextTypes.DEFAULT_TYPE, chat_id: int, user, payment_note: str) -> None:
+    quote = context.user_data.get(QUOTE)
+    order = {
+        "chat_id": chat_id,
+        "username": user.username,
+        "full_name": user.full_name,
+        "order_type": "sell",
+        "usdt_amount": context.user_data.get(AMOUNT),
+        "usd_rate": quote["usd_rate"],
+        "total_afn": quote["total_afn"],
+        "total_usd": quote["total_usd"],
+        "exchange_name": context.user_data.get(EXCHANGE),
+        "network": context.user_data.get(NETWORK),
+        "tx_proof": context.user_data.get(TX_PROOF),
+        "receive_method": context.user_data.get(PAYMENT_METHOD),
+        "bank_info": context.user_data.get(BANK_INFO),
+        "status": "pending",
+    }
+    row = db.insert_usdt_order(order)
+    order_code = f"USDT-{row['id']:05d}" if row else "USDT-?????"
+
+    if context.user_data.get(PAYMENT_METHOD) == "in_person":
+        receive_text = (
+            "برای دریافت مبلغ، به آدرس زیر مراجعه کنید:\n\n"
+            f"📍 {IN_PERSON_ADDRESS}\n"
+            f"📞 {IN_PERSON_PHONE}"
+        )
+    else:
+        receive_text = "مبلغ به حساب بانکی اعلام‌شدهٔ شما واریز خواهد شد."
+
+    await send_func(
+        f"✅ *سفارش فروش شما ثبت شد*\n\n"
+        f"کد سفارش: `{order_code}`\n"
+        f"مقدار: {context.user_data.get(AMOUNT):g} USDT\n"
+        f"مبلغ قابل دریافت: *{quote['total_afn']:,.0f} افغانی*\n\n"
+        f"{receive_text}\n\n"
+        "پس از تأیید تراکنش توسط تیم ما، مبلغ ظرف کمتر از *۱ ساعت* پرداخت خواهد شد.",
+        parse_mode="Markdown",
+    )
+
+    await _notify_admins(
+        context,
+        "🆕 *سفارش فروش تتر*\n\n"
+        f"کد: `{order_code}`\n"
+        f"کاربر: @{user.username or '-'} ({chat_id})\n"
+        f"مقدار: {context.user_data.get(AMOUNT):g} USDT\n"
+        f"مبلغ: {quote['total_afn']:,.0f} افغانی\n"
+        f"صرافی: {context.user_data.get(EXCHANGE)}\n"
+        f"شبکه: {context.user_data.get(NETWORK)}\n"
+        f"روش دریافت: {payment_note}\n"
+        f"اثبات تراکنش: {context.user_data.get(TX_PROOF) or '-'}\n"
+        f"اطلاعات بانکی کاربر: {context.user_data.get(BANK_INFO) or '-'}",
+    )
+    _reset_state(context)

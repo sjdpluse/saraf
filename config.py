@@ -82,3 +82,42 @@ FACEBOOK_CHANGE_THRESHOLD_PERCENT = float(os.getenv("FACEBOOK_CHANGE_THRESHOLD_P
 FACEBOOK_POST_SITE_URL = os.getenv("FACEBOOK_POST_SITE_URL", "")
 # هر چند دقیقه یک‌بار بررسی شود که آیا تغییر محسوس رخ داده یا نه
 FACEBOOK_CHECK_INTERVAL_MINUTES = int(os.getenv("FACEBOOK_CHECK_INTERVAL_MINUTES", "30"))
+
+# --- خرید و فروش تتر (USDT) ---
+USDT_MIN_AMOUNT = float(os.getenv("USDT_MIN_AMOUNT", "10"))
+USDT_MAX_AMOUNT = float(os.getenv("USDT_MAX_AMOUNT", "10000"))
+
+# کارمزد پلکانی خرید تتر (٪) — فقط برای خرید؛ فروش کارمزد اضافه ندارد و صرفاً
+# بر مبنای نرخ خرید دالر صرافی‌های محلی محاسبه می‌شود.
+# هر ردیف: (حداقل مقدار, حداکثر مقدار, درصد کارمزد)
+USDT_BUY_FEE_TIERS = [
+    (10, 499.999999, 3.0),
+    (500, 2999.999999, 2.5),
+    (3000, 10000, 2.0),
+]
+
+# شبکه‌های قابل انتخاب برای واریز/دریافت تتر
+USDT_NETWORKS = ["TRC20", "ERC20", "BEP20"]
+
+# آدرس ولت‌های خودِ صراف برای دریافت تتر (هنگام فروش کاربر) — فقط شبکه‌هایی که
+# اینجا تعریف شده‌اند فعلاً پشتیبانی می‌شوند. برای افزودن شبکهٔ جدید کافیست یک
+# ردیف دیگر به این دیکشنری اضافه شود.
+USDT_DEPOSIT_WALLETS = {
+    "BEP20": "0x4c49Ff39798C564A01F5fdEcB7E335a178f781BA",
+}
+
+# صرافی‌های آنلاین رایج برای انتخاب سریع در فروش تتر
+USDT_EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"]
+
+# --- اطلاعات پرداخت بانکی (برای خرید تتر به‌صورت آنلاین) ---
+BANK_NAME = "عزیز بانک (Azizi Bank)"
+BANK_ACCOUNT_NUMBER = os.getenv("BANK_ACCOUNT_NUMBER", "000601102302066")
+BANK_ACCOUNT_HOLDER = os.getenv("BANK_ACCOUNT_HOLDER", "SAJAD ALI MOHAMMADI")
+
+# --- آدرس و شمارهٔ تماس نمایندهٔ حضوری صراف ---
+IN_PERSON_ADDRESS = "کوته سنگی، همادی مارکت، کابل، افغانستان"
+IN_PERSON_PHONE = "+93790810632"
+
+# مدت اعتبار نرخ نمایش‌داده‌شده به کاربر (به دقیقه) — بعد از این مدت در لحظهٔ
+# نهایی‌سازی سفارش، از کاربر خواسته می‌شود دوباره شروع کند تا با نرخ قدیمی ضرر نکند.
+USDT_QUOTE_VALIDITY_MINUTES = 10

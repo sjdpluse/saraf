@@ -50,6 +50,61 @@ def upsert_user(chat_id: int, username: str | None, full_name: str | None) -> No
         logger.exception("خطا در ثبت کاربر در Supabase")
 
 # ---------------------------------------------------------------------------
+# سفارش‌های خرید و فروش تتر (USDT)
+# ---------------------------------------------------------------------------
+def insert_usdt_order(order: dict) -> Optional[dict]:
+    """سفارش را ثبت می‌کند و ردیف کامل (شامل id) را برمی‌گرداند، یا None در صورت خطا."""
+    try:
+        res = get_client().table("usdt_orders").insert(order).execute()
+        if res.data:
+            return res.data[0]
+        return None
+    except Exception:
+        logger.exception("خطا در ثبت سفارش تتر")
+        return None
+
+
+def update_usdt_order_status(order_id: int, status: str, **extra_fields) -> None:
+    try:
+        fields = {"status": status, **extra_fields}
+        get_client().table("usdt_orders").update(fields).eq("id", order_id).execute()
+    except Exception:
+        logger.exception("خطا در به‌روزرسانی وضعیت سفارش تتر")
+
+
+def get_pending_usdt_orders(limit: int = 20) -> list[dict]:
+    try:
+        res = (
+            get_client()
+            .table("usdt_orders")
+            .select("*")
+            .eq("status", "pending")
+            .order("created_at", desc=False)
+            .limit(limit)
+            .execute()
+        )
+        return res.data or []
+    except Exception:
+        logger.exception("خطا در خواندن سفارش‌های در انتظار تتر")
+        return []
+
+
+def get_usdt_order_by_id(order_id: int) -> Optional[dict]:
+    try:
+        res = (
+            get_client()
+            .table("usdt_orders")
+            .select("*")
+            .eq("id", order_id)
+            .limit(1)
+            .execute()
+        )
+        return res.data[0] if res.data else None
+    except Exception:
+        logger.exception("خطا در خواندن سفارش تتر")
+        return None
+
+# ---------------------------------------------------------------------------
 # وضعیت آخرین پست فیسبوک (برای تشخیص تغییر محسوس نرخ)
 # ---------------------------------------------------------------------------
 def get_fb_post_state() -> dict:

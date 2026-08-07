@@ -10,7 +10,47 @@ from services import supabase_service as db, spread_service
 
 logger = logging.getLogger(__name__)
 
+async def usdt_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        return
+    orders = db.get_pending_usdt_orders()
+    if not orders:
+        await update.message.reply_text("سفارش در انتظاری برای تتر وجود ندارد.")
+        return
+    lines = ["📋 *سفارش‌های تتر در انتظار*\n"]
+    for o in orders:
+        code = f"USDT-{o['id']:05d}"
+        kind = "خرید" if o["order_type"] == "buy" else "فروش"
+        lines.append(f"`{code}` | {kind} | {o['usdt_amount']:g} USDT | {o['total_afn']:,.0f} افغانی")
+    lines.append("\nبرای تأیید سفارش: /usdtconfirm شمارهٔ_سفارش")
+    await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.MARKDOWN)
 
+
+async def usdt_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        return
+    if not context.args:
+        await update.message.reply_text("استفاده: /usdtconfirm 12  (فقط شمارهٔ سفارش)")
+        return
+    try:
+        order_id = int(context.args[0].replace("USDT-", "").lstrip("0") or "0")
+    except ValueError:
+        await update.message.reply_text("⚠️ شمارهٔ سفارش نامعتبر است.")
+        return
+    order = db.get_usdt_order_by_id(order_id)
+    if not order:
+        await update.message.reply_text("⚠️ سفارشی با این کد یافت نشد.")
+        return
+    db.update_usdt_order_status(order_id, "confirmed")
+    await update.message.reply_text(f"✅ سفارش USDT-{order_id:05d} تأیید شد.")
+    try:
+        await context.bot.send_message(
+            chat_id=order["chat_id"],
+            text=f"✅ سفارش شما (USDT-{order_id:05d}) تأیید و در حال پردازش نهایی است.",
+        )
+    except Exception:
+        logger.exception("خطا در اطلاع‌رسانی تأیید سفارش به کاربر")
+        
 def _is_admin(update: Update) -> bool:
     return update.effective_user.id in ADMIN_CHAT_IDS
 

@@ -23,13 +23,15 @@ from config import (
     LOCAL_MARKET_FETCH_INTERVAL_MINUTES,
     FACEBOOK_CHECK_INTERVAL_MINUTES,
 )
-from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT
-from handlers import start, currency, gold, compare, admin, converter
+from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT
+from handlers import start, currency, gold, compare, admin, converter, usdt
 from jobs import (
     fetch_and_store_snapshot,
     fetch_and_store_local_market,
     check_and_post_facebook_update,
 )
+
+
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -46,6 +48,18 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     if await converter.handle_converter_input(update, context):
         return
+    if await usdt.handle_usdt_amount_input(update, context):
+        return
+    if await usdt.handle_usdt_wallet_address_input(update, context):
+        return
+    if await usdt.handle_usdt_exchange_custom_input(update, context):
+        return
+    if await usdt.handle_usdt_network_custom_input(update, context):
+        return
+    if await usdt.handle_usdt_tx_proof_text(update, context):
+        return
+    if await usdt.handle_usdt_bank_info_input(update, context):
+        return
 
     text = update.message.text
     if text == BTN_CURRENCY:
@@ -56,12 +70,21 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await compare.compare_menu(update, context)
     elif text == BTN_CONVERTER:
         await converter.converter_prompt(update, context)
+    elif text == BTN_USDT:
+        await usdt.usdt_menu(update, context)
     elif text == BTN_ABOUT:
         await start.about(update, context)
     else:
         await update.message.reply_text(
             "لطفاً یکی از گزینه‌های منو را انتخاب کنید 👇"
         )
+
+
+async def photo_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await usdt.handle_usdt_receipt_photo(update, context):
+        return
+    if await usdt.handle_usdt_tx_proof_photo(update, context):
+        return
 
 
 def build_application() -> Application:
@@ -78,9 +101,13 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("stats", admin.stats))
     app.add_handler(CommandHandler("setspread", admin.set_spread))
     app.add_handler(CommandHandler("spreads", admin.list_spreads))
+    app.add_handler(CommandHandler("usdtpending", admin.usdt_pending))
+    app.add_handler(CommandHandler("usdtconfirm", admin.usdt_confirm))
 
     # منوی اصلی (متن دکمه‌ها)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu_router))
+
+    app.add_handler(MessageHandler(filters.PHOTO, photo_router))
 
     # کال‌بک‌های اینلاین
     app.add_handler(CallbackQueryHandler(currency.currency_callback, pattern=r"^cur:"))
@@ -109,6 +136,12 @@ def build_application() -> Application:
     app.add_handler(
         CallbackQueryHandler(converter.converter_amount_callback, pattern=r"^convamt:")
     )
+    app.add_handler(CallbackQueryHandler(usdt.usdt_action_callback, pattern=r"^usdt_action:"))
+    app.add_handler(CallbackQueryHandler(usdt.usdt_continue_callback, pattern=r"^usdt_continue:"))
+    app.add_handler(CallbackQueryHandler(usdt.usdt_pay_callback, pattern=r"^usdt_pay:"))
+    app.add_handler(CallbackQueryHandler(usdt.usdt_paid_callback, pattern=r"^usdt_paid:"))
+    app.add_handler(CallbackQueryHandler(usdt.usdt_network_callback, pattern=r"^usdt_net:"))
+    app.add_handler(CallbackQueryHandler(usdt.usdt_exch_callback, pattern=r"^usdt_exch:"))
 
     # وظایف زمان‌بندی‌شده
     if app.job_queue:
