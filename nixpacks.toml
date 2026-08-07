@@ -1,0 +1,11 @@
+# Railway Nixpacks Build Configuration
+# نصب Chromium برای Playwright در زمان build
+
+[phases.setup]
+nixPkgs = ["chromium", "nss", "nspr", "atk", "at-spi2-atk", "at-spi2-core", "gtk3", "pango", "cairo", "gdk-pixbuf", "libxkbcommon", "libdrm", "mesa"]
+
+[phases.install]
+cmds = [
+    "pip install -r requirements.txt",
+    "playwright install --with-deps chromium"
+]
