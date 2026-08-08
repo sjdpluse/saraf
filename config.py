@@ -8,12 +8,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- Telegram ---
+# --- Telegram (ربات اصلی مشتریان) ---
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_CHAT_IDS = [
     int(x.strip()) for x in os.getenv("ADMIN_CHAT_IDS", "").split(",") if x.strip()
 ]
 TELEGRAM_BOT_LINK = os.getenv("TELEGRAM_BOT_LINK", "https://t.me/sarafiaf_bot")
+
+# --- Telegram (ربات دوم، مخصوص مدیریت — تایید/رد سفارش‌های تتر توسط ادمین) ---
+# این ربات کاملاً جدا از ربات مشتریان اجرا می‌شود تا اعلان‌های حساس مالی با پیام‌های
+# عمومی مخلوط نشوند. توکن را فقط در .env قرار بده، هرگز در کد ننویس.
+ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", "")
+
+# آی‌دی پشتیبانی که در پیام‌های «سفارش در انتظار» به کاربر نمایش داده می‌شود
+SUPPORT_TELEGRAM_USERNAME = os.getenv("SUPPORT_TELEGRAM_USERNAME", "@SJDPLUS")
+
+# --- Mini App (وب‌اپلیکیشن داخل تلگرام برای خرید/فروش تتر) ---
+# آدرس عمومی جایی که فرانت‌اند مینی‌اپ سرو می‌شود (همان سرویس وب/api.py روی Railway)
+MINI_APP_URL = os.getenv("MINI_APP_URL", "")
 
 # --- Supabase ---
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
@@ -133,3 +145,6 @@ IN_PERSON_PHONE = "+93790810632"
 # مدت اعتبار نرخ نمایش‌داده‌شده به کاربر (به دقیقه) — بعد از این مدت در لحظهٔ
 # نهایی‌سازی سفارش، از کاربر خواسته می‌شود دوباره شروع کند تا با نرخ قدیمی ضرر نکند.
 USDT_QUOTE_VALIDITY_MINUTES = 10
+
+# نام باکت Supabase Storage برای نگهداری رسیدها/اسکرین‌شات‌های ارسالی از طریق مینی‌اپ
+USDT_RECEIPTS_BUCKET = os.getenv("USDT_RECEIPTS_BUCKET", "usdt-receipts")

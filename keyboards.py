@@ -1,7 +1,13 @@
 """
 منوهای ربات (Reply Keyboard و Inline Keyboard) — همه به زبان دری.
 """
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from telegram import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    WebAppInfo,
+)
 
 from config import (
     TRACKED_CURRENCIES,
@@ -9,6 +15,7 @@ from config import (
     CURRENCY_FLAGS,
     USDT_NETWORKS,
     USDT_EXCHANGES,
+    MINI_APP_URL,
 )
 
 # --- دکمه‌های منوی اصلی ---
@@ -179,14 +186,25 @@ def converter_amount_keyboard() -> InlineKeyboardMarkup:
 # خرید و فروش تتر (USDT)
 # ---------------------------------------------------------------------------
 def usdt_menu_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [
+    rows = []
+    # اگر آدرس مینی‌اپ تنظیم شده، دکمهٔ ورود به تجربهٔ کامل‌تر (فرم + پیگیری سفارش‌ها)
+    # را در بالای منو نشان بده. جریان گفتگویی زیر همیشه به‌عنوان مسیر پشتیبان می‌ماند.
+    if MINI_APP_URL:
+        rows.append(
             [
-                InlineKeyboardButton("🟢 خرید تتر", callback_data="usdt_action:buy"),
-                InlineKeyboardButton("🔴 فروش تتر", callback_data="usdt_action:sell"),
+                InlineKeyboardButton(
+                    "🚀 باز کردن اپلیکیشن تتر (پیشنهادی)",
+                    web_app=WebAppInfo(url=f"{MINI_APP_URL.rstrip('/')}/miniapp/"),
+                )
             ]
+        )
+    rows.append(
+        [
+            InlineKeyboardButton("🟢 خرید تتر", callback_data="usdt_action:buy"),
+            InlineKeyboardButton("🔴 فروش تتر", callback_data="usdt_action:sell"),
         ]
     )
+    return InlineKeyboardMarkup(rows)
 
 
 def usdt_continue_keyboard(action: str) -> InlineKeyboardMarkup:
@@ -219,6 +237,43 @@ def usdt_network_keyboard(action: str) -> InlineKeyboardMarkup:
     ]
     rows.append([InlineKeyboardButton("✏️ شبکهٔ دیگر", callback_data=f"usdt_net:{action}:other")])
     return InlineKeyboardMarkup(rows)
+
+
+def usdt_buy_exchange_keyboard() -> InlineKeyboardMarkup:
+    """انتخاب صرافی/کیف‌پول مقصد برای دریافت تتر در مسیر خرید."""
+    rows, row = [], []
+    for ex in USDT_EXCHANGES:
+        row.append(InlineKeyboardButton(ex, callback_data=f"usdt_buy_exch:{ex}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append(
+        [InlineKeyboardButton("👛 کیف پول شخصی / دیگر", callback_data="usdt_buy_exch:other")]
+    )
+    return InlineKeyboardMarkup(rows)
+
+
+def usdt_phone_keyboard() -> ReplyKeyboardMarkup:
+    """درخواست اشتراک‌گذاری شمارهٔ تماس، پیش از نهایی‌سازی هر سفارش تتر."""
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton("📱 ارسال شمارهٔ تماس من", request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def admin_order_review_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    """دکمه‌های تایید/رد سفارش — فقط در ربات مدیریت (admin_bot.py) استفاده می‌شود."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ تایید سفارش", callback_data=f"admin_confirm:{order_id}"),
+                InlineKeyboardButton("❌ رد سفارش", callback_data=f"admin_reject:{order_id}"),
+            ]
+        ]
+    )
 
 
 def usdt_exchange_keyboard() -> InlineKeyboardMarkup:

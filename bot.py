@@ -60,6 +60,8 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     if await usdt.handle_usdt_bank_info_input(update, context):
         return
+    if await usdt.handle_usdt_phone_text(update, context):
+        return
 
     text = update.message.text
     if text == BTN_CURRENCY:
@@ -87,6 +89,10 @@ async def photo_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
 
+async def contact_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await usdt.handle_usdt_phone_contact(update, context)
+
+
 def build_application() -> Application:
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN تنظیم نشده است. آن را در .env قرار دهید.")
@@ -108,6 +114,7 @@ def build_application() -> Application:
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu_router))
 
     app.add_handler(MessageHandler(filters.PHOTO, photo_router))
+    app.add_handler(MessageHandler(filters.CONTACT, contact_router))
 
     # کال‌بک‌های اینلاین
     app.add_handler(CallbackQueryHandler(currency.currency_callback, pattern=r"^cur:"))
@@ -142,6 +149,7 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(usdt.usdt_paid_callback, pattern=r"^usdt_paid:"))
     app.add_handler(CallbackQueryHandler(usdt.usdt_network_callback, pattern=r"^usdt_net:"))
     app.add_handler(CallbackQueryHandler(usdt.usdt_exch_callback, pattern=r"^usdt_exch:"))
+    app.add_handler(CallbackQueryHandler(usdt.usdt_buy_exch_callback, pattern=r"^usdt_buy_exch:"))
 
     # وظایف زمان‌بندی‌شده
     if app.job_queue:

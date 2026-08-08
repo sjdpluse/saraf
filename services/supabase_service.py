@@ -104,6 +104,47 @@ def get_usdt_order_by_id(order_id: int) -> Optional[dict]:
         logger.exception("خطا در خواندن سفارش تتر")
         return None
 
+
+def get_usdt_orders_by_chat_id(chat_id: int, limit: int = 50) -> list[dict]:
+    """تاریخچهٔ سفارش‌های یک کاربر خاص — برای صفحهٔ «سفارش‌های من» در مینی‌اپ."""
+    try:
+        res = (
+            get_client()
+            .table("usdt_orders")
+            .select("*")
+            .eq("chat_id", chat_id)
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return res.data or []
+    except Exception:
+        logger.exception("خطا در خواندن تاریخچهٔ سفارش‌های کاربر")
+        return []
+
+
+def upload_usdt_receipt(file_bytes: bytes, filename: str, content_type: str) -> Optional[str]:
+    """
+    رسید/اسکرین‌شات ارسالی از مینی‌اپ را در Supabase Storage آپلود می‌کند و لینک عمومی
+    قابل‌دسترسی را برمی‌گرداند، یا None در صورت خطا.
+
+    نیازمند این است که یک باکت عمومی (public) با نام USDT_RECEIPTS_BUCKET از قبل در
+    پنل Supabase Storage ساخته شده باشد (راهنما در فایل SQL/راه‌اندازی پیوست شده).
+    """
+    from config import USDT_RECEIPTS_BUCKET
+
+    try:
+        storage = get_client().storage.from_(USDT_RECEIPTS_BUCKET)
+        storage.upload(
+            filename,
+            file_bytes,
+            {"content-type": content_type, "upsert": "true"},
+        )
+        return storage.get_public_url(filename)
+    except Exception:
+        logger.exception("خطا در آپلود رسید تتر به Supabase Storage")
+        return None
+
 # ---------------------------------------------------------------------------
 # وضعیت آخرین پست فیسبوک (برای تشخیص تغییر محسوس نرخ)
 # ---------------------------------------------------------------------------
