@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Buy from "./pages/Buy";
 import Sell from "./pages/Sell";
 import Orders from "./pages/Orders";
+import Terms from "./pages/Terms";
 import Toast from "./components/Toast";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
 
@@ -29,7 +30,7 @@ export default function App() {
         <div className="card" style={{ marginTop: 60, textAlign: "center" }}>
           <div style={{ fontSize: 30, marginBottom: 10 }}>🪙</div>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>این صفحه فقط داخل تلگرام کار می‌کند</div>
-          <div className="notice">
+          <div className="notice" style={{ justifyContent: "center" }}>
             لطفاً از طریق ربات Saraf در تلگرام دکمهٔ «خرید و فروش تتر» را بزنید تا این
             اپلیکیشن به‌درستی باز شود.
           </div>
@@ -44,6 +45,7 @@ export default function App() {
       {page === "buy" && <Buy navigate={navigate} showError={showError} />}
       {page === "sell" && <Sell navigate={navigate} showError={showError} />}
       {page === "orders" && <Orders navigate={navigate} showError={showError} />}
+      {page === "terms" && <Terms navigate={navigate} />}
       <Toast message={error} onClose={() => setError(null)} />
     </>
   );

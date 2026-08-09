@@ -42,6 +42,11 @@ export const api = {
 
   getMyOrders: () => request("/usdt/orders/me"),
 
+  getStats: () => request("/usdt/stats"),
+
+  rateOrder: (orderId, rating, comment) =>
+    request(`/usdt/orders/${orderId}/rate`, { method: "POST", body: { rating, comment } }),
+
   uploadReceipt: (file) => {
     const form = new FormData();
     form.append("file", file);

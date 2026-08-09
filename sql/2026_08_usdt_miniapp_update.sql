@@ -27,6 +27,12 @@ create table if not exists usdt_orders (
   bank_info text,
   source text default 'bot',  -- 'bot' یا 'miniapp'
   status text not null default 'pending' check (status in ('pending', 'confirmed', 'completed', 'cancelled')),
+  confirmed_at timestamptz,
+  completed_at timestamptz,
+  cancelled_at timestamptz,
+  rating smallint check (rating between 1 and 5),
+  rating_comment text,
+  rated_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -36,6 +42,18 @@ create index if not exists idx_usdt_orders_status on usdt_orders (status);
 -- اگر جدول از قبل وجود دارد (نصب‌های قبلی)، فقط ستون‌های جدید را اضافه کن:
 alter table usdt_orders add column if not exists phone text;
 alter table usdt_orders add column if not exists source text default 'bot';
+
+-- =============================================================================
+-- ستون‌های جدید برای Timeline واقعی وضعیت سفارش و سیستم امتیازدهی
+-- =============================================================================
+alter table usdt_orders add column if not exists confirmed_at timestamptz;
+alter table usdt_orders add column if not exists completed_at timestamptz;
+alter table usdt_orders add column if not exists cancelled_at timestamptz;
+alter table usdt_orders add column if not exists rating smallint check (rating between 1 and 5);
+alter table usdt_orders add column if not exists rating_comment text;
+alter table usdt_orders add column if not exists rated_at timestamptz;
+
+create index if not exists idx_usdt_orders_completed_at on usdt_orders (completed_at) where completed_at is not null;
 
 -- =============================================================================
 -- راه‌اندازی Supabase Storage برای رسیدهای مینی‌اپ (این بخش را باید از داشبورد

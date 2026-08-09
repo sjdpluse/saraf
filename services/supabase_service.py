@@ -72,6 +72,69 @@ def update_usdt_order_status(order_id: int, status: str, **extra_fields) -> None
         logger.exception("خطا در به‌روزرسانی وضعیت سفارش تتر")
 
 
+def mark_usdt_order_confirmed(order_id: int) -> None:
+    update_usdt_order_status(order_id, "confirmed", confirmed_at=datetime.now(timezone.utc).isoformat())
+
+
+def mark_usdt_order_completed(order_id: int) -> None:
+    update_usdt_order_status(order_id, "completed", completed_at=datetime.now(timezone.utc).isoformat())
+
+
+def mark_usdt_order_cancelled(order_id: int) -> None:
+    update_usdt_order_status(order_id, "cancelled", cancelled_at=datetime.now(timezone.utc).isoformat())
+
+
+def set_usdt_order_rating(order_id: int, chat_id: int, rating: int, comment: Optional[str] = None) -> bool:
+    """فقط صاحب سفارش (chat_id مطابق) و فقط برای سفارش‌های completed می‌تواند امتیاز ثبت کند."""
+    try:
+        order = get_usdt_order_by_id(order_id)
+        if not order or order.get("chat_id") != chat_id or order.get("status") != "completed":
+            return False
+        get_client().table("usdt_orders").update(
+            {
+                "rating": rating,
+                "rating_comment": comment,
+                "rated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).eq("id", order_id).execute()
+        return True
+    except Exception:
+        logger.exception("خطا در ثبت امتیاز سفارش تتر")
+        return False
+
+
+def get_usdt_stats() -> dict:
+    """آمار اعتمادساز عمومی — تعداد معاملات تکمیل‌شده و میانگین امتیاز."""
+    try:
+        completed_res = (
+            get_client()
+            .table("usdt_orders")
+            .select("id", count="exact")
+            .eq("status", "completed")
+            .execute()
+        )
+        completed_count = completed_res.count or 0
+
+        rating_res = (
+            get_client()
+            .table("usdt_orders")
+            .select("rating")
+            .not_.is_("rating", "null")
+            .execute()
+        )
+        ratings = [r["rating"] for r in (rating_res.data or []) if r.get("rating")]
+        avg_rating = round(sum(ratings) / len(ratings), 2) if ratings else None
+
+        return {
+            "completed_orders": completed_count,
+            "average_rating": avg_rating,
+            "rating_count": len(ratings),
+        }
+    except Exception:
+        logger.exception("خطا در محاسبهٔ آمار تتر")
+        return {"completed_orders": 0, "average_rating": None, "rating_count": 0}
+
+
 def get_pending_usdt_orders(limit: int = 20) -> list[dict]:
     try:
         res = (

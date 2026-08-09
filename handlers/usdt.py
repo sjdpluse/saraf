@@ -554,3 +554,29 @@ async def _complete_pending_finalize(update: Update, context: ContextTypes.DEFAU
     else:
         logger.warning("مرحلهٔ نهایی‌سازی ناشناخته: %s", pending)
         _reset_state(context)
+
+
+# ---------------------------------------------------------------------------
+# امتیازدهی مشتری — بعد از تکمیل سفارش، ربات مدیریت این دکمه‌ها را برای مشتری
+# می‌فرستد؛ اما چون از طریق همان BOT_TOKEN ارسال شده، کال‌بک آن به ربات اصلی
+# (همین‌جا) می‌رسد.
+# ---------------------------------------------------------------------------
+async def usdt_rate_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    _, order_id_str, stars_str = query.data.split(":", 2)
+    try:
+        order_id = int(order_id_str)
+        stars = int(stars_str)
+    except ValueError:
+        await query.answer("درخواست نامعتبر.", show_alert=True)
+        return
+
+    chat_id = update.effective_chat.id
+    ok = db.set_usdt_order_rating(order_id, chat_id, stars)
+    if not ok:
+        await query.answer("ثبت امتیاز ناموفق بود یا قبلاً امتیاز داده شده.", show_alert=True)
+        return
+
+    await query.answer("متشکریم از بازخورد شما! 🙏")
+    await query.edit_message_reply_markup(reply_markup=None)
+    await query.message.reply_text(f"{'⭐' * stars}\n\nممنون از وقتی که گذاشتید. نظر شما برای ما مهم است.")

@@ -1,20 +1,46 @@
 :root {
-  --saraf-bg: var(--tg-theme-bg-color, #0f1720);
-  --saraf-secondary-bg: var(--tg-theme-secondary-bg-color, #17212b);
-  --saraf-card-bg: #1c2733;
-  --saraf-text: var(--tg-theme-text-color, #f2f4f7);
-  --saraf-hint: var(--tg-theme-hint-color, #8b9bab);
-  --saraf-accent: #e0b03f;
-  --saraf-accent-dark: #b3872a;
-  --saraf-green: #2ecc71;
-  --saraf-red: #ef4b4b;
-  --saraf-blue: #3fa9f5;
-  --saraf-border: #2a3644;
-  --saraf-radius: 16px;
+  /* --- توکن‌های رنگی سیستم طراحی «Vault Dark» --- */
+  --color-bg: var(--tg-theme-bg-color, #0f172a);
+  --color-bg-elevated: var(--tg-theme-secondary-bg-color, #16233a);
+  --color-card: #182338;
+  --color-card-hover: #1c2a45;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
+
+  --color-text: var(--tg-theme-text-color, #f8fafc);
+  --color-text-muted: var(--tg-theme-hint-color, #8ca0bd);
+  --color-text-faint: #5b6c86;
+
+  --color-primary: #1e3a5f;
+  --color-primary-light: #2c527f;
+  --color-on-primary: #ffffff;
+
+  --color-buy: #059669;
+  --color-buy-bg: rgba(5, 150, 105, 0.14);
+  --color-buy-border: rgba(5, 150, 105, 0.4);
+
+  --color-sell: #dc2626;
+  --color-sell-bg: rgba(220, 38, 38, 0.14);
+  --color-sell-border: rgba(220, 38, 38, 0.4);
+
+  --color-warn: #f0b429;
+  --color-warn-bg: rgba(240, 180, 41, 0.14);
+
+  --color-info: #3b82f6;
+
+  --radius-lg: 18px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.25);
+
+  --font-fa: "Vazirmatn", "Segoe UI", sans-serif;
+  --font-num: "Inter", "Vazirmatn", sans-serif;
 }
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -25,54 +51,130 @@ body,
 
 body {
   margin: 0;
-  font-family: "Vazirmatn", "Segoe UI", sans-serif;
-  background: var(--saraf-bg);
-  color: var(--saraf-text);
+  font-family: var(--font-fa);
+  background: var(--color-bg);
+  color: var(--color-text);
   direction: rtl;
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-family: var(--font-num);
+  direction: ltr;
+  unicode-bidi: plaintext;
+  font-variant-numeric: tabular-nums;
 }
 
 .app-shell {
   max-width: 520px;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 16px 16px 96px;
+  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+  padding-top: calc(16px + env(safe-area-inset-top));
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
+/* --- هدر --- */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 2px;
+  padding: 4px 2px 8px;
+  position: relative;
 }
 
 .header h1 {
-  font-size: 18px;
+  font-size: 17px;
   margin: 0;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon {
+  color: var(--color-primary-light);
+  display: flex;
 }
 
 .back-btn {
-  background: none;
-  border: none;
-  color: var(--saraf-hint);
-  font-size: 15px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 14px;
   cursor: pointer;
-  padding: 6px 10px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
+.back-btn:active {
+  background: var(--color-card-hover);
+}
+
+.header-spacer {
+  width: 38px;
+  flex-shrink: 0;
+}
+
+/* --- کارت پایه --- */
 .card {
-  background: var(--saraf-card-bg);
-  border: 1px solid var(--saraf-border);
-  border-radius: var(--saraf-radius);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 18px;
 }
 
+.card-tappable {
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.card-tappable:active {
+  background: var(--color-card-hover);
+  border-color: var(--color-border-strong);
+}
+
+/* --- لوگو / برند --- */
+.brand-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 2px 2px;
+}
+
+.brand-hero .logo-badge {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 6px 16px rgba(30, 58, 95, 0.4);
+}
+
+.brand-hero .titles h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.brand-hero .titles .subtitle {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* --- کاشی منوی خرید/فروش --- */
 .menu-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -80,17 +182,18 @@ body {
 }
 
 .menu-tile {
-  background: var(--saraf-card-bg);
-  border: 1px solid var(--saraf-border);
-  border-radius: var(--saraf-radius);
-  padding: 22px 14px;
+  background: var(--color-card);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 14px;
   text-align: center;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  transition: transform 0.12s ease, border-color 0.12s ease;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  min-height: 44px;
 }
 
 .menu-tile:active {
@@ -98,82 +201,208 @@ body {
 }
 
 .menu-tile.buy {
-  border-color: rgba(46, 204, 113, 0.35);
+  border-color: var(--color-buy-border);
+}
+
+.menu-tile.buy:active {
+  background: var(--color-buy-bg);
 }
 
 .menu-tile.sell {
-  border-color: rgba(239, 75, 75, 0.35);
+  border-color: var(--color-sell-border);
 }
 
-.menu-tile .icon {
-  font-size: 30px;
+.menu-tile.sell:active {
+  background: var(--color-sell-bg);
+}
+
+.menu-tile .tile-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-tile.buy .tile-icon {
+  background: var(--color-buy-bg);
+  color: var(--color-buy);
+}
+
+.menu-tile.sell .tile-icon {
+  background: var(--color-sell-bg);
+  color: var(--color-sell);
 }
 
 .menu-tile .title {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14.5px;
 }
 
 .menu-tile .subtitle {
-  font-size: 12px;
-  color: var(--saraf-hint);
+  font-size: 11.5px;
+  color: var(--color-text-muted);
 }
 
-.trust-badges {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.trust-badge {
+/* --- ردیف امکان با آیکون (لینک به سفارش‌ها / قوانین) --- */
+.list-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--saraf-hint);
+  gap: 12px;
 }
 
-.trust-badge .dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--saraf-accent);
+.list-row .row-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-bg-elevated);
+  color: var(--color-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
+.list-row .row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-row .row-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.list-row .row-subtitle {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.list-row .row-chevron {
+  color: var(--color-text-faint);
+  flex-shrink: 0;
+  display: flex;
+}
+
+/* --- آمار اعتمادساز --- */
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat-box {
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-box .stat-icon {
+  color: var(--color-buy);
+}
+
+.stat-box .stat-value {
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.stat-box .stat-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.trust-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trust-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+
+.trust-item .trust-icon {
+  color: var(--color-buy);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin: 4px 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* --- فرم‌ها --- */
 label.field-label {
   display: block;
   font-size: 13px;
-  color: var(--saraf-hint);
+  color: var(--color-text-muted);
   margin-bottom: 8px;
+  font-weight: 500;
 }
 
 .input,
 select.input,
 textarea.input {
   width: 100%;
-  background: var(--saraf-secondary-bg);
-  border: 1px solid var(--saraf-border);
-  border-radius: 12px;
+  background: var(--color-bg-elevated);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
   padding: 13px 14px;
-  color: var(--saraf-text);
+  color: var(--color-text);
   font-size: 15px;
   font-family: inherit;
   outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input.num {
+  font-family: var(--font-num);
 }
 
 .input:focus {
-  border-color: var(--saraf-accent);
+  border-color: var(--color-primary-light);
+}
+
+.input.input-error {
+  border-color: var(--color-sell);
 }
 
 .field {
   margin-bottom: 16px;
 }
 
+.field-error {
+  color: var(--color-sell);
+  font-size: 12px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* --- دکمه‌ها --- */
 .btn {
   width: 100%;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 15px;
   font-size: 15px;
   font-weight: 700;
@@ -183,30 +412,55 @@ textarea.input {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-height: 44px;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .btn-primary {
-  background: var(--saraf-accent);
-  color: #17212b;
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-buy {
+  background: var(--color-buy);
+  color: #fff;
+}
+
+.btn-sell {
+  background: var(--color-sell);
+  color: #fff;
 }
 
 .btn-secondary {
-  background: var(--saraf-secondary-bg);
-  color: var(--saraf-text);
-  border: 1px solid var(--saraf-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
 }
 
 .btn-outline {
   background: transparent;
-  border: 1px solid var(--saraf-border);
-  color: var(--saraf-text);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text);
 }
 
+.btn-sm {
+  width: auto;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  border-radius: 9px;
+  min-height: 32px;
+}
+
+/* --- انتخاب‌های چندگزینه‌یی --- */
 .choice-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -218,26 +472,37 @@ textarea.input {
 }
 
 .choice-btn {
-  border: 1px solid var(--saraf-border);
-  background: var(--saraf-secondary-bg);
-  color: var(--saraf-text);
-  border-radius: 12px;
-  padding: 12px 8px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 13px 8px;
   font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
   font-family: inherit;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.choice-btn:active {
+  transform: scale(0.97);
 }
 
 .choice-btn.selected {
-  border-color: var(--saraf-accent);
-  background: rgba(224, 176, 63, 0.14);
-  color: var(--saraf-accent);
-  font-weight: 700;
+  border-color: var(--color-primary-light);
+  background: rgba(44, 82, 127, 0.22);
+  color: #fff;
 }
 
+/* --- کارت نرخ/قیمت --- */
 .quote-box {
-  background: var(--saraf-secondary-bg);
-  border-radius: 14px;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -248,11 +513,11 @@ textarea.input {
   display: flex;
   justify-content: space-between;
   font-size: 13.5px;
-  color: var(--saraf-hint);
+  color: var(--color-text-muted);
 }
 
 .quote-row .value {
-  color: var(--saraf-text);
+  color: var(--color-text);
   font-weight: 600;
 }
 
@@ -261,24 +526,40 @@ textarea.input {
   justify-content: space-between;
   align-items: baseline;
   padding-top: 10px;
-  border-top: 1px dashed var(--saraf-border);
+  border-top: 1px dashed var(--color-border);
 }
 
 .quote-total .label {
-  font-size: 13.5px;
-  color: var(--saraf-hint);
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 
 .quote-total .amount {
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 800;
-  color: var(--saraf-accent);
 }
 
+.quote-total.buy .amount {
+  color: var(--color-buy);
+}
+
+.quote-total.sell .amount {
+  color: var(--color-buy);
+}
+
+/* --- یادداشت‌ها --- */
 .notice {
   font-size: 12.5px;
-  color: var(--saraf-hint);
+  color: var(--color-text-muted);
   line-height: 1.9;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.notice .notice-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .notice.warn {
@@ -286,73 +567,104 @@ textarea.input {
 }
 
 .notice.error {
-  color: var(--saraf-red);
+  color: var(--color-sell);
 }
 
+/* --- استپر --- */
 .stepper {
   display: flex;
   gap: 6px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .stepper .dot {
   flex: 1;
   height: 4px;
   border-radius: 4px;
-  background: var(--saraf-border);
+  background: var(--color-border);
+  transition: background 0.2s ease;
 }
 
 .stepper .dot.active {
-  background: var(--saraf-accent);
+  background: var(--color-primary-light);
 }
 
+/* --- جعبهٔ اطلاعات (بانک/ولت) --- */
 .info-box {
-  background: var(--saraf-secondary-bg);
-  border-radius: 14px;
-  padding: 16px;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
   font-size: 13.5px;
-  line-height: 2;
 }
 
 .info-box .row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 10px;
+  padding: 7px 0;
+}
+
+.info-box .row + .row {
+  border-top: 1px solid var(--color-border);
+}
+
+.info-box .row .label {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
 }
 
 .info-box .row .value {
   font-weight: 700;
-  color: var(--saraf-text);
+  color: var(--color-text);
   direction: ltr;
   text-align: left;
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .copy-btn {
-  background: var(--saraf-accent);
-  color: #17212b;
-  border: none;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 11px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-family: inherit;
-  margin-inline-start: 8px;
+  flex-shrink: 0;
 }
 
+.copy-btn.copied {
+  color: var(--color-buy);
+  border-color: var(--color-buy-border);
+}
+
+/* --- آپلود فایل --- */
 .upload-box {
-  border: 1.5px dashed var(--saraf-border);
-  border-radius: 14px;
-  padding: 20px;
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 22px 16px;
   text-align: center;
-  color: var(--saraf-hint);
+  color: var(--color-text-muted);
   font-size: 13px;
   cursor: pointer;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 .upload-box.has-file {
-  border-color: var(--saraf-green);
-  color: var(--saraf-green);
+  border-color: var(--color-buy-border);
+  border-style: solid;
+  color: var(--color-buy);
+  background: var(--color-buy-bg);
 }
 
 .upload-box input[type="file"] {
@@ -362,14 +674,15 @@ textarea.input {
   cursor: pointer;
 }
 
+/* --- کارت سفارش --- */
 .order-card {
-  background: var(--saraf-card-bg);
-  border: 1px solid var(--saraf-border);
-  border-radius: 14px;
-  padding: 14px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 15px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .order-card .top-row {
@@ -378,80 +691,264 @@ textarea.input {
   align-items: center;
 }
 
+.order-card .type-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.order-card .type-badge.buy {
+  color: var(--color-buy);
+}
+
+.order-card .type-badge.sell {
+  color: var(--color-sell);
+}
+
 .order-code {
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 13px;
   direction: ltr;
   text-align: right;
+  color: var(--color-text-muted);
 }
 
 .status-badge {
-  font-size: 11.5px;
-  padding: 4px 10px;
+  font-size: 11px;
+  padding: 5px 11px;
   border-radius: 20px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .status-pending {
-  background: rgba(240, 180, 41, 0.15);
-  color: #f0b429;
+  background: var(--color-warn-bg);
+  color: var(--color-warn);
 }
 
 .status-confirmed {
-  background: rgba(46, 204, 113, 0.15);
-  color: var(--saraf-green);
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--color-info);
+}
+
+.status-completed {
+  background: var(--color-buy-bg);
+  color: var(--color-buy);
 }
 
 .status-cancelled {
-  background: rgba(239, 75, 75, 0.15);
-  color: var(--saraf-red);
+  background: var(--color-sell-bg);
+  color: var(--color-sell);
 }
 
-.order-card .meta {
+.order-card .amount-row {
   display: flex;
   justify-content: space-between;
-  font-size: 12.5px;
-  color: var(--saraf-hint);
+  align-items: baseline;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
 }
 
+.order-card .amount-row .usdt-amount {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.order-card .amount-row .afn-amount {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+/* --- Timeline وضعیت سفارش --- */
+.order-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.timeline-step {
+  display: flex;
+  gap: 12px;
+  position: relative;
+}
+
+.timeline-step .tl-marker-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 26px;
+  flex-shrink: 0;
+}
+
+.timeline-step .tl-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-bg-elevated);
+  border: 2px solid var(--color-border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-faint);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.timeline-step.done .tl-dot {
+  background: var(--color-buy);
+  border-color: var(--color-buy);
+  color: #fff;
+}
+
+.timeline-step.current .tl-dot {
+  background: var(--color-warn-bg);
+  border-color: var(--color-warn);
+  color: var(--color-warn);
+}
+
+.timeline-step.cancelled .tl-dot {
+  background: var(--color-sell-bg);
+  border-color: var(--color-sell);
+  color: var(--color-sell);
+}
+
+.timeline-step .tl-line {
+  width: 2px;
+  flex: 1;
+  background: var(--color-border-strong);
+  min-height: 22px;
+}
+
+.timeline-step.done .tl-line {
+  background: var(--color-buy);
+}
+
+.timeline-step .tl-content {
+  padding-bottom: 20px;
+  flex: 1;
+}
+
+.timeline-step:last-child .tl-content {
+  padding-bottom: 2px;
+}
+
+.timeline-step .tl-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.timeline-step .tl-time {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* --- امتیازدهی --- */
+.rating-stars {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.rating-star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--color-border-strong);
+  display: flex;
+}
+
+.rating-star-btn.filled {
+  color: var(--color-warn);
+}
+
+/* --- حالت خالی --- */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: var(--saraf-hint);
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-.empty-state .icon {
-  font-size: 40px;
-  margin-bottom: 12px;
+.empty-state .empty-icon {
+  color: var(--color-text-faint);
+  margin-bottom: 4px;
 }
 
+/* --- صفحهٔ موفقیت --- */
 .success-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 14px;
-  padding: 30px 10px;
+  padding: 26px 10px 10px;
 }
 
-.success-screen .icon {
-  font-size: 54px;
+.success-screen .success-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--color-buy-bg);
+  color: var(--color-buy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .success-screen .code {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
-  color: var(--saraf-accent);
+  color: var(--color-text);
   direction: ltr;
+  background: var(--color-bg-elevated);
+  padding: 6px 16px;
+  border-radius: 10px;
 }
 
+/* --- اسکلتون لودینگ --- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-elevated) 25%,
+    var(--color-card-hover) 37%,
+    var(--color-bg-elevated) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: var(--radius-md);
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.skeleton-order-card {
+  height: 92px;
+}
+
+/* --- اسپینر --- */
 .spinner {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2.5px solid rgba(0, 0, 0, 0.2);
-  border-top-color: #17212b;
+  border: 2.5px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
   animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes spin {
@@ -460,18 +957,62 @@ textarea.input {
   }
 }
 
+/* --- توست خطا --- */
 .toast {
   position: fixed;
-  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
-  background: var(--saraf-red);
-  color: #fff;
-  padding: 12px 18px;
+  background: #2a1414;
+  border: 1px solid var(--color-sell-border);
+  color: #fecaca;
+  padding: 12px 16px;
   border-radius: 12px;
   font-size: 13.5px;
   max-width: 90%;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   z-index: 50;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* --- انیمیشن ورود ملایم --- */
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: fade-slide-in 0.28s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .skeleton {
+    animation: none !important;
+  }
+}
+
+/* --- صفحهٔ قوانین --- */
+.terms-content {
+  font-size: 13.5px;
+  line-height: 2.1;
+  color: var(--color-text-muted);
+}
+
+.terms-content h3 {
+  color: var(--color-text);
+  font-size: 14.5px;
+  margin: 18px 0 8px;
+}
+
+.terms-content h3:first-child {
+  margin-top: 0;
 }

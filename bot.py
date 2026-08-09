@@ -150,6 +150,7 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(usdt.usdt_network_callback, pattern=r"^usdt_net:"))
     app.add_handler(CallbackQueryHandler(usdt.usdt_exch_callback, pattern=r"^usdt_exch:"))
     app.add_handler(CallbackQueryHandler(usdt.usdt_buy_exch_callback, pattern=r"^usdt_buy_exch:"))
+    app.add_handler(CallbackQueryHandler(usdt.usdt_rate_callback, pattern=r"^usdt_rate:"))
 
     # وظایف زمان‌بندی‌شده
     if app.job_queue:

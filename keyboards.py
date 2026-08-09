@@ -265,7 +265,7 @@ def usdt_phone_keyboard() -> ReplyKeyboardMarkup:
 
 
 def admin_order_review_keyboard(order_id: int) -> InlineKeyboardMarkup:
-    """دکمه‌های تایید/رد سفارش — فقط در ربات مدیریت (admin_bot.py) استفاده می‌شود."""
+    """دکمه‌های تایید/رد سفارش — مرحلهٔ اول بررسی، فقط در ربات مدیریت (admin_bot.py)."""
     return InlineKeyboardMarkup(
         [
             [
@@ -274,6 +274,21 @@ def admin_order_review_keyboard(order_id: int) -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def admin_order_complete_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    """بعد از تایید سفارش نمایش داده می‌شود — وقتی واقعاً تتر/پول ارسال شد، ادمین این را می‌زند."""
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton("📦 تکمیل شد (پرداخت/واریز انجام شد)", callback_data=f"admin_complete:{order_id}")]]
+    )
+
+
+def usdt_rating_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    """درخواست امتیازدهی از مشتری بعد از تکمیل سفارش — در ربات اصلی مشتریان استفاده می‌شود."""
+    stars_row = [
+        InlineKeyboardButton("⭐" * n, callback_data=f"usdt_rate:{order_id}:{n}") for n in range(1, 6)
+    ]
+    return InlineKeyboardMarkup([stars_row])
 
 
 def usdt_exchange_keyboard() -> InlineKeyboardMarkup:

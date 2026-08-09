@@ -1,9 +1,17 @@
 """
-ربات مدیریت Saraf — نسخهٔ اختصاصی ادمین برای بررسی، تایید یا رد سفارش‌های تتر.
+ربات مدیریت Saraf — نسخهٔ اختصاصی ادمین برای بررسی، تایید/رد و تکمیل سفارش‌های تتر.
 
-این ربات کاملاً جدا از ربات مشتریان (bot.py) اجرا می‌شود تا اعلان‌های حساس مالی
-(سفارش‌های تتر) با پیام‌های عمومی مخلوط نشوند و فرآیند تایید با یک لمس ساده
-انجام شود.
+جریان کار (Timeline واقعی، نه فقط ظاهری):
+  1) سفارش ثبت می‌شود → وضعیت "pending" → دکمه‌های «تایید / رد» نمایش داده می‌شود.
+  2) با زدن «تایید» → وضعیت "confirmed" (+ زمان دقیق ثبت می‌شود) → دکمهٔ «تکمیل شد»
+     جایگزین می‌شود. این دکمه فقط وقتی زده شود که ادمین واقعاً تتر/پول را ارسال
+     کرده باشد.
+  3) با زدن «تکمیل شد» → وضعیت "completed" (+ زمان دقیق) → به مشتری پیام تکمیل
+     همراه با درخواست امتیازدهی (⭐️ ۱ تا ۵) ارسال می‌شود.
+  4) با زدن «رد» در هر مرحله → وضعیت "cancelled" + پیام مؤدبانه با آی‌دی پشتیبانی.
+
+این ربات کاملاً جدا از ربات مشتریان (bot.py) اجرا می‌شود تا اعلان‌های حساس مالی با
+پیام‌های عمومی مخلوط نشوند.
 
 اجرا:
     python admin_bot.py
@@ -19,6 +27,7 @@ from telegram.constants import ParseMode
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 from config import ADMIN_BOT_TOKEN, ADMIN_CHAT_IDS, BOT_TOKEN, SUPPORT_TELEGRAM_USERNAME
+from keyboards import admin_order_complete_keyboard, usdt_rating_keyboard
 from services import supabase_service as db
 
 logging.basicConfig(
@@ -67,46 +76,81 @@ async def review_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not order:
         await query.answer("سفارش یافت نشد.", show_alert=True)
         return
-    if order["status"] != "pending":
-        await query.answer("این سفارش قبلاً بررسی شده است.", show_alert=True)
-        return
 
     order_code = f"USDT-{order_id:05d}"
     customer_bot = _get_customer_bot()
 
-    if action == "admin_confirm":
-        db.update_usdt_order_status(order_id, "confirmed")
-        await query.answer("تایید شد ✅")
-        await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text(f"✅ سفارش {order_code} تایید شد.")
-        try:
-            await customer_bot.send_message(
-                chat_id=order["chat_id"],
-                text=(
-                    f"✅ سفارش شما (`{order_code}`) تایید و در حال پردازش نهایی است.\n"
-                    "طبق زمان‌بندی اعلام‌شده، ظرف کمتر از ۱ ساعت تکمیل خواهد شد."
-                ),
-                parse_mode=ParseMode.MARKDOWN,
-            )
-        except Exception:
-            logger.exception("خطا در اطلاع‌رسانی تایید سفارش به کاربر")
+    # ---------------------------------------------------------------
+    # مرحلهٔ ۱: تایید یا رد سفارش pending
+    # ---------------------------------------------------------------
+    if action in ("admin_confirm", "admin_reject"):
+        if order["status"] != "pending":
+            await query.answer("این سفارش قبلاً بررسی شده است.", show_alert=True)
+            return
 
-    elif action == "admin_reject":
-        db.update_usdt_order_status(order_id, "cancelled")
-        await query.answer("رد شد ❌")
+        if action == "admin_confirm":
+            db.mark_usdt_order_confirmed(order_id)
+            await query.answer("تایید شد ✅")
+            await query.edit_message_reply_markup(reply_markup=admin_order_complete_keyboard(order_id))
+            await query.message.reply_text(
+                f"✅ سفارش {order_code} تایید شد.\n"
+                "بعد از اینکه تتر/مبلغ را واقعاً برای مشتری ارسال کردی، دکمهٔ «تکمیل شد» را بزن."
+            )
+            try:
+                await customer_bot.send_message(
+                    chat_id=order["chat_id"],
+                    text=(
+                        f"✅ سفارش شما (`{order_code}`) تایید و در حال پردازش نهایی است.\n"
+                        "طبق زمان‌بندی اعلام‌شده، ظرف کمتر از ۱ ساعت تکمیل خواهد شد."
+                    ),
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+            except Exception:
+                logger.exception("خطا در اطلاع‌رسانی تایید سفارش به کاربر")
+
+        else:  # admin_reject
+            db.mark_usdt_order_cancelled(order_id)
+            await query.answer("رد شد ❌")
+            await query.edit_message_reply_markup(reply_markup=None)
+            await query.message.reply_text(f"❌ سفارش {order_code} رد شد.")
+            try:
+                await customer_bot.send_message(
+                    chat_id=order["chat_id"],
+                    text=(
+                        f"⚠️ سفارش شما (`{order_code}`) قابل تایید نبود.\n"
+                        f"لطفاً برای پیگیری با پشتیبانی تماس بگیرید: {SUPPORT_TELEGRAM_USERNAME}"
+                    ),
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+            except Exception:
+                logger.exception("خطا در اطلاع‌رسانی رد سفارش به کاربر")
+        return
+
+    # ---------------------------------------------------------------
+    # مرحلهٔ ۲: تکمیل نهایی (بعد از ارسال واقعی تتر/پول)
+    # ---------------------------------------------------------------
+    if action == "admin_complete":
+        if order["status"] != "confirmed":
+            await query.answer("این سفارش در وضعیت قابل‌تکمیل نیست.", show_alert=True)
+            return
+
+        db.mark_usdt_order_completed(order_id)
+        await query.answer("تکمیل شد 📦")
         await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text(f"❌ سفارش {order_code} رد شد.")
+        await query.message.reply_text(f"📦 سفارش {order_code} تکمیل شد.")
+
         try:
             await customer_bot.send_message(
                 chat_id=order["chat_id"],
                 text=(
-                    f"⚠️ سفارش شما (`{order_code}`) قابل تایید نبود.\n"
-                    f"لطفاً برای پیگیری با پشتیبانی تماس بگیرید: {SUPPORT_TELEGRAM_USERNAME}"
+                    f"📦 سفارش شما (`{order_code}`) با موفقیت تکمیل شد. از خرید/فروش شما متشکریم!\n\n"
+                    "لطفاً تجربهٔ خود را با یک امتیاز به ما بگویید:"
                 ),
                 parse_mode=ParseMode.MARKDOWN,
+                reply_markup=usdt_rating_keyboard(order_id),
             )
         except Exception:
-            logger.exception("خطا در اطلاع‌رسانی رد سفارش به کاربر")
+            logger.exception("خطا در اطلاع‌رسانی تکمیل سفارش/درخواست امتیاز از کاربر")
 
 
 def build_admin_application() -> Application:
@@ -114,7 +158,7 @@ def build_admin_application() -> Application:
         raise RuntimeError("ADMIN_BOT_TOKEN تنظیم نشده است. آن را در .env قرار دهید.")
     app = Application.builder().token(ADMIN_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(review_callback, pattern=r"^admin_(confirm|reject):"))
+    app.add_handler(CallbackQueryHandler(review_callback, pattern=r"^admin_(confirm|reject|complete):"))
     return app
 
 

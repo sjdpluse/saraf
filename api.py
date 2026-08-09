@@ -389,6 +389,30 @@ async def get_my_usdt_orders(user: dict = Depends(_authenticate)):
     return db.get_usdt_orders_by_chat_id(user["id"])
 
 
+@app.get("/api/usdt/stats")
+async def get_usdt_stats():
+    """آمار عمومی اعتمادساز (تعداد معاملات تکمیل‌شده، میانگین امتیاز) — بدون نیاز به احراز هویت."""
+    return db.get_usdt_stats()
+
+
+class UsdtRatingRequest(BaseModel):
+    rating: int
+    comment: Optional[str] = None
+
+
+@app.post("/api/usdt/orders/{order_id}/rate")
+async def rate_usdt_order(order_id: int, payload: UsdtRatingRequest, user: dict = Depends(_authenticate)):
+    if payload.rating < 1 or payload.rating > 5:
+        raise HTTPException(status_code=400, detail="امتیاز باید بین ۱ تا ۵ باشد.")
+    ok = db.set_usdt_order_rating(order_id, user["id"], payload.rating, payload.comment)
+    if not ok:
+        raise HTTPException(
+            status_code=400,
+            detail="امکان ثبت امتیاز نیست — یا سفارش هنوز تکمیل نشده، یا قبلاً امتیاز ثبت شده.",
+        )
+    return {"ok": True}
+
+
 @app.post("/api/usdt/upload-receipt")
 async def upload_usdt_receipt(file: UploadFile = File(...), user: dict = Depends(_authenticate)):
     if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
