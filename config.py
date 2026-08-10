@@ -22,6 +22,8 @@ ADMIN_BOT_TOKEN = os.getenv("ADMIN_BOT_TOKEN", "")
 
 # آی‌دی پشتیبانی که در پیام‌های «سفارش در انتظار» به کاربر نمایش داده می‌شود
 SUPPORT_TELEGRAM_USERNAME = os.getenv("SUPPORT_TELEGRAM_USERNAME", "@SJDPLUS")
+# لینک مستقیم چت با پشتیبانی — برای دکمهٔ «اطلاعات بیشتر» در جریان خرید/فروش
+SUPPORT_CHAT_URL = f"https://t.me/{SUPPORT_TELEGRAM_USERNAME.lstrip('@')}"
 
 # --- Mini App (وب‌اپلیکیشن داخل تلگرام برای خرید/فروش تتر) ---
 # آدرس عمومی جایی که فرانت‌اند مینی‌اپ سرو می‌شود (همان سرویس وب/api.py روی Railway)
@@ -148,3 +150,25 @@ USDT_QUOTE_VALIDITY_MINUTES = 10
 
 # نام باکت Supabase Storage برای نگهداری رسیدها/اسکرین‌شات‌های ارسالی از طریق مینی‌اپ
 USDT_RECEIPTS_BUCKET = os.getenv("USDT_RECEIPTS_BUCKET", "usdt-receipts")
+
+# --- KYC (احراز هویت) — باکت‌های خصوصی (نه عمومی) ---
+USDT_KYC_DOCS_BUCKET = os.getenv("USDT_KYC_DOCS_BUCKET", "usdt-kyc-docs")
+USDT_CARDS_BUCKET = os.getenv("USDT_CARDS_BUCKET", "usdt-cards")
+
+# --- Trust Score — فرمول شفاف و قابل‌توضیح ---
+TRUST_SCORE_BASE_VERIFIED = 50       # امتیاز پایه بعد از تایید هویت
+TRUST_SCORE_PER_SUCCESS = 2          # امتیاز هر معاملهٔ موفق
+TRUST_SCORE_SUCCESS_CAP = 40         # سقف امتیاز قابل‌کسب از معاملات موفق
+TRUST_SCORE_CANCEL_PENALTY = 10      # جریمهٔ هر معاملهٔ لغوشده/مشکوک
+TRUST_SCORE_STREAK_BONUS = 10        # پاداش رسیدن به رکورد معاملات موفق پیاپی
+TRUST_SCORE_STREAK_LENGTH = 10       # چند معاملهٔ موفق پیاپی برای ارتقا به 🟢 Trusted
+
+# --- Risk Engine — آستانه‌های قابل‌تنظیم ---
+# مبلغی که برای کاربر تازه («کم‌تجربه») به‌عنوان «مبلغ بالا» حساب می‌شود
+USDT_RISK_HIGH_AMOUNT_THRESHOLD = float(os.getenv("USDT_RISK_HIGH_AMOUNT_THRESHOLD", "1000"))
+# کاربر با کمتر از این تعداد معاملهٔ موفق، «تازه‌کار» محسوب می‌شود
+USDT_RISK_NEW_USER_ORDER_THRESHOLD = int(os.getenv("USDT_RISK_NEW_USER_ORDER_THRESHOLD", "3"))
+# این تعداد معاملهٔ لغوشده/مشکوک باعث ریسک بالا می‌شود
+USDT_RISK_CANCEL_COUNT_THRESHOLD = int(os.getenv("USDT_RISK_CANCEL_COUNT_THRESHOLD", "3"))
+# این تعداد تغییر اطلاعات پرداخت باعث ریسک بالا می‌شود
+USDT_RISK_PAYMENT_CHANGE_THRESHOLD = int(os.getenv("USDT_RISK_PAYMENT_CHANGE_THRESHOLD", "3"))

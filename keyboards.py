@@ -16,6 +16,7 @@ from config import (
     USDT_NETWORKS,
     USDT_EXCHANGES,
     MINI_APP_URL,
+    SUPPORT_CHAT_URL,
 )
 
 # --- دکمه‌های منوی اصلی ---
@@ -208,8 +209,12 @@ def usdt_menu_keyboard() -> InlineKeyboardMarkup:
 
 
 def usdt_continue_keyboard(action: str) -> InlineKeyboardMarkup:
+    verb = "خرید" if action == "buy" else "فروش"
     return InlineKeyboardMarkup(
-        [[InlineKeyboardButton("✅ ادامه", callback_data=f"usdt_continue:{action}")]]
+        [
+            [InlineKeyboardButton(f"✅ درخواست {verb} تتر", callback_data=f"usdt_continue:{action}")],
+            [InlineKeyboardButton("💬 اطلاعات بیشتر", url=SUPPORT_CHAT_URL)],
+        ]
     )
 
 
@@ -255,15 +260,6 @@ def usdt_buy_exchange_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def usdt_phone_keyboard() -> ReplyKeyboardMarkup:
-    """درخواست اشتراک‌گذاری شمارهٔ تماس، پیش از نهایی‌سازی هر سفارش تتر."""
-    return ReplyKeyboardMarkup(
-        [[KeyboardButton("📱 ارسال شمارهٔ تماس من", request_contact=True)]],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
-
-
 def admin_order_review_keyboard(order_id: int) -> InlineKeyboardMarkup:
     """دکمه‌های تایید/رد سفارش — مرحلهٔ اول بررسی، فقط در ربات مدیریت (admin_bot.py)."""
     return InlineKeyboardMarkup(
@@ -289,6 +285,27 @@ def usdt_rating_keyboard(order_id: int) -> InlineKeyboardMarkup:
         InlineKeyboardButton("⭐" * n, callback_data=f"usdt_rate:{order_id}:{n}") for n in range(1, 6)
     ]
     return InlineKeyboardMarkup([stars_row])
+
+
+def kyc_phone_keyboard() -> ReplyKeyboardMarkup:
+    """درخواست اشتراک‌گذاری شمارهٔ تماس در مرحلهٔ احراز هویت."""
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton("📱 ارسال شمارهٔ تماس من", request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def kyc_review_keyboard(chat_id: int) -> InlineKeyboardMarkup:
+    """دکمه‌های تایید/رد احراز هویت — فقط در ربات مدیریت (admin_bot.py)."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ تایید هویت", callback_data=f"admin_kyc_verify:{chat_id}"),
+                InlineKeyboardButton("❌ رد هویت", callback_data=f"admin_kyc_reject:{chat_id}"),
+            ]
+        ]
+    )
 
 
 def usdt_exchange_keyboard() -> InlineKeyboardMarkup:

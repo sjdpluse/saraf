@@ -11,13 +11,13 @@ import {
   House,
 } from "@phosphor-icons/react";
 import { api, ApiError } from "../lib/api";
-import { getTelegramUser, hapticSuccess, hapticError } from "../lib/telegram";
+import { hapticSuccess, hapticError } from "../lib/telegram";
 import CopyRow from "../components/CopyRow";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const NETWORKS = ["TRC20", "ERC20", "BEP20"];
 
-const STEPS = ["amount", "payment", "receipt", "exchange", "network", "wallet", "phone", "done"];
+const STEPS = ["amount", "payment", "receipt", "exchange", "network", "wallet", "done"];
 
 export default function Buy({ navigate, showError }) {
   const [stepIdx, setStepIdx] = useState(0);
@@ -32,7 +32,6 @@ export default function Buy({ navigate, showError }) {
   const [network, setNetwork] = useState(null);
   const [networkCustom, setNetworkCustom] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
-  const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [orderCode, setOrderCode] = useState(null);
 
@@ -98,10 +97,6 @@ export default function Buy({ navigate, showError }) {
       showError("لطفاً آدرس ولت را وارد کنید.");
       return;
     }
-    if (!phone.trim() || phone.trim().length < 7) {
-      showError("لطفاً شمارهٔ تماس معتبر وارد کنید.");
-      return;
-    }
     const finalExchange = exchange === "other" ? exchangeCustom.trim() : exchange;
     const finalNetwork = network === "other" ? networkCustom.trim() : network;
 
@@ -109,7 +104,6 @@ export default function Buy({ navigate, showError }) {
     try {
       const res = await api.createBuyOrder({
         amount: parseFloat(amount),
-        phone: phone.trim(),
         payment_method: paymentMethod,
         exchange_name: finalExchange || null,
         network: finalNetwork,
@@ -117,7 +111,7 @@ export default function Buy({ navigate, showError }) {
         receipt_url: receiptUrl,
       });
       setOrderCode(res.order_code);
-      setStepIdx(7);
+      setStepIdx(6);
       hapticSuccess();
     } catch (err) {
       hapticError();
@@ -126,8 +120,6 @@ export default function Buy({ navigate, showError }) {
       setSubmitting(false);
     }
   }
-
-  const tgUser = getTelegramUser();
 
   return (
     <div className="app-shell">
@@ -148,7 +140,7 @@ export default function Buy({ navigate, showError }) {
 
       {step !== "done" && (
         <div className="stepper">
-          {STEPS.slice(0, 7).map((s, i) => (
+          {STEPS.slice(0, 6).map((s, i) => (
             <div key={s} className={`dot ${i <= stepIdx ? "active" : ""}`} />
           ))}
         </div>
@@ -326,25 +318,7 @@ export default function Buy({ navigate, showError }) {
             لطفاً آدرس و شبکه را با دقت بررسی کنید؛ ارسال به آدرس یا شبکهٔ اشتباه ممکن
             است باعث از دست رفتن دارایی شود.
           </div>
-          <button className="btn btn-buy" onClick={() => setStepIdx(6)} disabled={!walletAddress.trim()}>
-            ادامه
-          </button>
-        </div>
-      )}
-
-      {step === "phone" && (
-        <div className="card animate-in">
-          <div className="field">
-            <label className="field-label">شمارهٔ تماس شما (برای اعتبارسنجی و هماهنگی سفارش)</label>
-            <input
-              className="input num"
-              type="tel"
-              placeholder={tgUser ? "+93 7XX XXX XXX" : "شمارهٔ تماس"}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-          <button className="btn btn-buy" onClick={submitOrder} disabled={submitting}>
+          <button className="btn btn-buy" onClick={submitOrder} disabled={!walletAddress.trim() || submitting}>
             {submitting ? <span className="spinner" /> : "ثبت نهایی سفارش"}
           </button>
         </div>

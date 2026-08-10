@@ -24,7 +24,7 @@ from config import (
     FACEBOOK_CHECK_INTERVAL_MINUTES,
 )
 from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT
-from handlers import start, currency, gold, compare, admin, converter, usdt
+from handlers import start, currency, gold, compare, admin, converter, usdt, kyc
 from jobs import (
     fetch_and_store_snapshot,
     fetch_and_store_local_market,
@@ -42,6 +42,16 @@ logger = logging.getLogger(__name__)
 
 async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """پیام‌های متنی معمولی را بر اساس دکمهٔ منوی فشرده‌شده یا حالت انتظار هدایت می‌کند."""
+    # مراحل احراز هویت (KYC) — اولویت بالا، چون قبل از هر سفارش ممکن است در جریان باشد
+    if await kyc.handle_first_name(update, context):
+        return
+    if await kyc.handle_last_name(update, context):
+        return
+    if await kyc.handle_phone_text(update, context):
+        return
+    if await kyc.handle_payment_info(update, context):
+        return
+
     if await gold.handle_gold_grams_input(update, context):
         return
     if await currency.handle_currency_calc_input(update, context):
@@ -59,8 +69,6 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if await usdt.handle_usdt_tx_proof_text(update, context):
         return
     if await usdt.handle_usdt_bank_info_input(update, context):
-        return
-    if await usdt.handle_usdt_phone_text(update, context):
         return
 
     text = update.message.text
@@ -83,6 +91,10 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def photo_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await kyc.handle_id_document_photo(update, context):
+        return
+    if await kyc.handle_selfie_photo(update, context):
+        return
     if await usdt.handle_usdt_receipt_photo(update, context):
         return
     if await usdt.handle_usdt_tx_proof_photo(update, context):
@@ -90,7 +102,7 @@ async def photo_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def contact_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await usdt.handle_usdt_phone_contact(update, context)
+    await kyc.handle_phone_contact(update, context)
 
 
 def build_application() -> Application:

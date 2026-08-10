@@ -36,6 +36,14 @@ async function request(path, { method = "GET", body, isForm = false } = {}) {
 export const api = {
   getQuote: (action, amount) => request("/usdt/quote", { method: "POST", body: { action, amount } }),
 
+  getProfile: () => request("/usdt/profile"),
+
+  submitKyc: (fields) => {
+    const form = new FormData();
+    Object.entries(fields).forEach(([k, v]) => form.append(k, v));
+    return request("/usdt/kyc", { method: "POST", body: form, isForm: true });
+  },
+
   createBuyOrder: (payload) => request("/usdt/orders/buy", { method: "POST", body: payload }),
 
   createSellOrder: (payload) => request("/usdt/orders/sell", { method: "POST", body: payload }),

@@ -18,7 +18,7 @@ const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const NETWORKS = ["TRC20", "ERC20", "BEP20"];
 const DEPOSIT_WALLETS = { BEP20: "0x4c49Ff39798C564A01F5fdEcB7E335a178f781BA" };
 
-const STEPS = ["amount", "exchange", "network", "deposit", "txproof", "receive", "bank", "phone", "done"];
+const STEPS = ["amount", "exchange", "network", "deposit", "txproof", "receive", "bank", "done"];
 
 export default function Sell({ navigate, showError }) {
   const [stepIdx, setStepIdx] = useState(0);
@@ -34,7 +34,6 @@ export default function Sell({ navigate, showError }) {
   const [txProofUrl, setTxProofUrl] = useState(null);
   const [receiveMethod, setReceiveMethod] = useState(null);
   const [bankInfo, setBankInfo] = useState("");
-  const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [orderCode, setOrderCode] = useState(null);
 
@@ -100,20 +99,21 @@ export default function Sell({ navigate, showError }) {
 
   function chooseReceive(method) {
     setReceiveMethod(method);
-    setStepIdx(method === "online" ? 6 : 7);
+    if (method === "online") {
+      setStepIdx(6); // بانک
+    } else {
+      submitOrder(method);
+    }
   }
 
-  async function submitOrder() {
+  async function submitOrder(methodOverride) {
+    const method = methodOverride || receiveMethod;
     const proof = txProofUrl || txProof.trim();
     if (!proof) {
       showError("لطفاً کد تراکنش (TxID) یا رسید تراکنش را وارد کنید.");
       return;
     }
-    if (!phone.trim() || phone.trim().length < 7) {
-      showError("لطفاً شمارهٔ تماس معتبر وارد کنید.");
-      return;
-    }
-    if (receiveMethod === "online" && !bankInfo.trim()) {
+    if (method === "online" && !bankInfo.trim()) {
       showError("لطفاً اطلاعات بانکی خود را وارد کنید.");
       return;
     }
@@ -122,15 +122,14 @@ export default function Sell({ navigate, showError }) {
     try {
       const res = await api.createSellOrder({
         amount: parseFloat(amount),
-        phone: phone.trim(),
         exchange_name: finalExchange,
         network: finalNetwork,
         tx_proof: proof,
-        receive_method: receiveMethod,
-        bank_info: receiveMethod === "online" ? bankInfo.trim() : null,
+        receive_method: method,
+        bank_info: method === "online" ? bankInfo.trim() : null,
       });
       setOrderCode(res.order_code);
-      setStepIdx(8);
+      setStepIdx(7);
       hapticSuccess();
     } catch (err) {
       hapticError();
@@ -159,7 +158,7 @@ export default function Sell({ navigate, showError }) {
 
       {step !== "done" && (
         <div className="stepper">
-          {STEPS.slice(0, 8).map((s, i) => (
+          {STEPS.slice(0, 7).map((s, i) => (
             <div key={s} className={`dot ${i <= stepIdx ? "active" : ""}`} />
           ))}
         </div>
@@ -324,10 +323,10 @@ export default function Sell({ navigate, showError }) {
         <div className="card animate-in">
           <label className="field-label">می‌خواهید مبلغ فروش را چگونه دریافت کنید؟</label>
           <div className="choice-row" style={{ marginTop: 4 }}>
-            <button className="choice-btn" onClick={() => chooseReceive("in_person")}>
-              <Buildings size={16} /> حضوری
+            <button className="choice-btn" onClick={() => chooseReceive("in_person")} disabled={submitting}>
+              {submitting && receiveMethod === "in_person" ? <span className="spinner" /> : <Buildings size={16} />} حضوری
             </button>
-            <button className="choice-btn" onClick={() => chooseReceive("online")}>
+            <button className="choice-btn" onClick={() => chooseReceive("online")} disabled={submitting}>
               <Bank size={16} /> آنلاین (بانکی)
             </button>
           </div>
@@ -346,25 +345,7 @@ export default function Sell({ navigate, showError }) {
               onChange={(e) => setBankInfo(e.target.value)}
             />
           </div>
-          <button className="btn btn-sell" onClick={() => setStepIdx(7)} disabled={!bankInfo.trim()}>
-            ادامه
-          </button>
-        </div>
-      )}
-
-      {step === "phone" && (
-        <div className="card animate-in">
-          <div className="field">
-            <label className="field-label">شمارهٔ تماس شما (برای اعتبارسنجی و هماهنگی سفارش)</label>
-            <input
-              className="input num"
-              type="tel"
-              placeholder="+93 7XX XXX XXX"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-          <button className="btn btn-sell" onClick={submitOrder} disabled={submitting}>
+          <button className="btn btn-sell" onClick={() => submitOrder("online")} disabled={!bankInfo.trim() || submitting}>
             {submitting ? <span className="spinner" /> : "ثبت نهایی سفارش"}
           </button>
         </div>

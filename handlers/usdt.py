@@ -1,7 +1,7 @@
 import logging
 import time
 
-from telegram import ReplyKeyboardRemove, Update
+from telegram import Update
 from telegram.ext import ContextTypes
 
 from config import (
@@ -23,7 +23,6 @@ from keyboards import (
     usdt_network_keyboard,
     usdt_exchange_keyboard,
     usdt_buy_exchange_keyboard,
-    usdt_phone_keyboard,
 )
 from services import usdt_service, usdt_order_service
 from services import supabase_service as db
@@ -41,7 +40,6 @@ WALLET_ADDRESS = "usdt_wallet_address"
 BANK_INFO = "usdt_bank_info"
 TX_PROOF = "usdt_tx_proof"
 RECEIPT_FILE_ID = "usdt_receipt_file_id"
-PHONE = "usdt_phone"
 
 AWAITING_AMOUNT = "usdt_awaiting_amount"
 AWAITING_WALLET = "usdt_awaiting_wallet"
@@ -50,19 +48,13 @@ AWAITING_NETWORK_CUSTOM = "usdt_awaiting_network_custom"
 AWAITING_TX_PROOF = "usdt_awaiting_tx_proof"
 AWAITING_RECEIPT = "usdt_awaiting_receipt"
 AWAITING_BANK_INFO = "usdt_awaiting_bank_info"
-AWAITING_PHONE = "usdt_awaiting_phone"
-
-# مرحله‌یی که باید بعد از دریافت شمارهٔ تماس نهایی شود: "buy" یا "sell"
-PENDING_FINALIZE = "usdt_pending_finalize"
-# یادداشت کمکی برای مرحلهٔ نهایی‌سازی فروش (روش دریافت پول: حضوری/آنلاین)
-PENDING_FINALIZE_NOTE = "usdt_pending_finalize_note"
 
 _ALL_KEYS = (
     AMOUNT, QUOTE, QUOTE_TIME, PAYMENT_METHOD, NETWORK, EXCHANGE,
-    WALLET_ADDRESS, BANK_INFO, TX_PROOF, RECEIPT_FILE_ID, PHONE,
+    WALLET_ADDRESS, BANK_INFO, TX_PROOF, RECEIPT_FILE_ID,
     AWAITING_AMOUNT, AWAITING_WALLET, AWAITING_EXCHANGE_CUSTOM,
     AWAITING_NETWORK_CUSTOM, AWAITING_TX_PROOF, AWAITING_RECEIPT,
-    AWAITING_BANK_INFO, AWAITING_PHONE, PENDING_FINALIZE, PENDING_FINALIZE_NOTE,
+    AWAITING_BANK_INFO,
 )
 
 
@@ -163,21 +155,40 @@ async def handle_usdt_amount_input(update: Update, context: ContextTypes.DEFAULT
     return True
 
 
+# ---------------------------------------------------------------------------
+# دکمهٔ «درخواست خرید/فروش تتر» — دروازهٔ KYC از همین‌جا عبور می‌کند
+# ---------------------------------------------------------------------------
 async def usdt_continue_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
     _, action = query.data.split(":", 1)
 
+    chat_id = query.message.chat_id
+    if not db.is_kyc_complete(chat_id):
+        # ماژول KYC این‌جا ایمپورت می‌شود تا از وابستگی حلقوی جلوگیری شود
+        from handlers import kyc
+
+        await query.edit_message_text(
+            "برای ادامه، ابتدا باید یک‌بار پروفایل خود را تکمیل کنید."
+        )
+        await kyc.start_kyc(update, context, resume_action=action)
+        return
+
+    await resume_after_kyc(update, context, action, edit_func=query.edit_message_text)
+
+
+async def resume_after_kyc(update: Update, context: ContextTypes.DEFAULT_TYPE, action: str, edit_func=None) -> None:
+    """
+    نقطهٔ ادامهٔ جریان خرید/فروش — چه مستقیم بعد از زدن «درخواست خرید/فروش» (وقتی
+    پروفایل کامل است)، چه بعد از تکمیل KYC. هر دو مسیر دقیقاً همین تابع را صدا
+    می‌زنند تا منطق هرگز دوبار نوشته نشود.
+    """
+    send = edit_func or (lambda text, **kw: context.bot.send_message(chat_id=update.effective_chat.id, text=text, **kw))
+
     if action == "buy":
-        await query.edit_message_text(
-            "روش پرداخت خود را انتخاب کنید:",
-            reply_markup=usdt_payment_method_keyboard("buy"),
-        )
+        await send("روش پرداخت خود را انتخاب کنید:", reply_markup=usdt_payment_method_keyboard("buy"))
     else:
-        await query.edit_message_text(
-            "معاملهٔ خود را از کدام صرافی انجام می‌دهید؟",
-            reply_markup=usdt_exchange_keyboard(),
-        )
+        await send("معاملهٔ خود را از کدام صرافی انجام می‌دهید؟", reply_markup=usdt_exchange_keyboard())
 
 
 # ---------------------------------------------------------------------------
@@ -221,11 +232,9 @@ async def usdt_pay_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     # action == "sell" -> این مرحله دربارهٔ نحوهٔ دریافت مبلغ فروش است
     if method == "in_person":
-        await query.edit_message_text(
-            "🏢 *دریافت حضوری*\n\nبرای تکمیل سفارش، فقط یک قدم باقی مانده...",
-            parse_mode="Markdown",
+        await _finalize_sell_order(
+            query.edit_message_text, context, query.message.chat_id, update.effective_user, "حضوری"
         )
-        await _request_phone(context, query.message.chat_id, pending="sell", note="حضوری")
     else:
         context.user_data[AWAITING_BANK_INFO] = True
         await query.edit_message_text(
@@ -382,7 +391,7 @@ async def handle_usdt_network_custom_input(update: Update, context: ContextTypes
 
 
 # ---------------------------------------------------------------------------
-# خرید — دریافت آدرس ولت
+# خرید — دریافت آدرس ولت و نهایی‌سازی مستقیم (شمارهٔ تماس از پروفایل خوانده می‌شود)
 # ---------------------------------------------------------------------------
 async def handle_usdt_wallet_address_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if not context.user_data.get(AWAITING_WALLET):
@@ -397,17 +406,20 @@ async def handle_usdt_wallet_address_input(update: Update, context: ContextTypes
         _reset_state(context)
         return True
 
-    await _request_phone(context, update.effective_chat.id, pending="buy")
+    await _finalize_buy_order(update.message.reply_text, context, update.effective_chat.id, update.effective_user)
     return True
 
 
 async def _finalize_buy_order(send_func, context: ContextTypes.DEFAULT_TYPE, chat_id: int, user) -> None:
     quote = context.user_data.get(QUOTE)
+    profile = db.get_user_profile(chat_id)
+    phone = profile.get("phone") if profile else None
+
     result = await usdt_order_service.create_buy_order(
         chat_id=chat_id,
         username=user.username,
         full_name=user.full_name,
-        phone=context.user_data.get(PHONE),
+        phone=phone,
         amount=context.user_data.get(AMOUNT),
         quote=quote,
         payment_method=context.user_data.get(PAYMENT_METHOD),
@@ -462,17 +474,22 @@ async def handle_usdt_bank_info_input(update: Update, context: ContextTypes.DEFA
         _reset_state(context)
         return True
 
-    await _request_phone(context, update.effective_chat.id, pending="sell", note="آنلاین (بانکی)")
+    await _finalize_sell_order(
+        update.message.reply_text, context, update.effective_chat.id, update.effective_user, "آنلاین (بانکی)"
+    )
     return True
 
 
 async def _finalize_sell_order(send_func, context: ContextTypes.DEFAULT_TYPE, chat_id: int, user, payment_note: str) -> None:
     quote = context.user_data.get(QUOTE)
+    profile = db.get_user_profile(chat_id)
+    phone = profile.get("phone") if profile else None
+
     result = await usdt_order_service.create_sell_order(
         chat_id=chat_id,
         username=user.username,
         full_name=user.full_name,
-        phone=context.user_data.get(PHONE),
+        phone=phone,
         amount=context.user_data.get(AMOUNT),
         quote=quote,
         exchange_name=context.user_data.get(EXCHANGE),
@@ -484,76 +501,6 @@ async def _finalize_sell_order(send_func, context: ContextTypes.DEFAULT_TYPE, ch
     )
     await send_func(result["message"], parse_mode="Markdown")
     _reset_state(context)
-
-
-# ---------------------------------------------------------------------------
-# دریافت شمارهٔ تماس (مرحلهٔ مشترک، درست پیش از ثبت نهایی هر سفارش)
-# ---------------------------------------------------------------------------
-async def _request_phone(context: ContextTypes.DEFAULT_TYPE, chat_id: int, pending: str, note: str | None = None) -> None:
-    context.user_data[AWAITING_PHONE] = True
-    context.user_data[PENDING_FINALIZE] = pending
-    context.user_data[PENDING_FINALIZE_NOTE] = note
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=(
-            "📞 برای تکمیل و اعتبارسنجی سفارش، لطفاً شمارهٔ تماس خود را با دکمهٔ زیر به اشتراک "
-            "بگذارید یا آن را تایپ کنید (تیم ما در صورت نیاز برای هماهنگی بیشتر با شما تماس می‌گیرد):"
-        ),
-        reply_markup=usdt_phone_keyboard(),
-    )
-
-
-async def handle_usdt_phone_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    if not context.user_data.get(AWAITING_PHONE):
-        return False
-    contact = update.message.contact
-    if not contact:
-        return False
-    context.user_data[AWAITING_PHONE] = False
-    context.user_data[PHONE] = contact.phone_number
-    await _complete_pending_finalize(update, context)
-    return True
-
-
-async def handle_usdt_phone_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    if not context.user_data.get(AWAITING_PHONE):
-        return False
-    text = update.message.text.strip()
-    digits = "".join(ch for ch in text if ch.isdigit() or ch == "+")
-    if len(digits) < 7:
-        await update.message.reply_text(
-            "⚠️ لطفاً یک شمارهٔ تماس معتبر ارسال کنید یا از دکمهٔ اشتراک‌گذاری استفاده کنید."
-        )
-        return True
-    context.user_data[AWAITING_PHONE] = False
-    context.user_data[PHONE] = digits
-    await _complete_pending_finalize(update, context)
-    return True
-
-
-async def _complete_pending_finalize(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pending = context.user_data.get(PENDING_FINALIZE)
-    note = context.user_data.get(PENDING_FINALIZE_NOTE)
-
-    if _quote_expired(context):
-        await update.message.reply_text(
-            "⚠️ نرخ نمایش‌داده‌شده منقضی شده است. لطفاً دوباره از منوی «🪙 خرید و فروش تتر» شروع کنید.",
-            reply_markup=ReplyKeyboardRemove(),
-        )
-        _reset_state(context)
-        return
-
-    await update.message.reply_text("✅ شمارهٔ تماس شما ثبت شد.", reply_markup=ReplyKeyboardRemove())
-
-    if pending == "buy":
-        await _finalize_buy_order(update.message.reply_text, context, update.effective_chat.id, update.effective_user)
-    elif pending == "sell":
-        await _finalize_sell_order(
-            update.message.reply_text, context, update.effective_chat.id, update.effective_user, note or "-"
-        )
-    else:
-        logger.warning("مرحلهٔ نهایی‌سازی ناشناخته: %s", pending)
-        _reset_state(context)
 
 
 # ---------------------------------------------------------------------------

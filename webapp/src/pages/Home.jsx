@@ -15,7 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { api } from "../lib/api";
 
-export default function Home({ navigate }) {
+export default function Home({ navigate, startTransaction }) {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
@@ -44,14 +44,14 @@ export default function Home({ navigate }) {
       </div>
 
       <div className="menu-grid animate-in" style={{ animationDelay: "0.03s" }}>
-        <div className="menu-tile buy" onClick={() => navigate("buy")}>
+        <div className="menu-tile buy" onClick={() => startTransaction("buy")}>
           <div className="tile-icon">
             <TrendUp size={22} weight="bold" />
           </div>
           <div className="title">خرید تتر</div>
           <div className="subtitle num">AFN → USDT</div>
         </div>
-        <div className="menu-tile sell" onClick={() => navigate("sell")}>
+        <div className="menu-tile sell" onClick={() => startTransaction("sell")}>
           <div className="tile-icon">
             <TrendDown size={22} weight="bold" />
           </div>

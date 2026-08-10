@@ -18,7 +18,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, Form, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -33,6 +33,7 @@ from services import (
     usdt_service,
     usdt_order_service,
     webapp_auth,
+    kyc_service,
 )
 from services import supabase_service as db
 
@@ -265,6 +266,66 @@ def _full_name(user: dict) -> Optional[str]:
     return name or None
 
 
+# ---------------------------------------------------------------------------
+# پروفایل و احراز هویت (KYC)
+# ---------------------------------------------------------------------------
+@app.get("/api/usdt/profile")
+async def get_my_profile(user: dict = Depends(_authenticate)):
+    """وضعیت پروفایل کاربر برای مینی‌اپ — مشخص می‌کند آیا باید به فرم KYC هدایت شود یا نه."""
+    profile = db.get_user_profile(user["id"])
+    return {
+        "kyc_complete": db.is_kyc_complete(user["id"]),
+        "profile": profile,
+    }
+
+
+@app.post("/api/usdt/kyc")
+async def submit_kyc(
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    phone: str = Form(...),
+    payment_info: str = Form(...),
+    id_document: UploadFile = File(...),
+    selfie: UploadFile = File(...),
+    user: dict = Depends(_authenticate),
+):
+    if len(first_name.strip()) < 2 or len(last_name.strip()) < 2:
+        raise HTTPException(status_code=400, detail="نام و نام خانوادگی معتبر لازم است.")
+    if len(phone.strip()) < 7:
+        raise HTTPException(status_code=400, detail="شمارهٔ تماس معتبر لازم است.")
+    if len(payment_info.strip()) < 4:
+        raise HTTPException(status_code=400, detail="اطلاعات پرداخت معتبر لازم است.")
+
+    for f, label in ((id_document, "مدرک هویتی"), (selfie, "سلفی")):
+        if f.content_type not in ("image/jpeg", "image/png", "image/webp"):
+            raise HTTPException(status_code=400, detail=f"{label} باید یک فایل تصویری (jpg/png/webp) باشد.")
+
+    id_doc_bytes = await id_document.read()
+    selfie_bytes = await selfie.read()
+    if len(id_doc_bytes) > 8 * 1024 * 1024 or len(selfie_bytes) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="حجم هر فایل نباید بیشتر از ۸ مگابایت باشد.")
+
+    id_doc_ext = (id_document.filename or "id.jpg").rsplit(".", 1)[-1].lower()
+    selfie_ext = (selfie.filename or "selfie.jpg").rsplit(".", 1)[-1].lower()
+
+    ok = await kyc_service.complete_kyc(
+        chat_id=user["id"],
+        first_name=first_name.strip(),
+        last_name=last_name.strip(),
+        phone=phone.strip(),
+        payment_info=payment_info.strip(),
+        id_doc_bytes=id_doc_bytes,
+        id_doc_ext=id_doc_ext,
+        id_doc_content_type=id_document.content_type,
+        selfie_bytes=selfie_bytes,
+        selfie_ext=selfie_ext,
+        selfie_content_type=selfie.content_type,
+    )
+    if not ok:
+        raise HTTPException(status_code=503, detail="ثبت پروفایل ناموفق بود؛ لطفاً دوباره تلاش کنید.")
+    return {"ok": True}
+
+
 class UsdtQuoteRequest(BaseModel):
     action: str  # "buy" | "sell"
     amount: float
@@ -289,7 +350,6 @@ async def usdt_quote(payload: UsdtQuoteRequest, user: dict = Depends(_authentica
 
 class UsdtBuyOrderRequest(BaseModel):
     amount: float
-    phone: str
     payment_method: str  # "in_person" | "online"
     exchange_name: Optional[str] = None
     network: str
@@ -299,14 +359,17 @@ class UsdtBuyOrderRequest(BaseModel):
 
 @app.post("/api/usdt/orders/buy")
 async def create_usdt_buy_order(payload: UsdtBuyOrderRequest, user: dict = Depends(_authenticate)):
+    if not db.is_kyc_complete(user["id"]):
+        raise HTTPException(status_code=403, detail="ابتدا باید پروفایل خود را تکمیل کنید (KYC).")
     if payload.payment_method not in ("in_person", "online"):
         raise HTTPException(status_code=400, detail="روش پرداخت نامعتبر است.")
     if payload.payment_method == "online" and not payload.receipt_url:
         raise HTTPException(status_code=400, detail="برای پرداخت آنلاین، رسید بانکی الزامی است.")
     if not payload.wallet_address or not payload.network:
         raise HTTPException(status_code=400, detail="آدرس ولت و شبکه الزامی است.")
-    if not payload.phone or len(payload.phone.strip()) < 7:
-        raise HTTPException(status_code=400, detail="شمارهٔ تماس معتبر لازم است.")
+
+    profile = db.get_user_profile(user["id"])
+    phone = profile.get("phone") if profile else None
 
     # نرخ همیشه در همان لحظهٔ ثبت سفارش دوباره محاسبه می‌شود؛ چون این یک درخواست
     # فوری و اتمیک است (بر خلاف گفتگوی چندمرحله‌ایِ ربات)، نیازی به مکانیزم انقضای
@@ -323,7 +386,7 @@ async def create_usdt_buy_order(payload: UsdtBuyOrderRequest, user: dict = Depen
         chat_id=user["id"],
         username=user.get("username"),
         full_name=_full_name(user),
-        phone=payload.phone.strip(),
+        phone=phone,
         amount=payload.amount,
         quote=quote,
         payment_method=payload.payment_method,
@@ -338,7 +401,6 @@ async def create_usdt_buy_order(payload: UsdtBuyOrderRequest, user: dict = Depen
 
 class UsdtSellOrderRequest(BaseModel):
     amount: float
-    phone: str
     exchange_name: str
     network: str
     tx_proof: str
@@ -348,6 +410,8 @@ class UsdtSellOrderRequest(BaseModel):
 
 @app.post("/api/usdt/orders/sell")
 async def create_usdt_sell_order(payload: UsdtSellOrderRequest, user: dict = Depends(_authenticate)):
+    if not db.is_kyc_complete(user["id"]):
+        raise HTTPException(status_code=403, detail="ابتدا باید پروفایل خود را تکمیل کنید (KYC).")
     if payload.receive_method not in ("in_person", "online"):
         raise HTTPException(status_code=400, detail="روش دریافت نامعتبر است.")
     if payload.receive_method == "online" and not payload.bank_info:
@@ -356,8 +420,9 @@ async def create_usdt_sell_order(payload: UsdtSellOrderRequest, user: dict = Dep
         raise HTTPException(status_code=400, detail="اثبات تراکنش (TxID یا رسید) الزامی است.")
     if not payload.exchange_name or not payload.network:
         raise HTTPException(status_code=400, detail="نام صرافی و شبکه الزامی است.")
-    if not payload.phone or len(payload.phone.strip()) < 7:
-        raise HTTPException(status_code=400, detail="شمارهٔ تماس معتبر لازم است.")
+
+    profile = db.get_user_profile(user["id"])
+    phone = profile.get("phone") if profile else None
 
     try:
         quote = await usdt_service.get_sell_quote(payload.amount)
@@ -371,7 +436,7 @@ async def create_usdt_sell_order(payload: UsdtSellOrderRequest, user: dict = Dep
         chat_id=user["id"],
         username=user.get("username"),
         full_name=_full_name(user),
-        phone=payload.phone.strip(),
+        phone=phone,
         amount=payload.amount,
         quote=quote,
         exchange_name=payload.exchange_name,

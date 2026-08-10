@@ -168,6 +168,13 @@ def get_usdt_order_by_id(order_id: int) -> Optional[dict]:
         return None
 
 
+def set_order_card_path(order_id: int, path: str) -> None:
+    try:
+        get_client().table("usdt_orders").update({"card_image_path": path}).eq("id", order_id).execute()
+    except Exception:
+        logger.exception("خطا در ذخیرهٔ مسیر کارت دیجیتال سفارش")
+
+
 def get_usdt_orders_by_chat_id(chat_id: int, limit: int = 50) -> list[dict]:
     """تاریخچهٔ سفارش‌های یک کاربر خاص — برای صفحهٔ «سفارش‌های من» در مینی‌اپ."""
     try:
@@ -426,3 +433,193 @@ def get_closest_local_market_rate(
 
 def time_ago(days: int = 0, hours: int = 0) -> datetime:
     return datetime.now(timezone.utc) - timedelta(days=days, hours=hours)
+
+
+# ---------------------------------------------------------------------------
+# Trust Profile — پروفایل احراز هویت و اعتبار کاربران (KYC)
+# ---------------------------------------------------------------------------
+def get_user_profile(chat_id: int) -> Optional[dict]:
+    try:
+        res = (
+            get_client()
+            .table("user_profiles")
+            .select("*")
+            .eq("chat_id", chat_id)
+            .limit(1)
+            .execute()
+        )
+        return res.data[0] if res.data else None
+    except Exception:
+        logger.exception("خطا در خواندن پروفایل کاربر")
+        return None
+
+
+def is_kyc_complete(chat_id: int) -> bool:
+    """آیا کاربر قبلاً فرم احراز هویت را یک‌بار کامل کرده (صرف‌نظر از تایید نهایی ادمین)؟"""
+    profile = get_user_profile(chat_id)
+    if not profile:
+        return False
+    required = (
+        profile.get("first_name"),
+        profile.get("last_name"),
+        profile.get("phone"),
+        profile.get("payment_info"),
+        profile.get("id_document_path"),
+        profile.get("selfie_path"),
+    )
+    return all(required)
+
+
+def create_user_profile(
+    chat_id: int,
+    first_name: str,
+    last_name: str,
+    phone: str,
+    payment_info: str,
+    id_document_path: str,
+    selfie_path: str,
+) -> None:
+    try:
+        get_client().table("user_profiles").upsert(
+            {
+                "chat_id": chat_id,
+                "first_name": first_name,
+                "last_name": last_name,
+                "phone": phone,
+                "payment_info": payment_info,
+                "id_document_path": id_document_path,
+                "selfie_path": selfie_path,
+                "kyc_status": "pending",
+            },
+            on_conflict="chat_id",
+        ).execute()
+    except Exception:
+        logger.exception("خطا در ثبت پروفایل احراز هویت کاربر")
+        raise
+
+
+def update_payment_info(chat_id: int, new_payment_info: str) -> None:
+    """اگر اطلاعات پرداخت نسبت به قبل تغییر کرده باشد، شمارندهٔ تغییر افزایش می‌یابد
+    (این شمارنده یکی از ورودی‌های Risk Engine است — تغییر مکرر اطلاعات پرداخت مشکوک است)."""
+    try:
+        profile = get_user_profile(chat_id)
+        if not profile:
+            return
+        fields = {"payment_info": new_payment_info}
+        if profile.get("payment_info") and profile["payment_info"] != new_payment_info:
+            fields["payment_info_change_count"] = (profile.get("payment_info_change_count") or 0) + 1
+        get_client().table("user_profiles").update(fields).eq("chat_id", chat_id).execute()
+    except Exception:
+        logger.exception("خطا در به‌روزرسانی اطلاعات پرداخت کاربر")
+
+
+def set_kyc_status(chat_id: int, status: str, verified_by: Optional[int] = None, reason: Optional[str] = None) -> None:
+    try:
+        fields = {"kyc_status": status}
+        if status in ("verified", "trusted"):
+            fields["verified_by"] = verified_by
+            fields["verified_at"] = datetime.now(timezone.utc).isoformat()
+        if status == "restricted":
+            fields["restricted_reason"] = reason
+        get_client().table("user_profiles").update(fields).eq("chat_id", chat_id).execute()
+    except Exception:
+        logger.exception("خطا در به‌روزرسانی وضعیت KYC کاربر")
+
+
+def record_order_outcome(chat_id: int, amount_usdt: float, success: bool) -> None:
+    """
+    بعد از تکمیل یا لغو هر سفارش صدا زده می‌شود؛ آمار Trust Profile و Trust Score را
+    طبق فرمول شفاف زیر به‌روزرسانی می‌کند:
+      - پایه: ۵۰ امتیاز بعد از تایید هویت (verified/trusted)
+      - +۲ امتیاز به‌ازای هر معاملهٔ موفق (سقف ۴۰ امتیاز از این بخش)
+      - −۱۰ امتیاز به‌ازای هر معاملهٔ لغوشده/مشکوک
+      - +۱۰ امتیاز و ارتقا به 🟢 Trusted اگر ۱۰ معاملهٔ موفق پیاپی بدون لغو ثبت شود
+    """
+    from config import (
+        TRUST_SCORE_BASE_VERIFIED,
+        TRUST_SCORE_PER_SUCCESS,
+        TRUST_SCORE_SUCCESS_CAP,
+        TRUST_SCORE_CANCEL_PENALTY,
+        TRUST_SCORE_STREAK_BONUS,
+        TRUST_SCORE_STREAK_LENGTH,
+    )
+
+    profile = get_user_profile(chat_id)
+    if not profile:
+        return
+
+    total_orders = (profile.get("total_orders") or 0) + 1
+    successful = profile.get("successful_orders") or 0
+    cancelled = profile.get("cancelled_orders") or 0
+    streak = profile.get("current_success_streak") or 0
+    volume = float(profile.get("total_volume_usdt") or 0)
+    kyc_status = profile.get("kyc_status") or "pending"
+
+    if success:
+        successful += 1
+        streak += 1
+        volume += amount_usdt
+    else:
+        cancelled += 1
+        streak = 0
+
+    base = TRUST_SCORE_BASE_VERIFIED if kyc_status in ("verified", "trusted") else 0
+    success_component = min(successful * TRUST_SCORE_PER_SUCCESS, TRUST_SCORE_SUCCESS_CAP)
+    cancel_penalty = cancelled * TRUST_SCORE_CANCEL_PENALTY
+    streak_bonus = TRUST_SCORE_STREAK_BONUS if streak >= TRUST_SCORE_STREAK_LENGTH else 0
+    trust_score = max(0, base + success_component + streak_bonus - cancel_penalty)
+
+    fields = {
+        "total_orders": total_orders,
+        "successful_orders": successful,
+        "cancelled_orders": cancelled,
+        "current_success_streak": streak,
+        "total_volume_usdt": volume,
+        "trust_score": trust_score,
+        "last_order_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if streak >= TRUST_SCORE_STREAK_LENGTH and kyc_status == "verified":
+        fields["kyc_status"] = "trusted"
+
+    try:
+        get_client().table("user_profiles").update(fields).eq("chat_id", chat_id).execute()
+    except Exception:
+        logger.exception("خطا در به‌روزرسانی Trust Profile کاربر")
+
+
+# ---------------------------------------------------------------------------
+# ذخیره‌سازی خصوصی مدارک KYC و کارت‌های دیجیتال (باکت‌های Private)
+# ---------------------------------------------------------------------------
+def upload_private_file(bucket: str, file_bytes: bytes, filename: str, content_type: str) -> Optional[str]:
+    """آپلود به یک باکت خصوصی؛ فقط مسیر داخلی فایل را برمی‌گرداند (نه لینک عمومی)."""
+    try:
+        storage = get_client().storage.from_(bucket)
+        storage.upload(filename, file_bytes, {"content-type": content_type, "upsert": "true"})
+        return filename
+    except Exception:
+        logger.exception("خطا در آپلود فایل خصوصی به باکت %s", bucket)
+        return None
+
+
+def get_signed_url(bucket: str, path: str, expires_in: int = 600) -> Optional[str]:
+    """لینک موقت (چند دقیقه‌یی) برای مشاهدهٔ یک فایل خصوصی — فقط برای ادمین استفاده شود."""
+    if not path:
+        return None
+    try:
+        storage = get_client().storage.from_(bucket)
+        res = storage.create_signed_url(path, expires_in)
+        return res.get("signedURL") or res.get("signed_url")
+    except Exception:
+        logger.exception("خطا در ساخت لینک موقت برای %s/%s", bucket, path)
+        return None
+
+
+def download_private_file(bucket: str, path: str) -> Optional[bytes]:
+    """دانلود مستقیم محتوای یک فایل خصوصی (برای مثال، سلفی کاربر جهت ساخت کارت)."""
+    if not path:
+        return None
+    try:
+        return get_client().storage.from_(bucket).download(path)
+    except Exception:
+        logger.exception("خطا در دانلود فایل خصوصی از %s/%s", bucket, path)
+        return None
