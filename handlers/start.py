@@ -89,19 +89,16 @@ DISCLAIMER_TEXT = (
 
 
 def about_keyboard(page: str = "home") -> InlineKeyboardMarkup:
-    if page == "home":
-        return InlineKeyboardMarkup([
-            [InlineKeyboardButton("📊 امکانات Saraf", callback_data="about:features")],
-            [InlineKeyboardButton("🪙 خرید و فروش USDT", callback_data="about:usdt")],
-            [InlineKeyboardButton("🛡 امنیت و احراز هویت", callback_data="about:security")],
-            [InlineKeyboardButton("📡 داده‌ها و نرخ‌ها", callback_data="about:data")],
-            [InlineKeyboardButton("👨‍💻 توسعه و برند", callback_data="about:developer")],
-            [InlineKeyboardButton("⚠️ شرایط استفاده و مسئولیت", callback_data="about:disclaimer")],
-        ])
-
-    rows = [[InlineKeyboardButton("🔙 بازگشت به درباره Saraf", callback_data="about:home")]]
-    if page == "usdt":
-        rows.insert(0, [InlineKeyboardButton("🚀 شروع خرید/فروش USDT", callback_data="about:open_usdt")])
+    rows = [
+        [InlineKeyboardButton("📊 امکانات Saraf", callback_data="about:features")],
+        [InlineKeyboardButton("🪙 خدمات خرید و فروش USDT", callback_data="about:usdt")],
+        [InlineKeyboardButton("🛡 امنیت و احراز هویت", callback_data="about:security")],
+        [InlineKeyboardButton("📡 داده‌ها و نرخ‌ها", callback_data="about:data")],
+        [InlineKeyboardButton("👨‍💻 توسعه و برند", callback_data="about:developer")],
+        [InlineKeyboardButton("⚠️ شرایط استفاده", callback_data="about:disclaimer")],
+    ]
+    if page != "home":
+        rows.append([InlineKeyboardButton("🔙 بازگشت به درباره Saraf", callback_data="about:home")])
     return InlineKeyboardMarkup(rows)
 
 
@@ -132,15 +129,6 @@ async def about_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.edit_message_text(ABOUT_HOME_TEXT, parse_mode="Markdown", reply_markup=about_keyboard())
         return
 
-    if action == "open_usdt":
-        await context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text="🪙 *خرید و فروش USDT*\n\nیکی از گزینه‌های زیر را انتخاب کنید:",
-            parse_mode="Markdown",
-            reply_markup=usdt_menu_keyboard(),
-        )
-        return
-
     pages = {
         "features": ABOUT_FEATURES_TEXT,
         "usdt": ABOUT_USDT_TEXT,
@@ -150,8 +138,20 @@ async def about_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "disclaimer": DISCLAIMER_TEXT,
     }
     text = pages.get(action)
-    if text:
-        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=about_keyboard(page=action))
+    if not text:
+        return
+    await query.edit_message_text(text, parse_mode="Markdown", reply_markup=about_keyboard(page=action))
+
+
+async def about_usdt_open_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    await query.answer()
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text="🪙 *خرید و فروش USDT*\n\nیکی از گزینه‌های زیر را انتخاب کنید:",
+        parse_mode="Markdown",
+        reply_markup=usdt_menu_keyboard(),
+    )
 
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
