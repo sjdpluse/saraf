@@ -1,9 +1,9 @@
 import logging
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from keyboards import about_keyboard, usdt_menu_keyboard
+from keyboards import main_menu, usdt_menu_keyboard
 from services import supabase_service as db
 
 logger = logging.getLogger(__name__)
@@ -88,13 +88,30 @@ DISCLAIMER_TEXT = (
 )
 
 
+def about_keyboard(page: str = "home") -> InlineKeyboardMarkup:
+    if page == "home":
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("📊 امکانات Saraf", callback_data="about:features")],
+            [InlineKeyboardButton("🪙 خرید و فروش USDT", callback_data="about:usdt")],
+            [InlineKeyboardButton("🛡 امنیت و احراز هویت", callback_data="about:security")],
+            [InlineKeyboardButton("📡 داده‌ها و نرخ‌ها", callback_data="about:data")],
+            [InlineKeyboardButton("👨‍💻 توسعه و برند", callback_data="about:developer")],
+            [InlineKeyboardButton("⚠️ شرایط استفاده و مسئولیت", callback_data="about:disclaimer")],
+        ])
+
+    rows = [[InlineKeyboardButton("🔙 بازگشت به درباره Saraf", callback_data="about:home")]]
+    if page == "usdt":
+        rows.insert(0, [InlineKeyboardButton("🚀 شروع خرید/فروش USDT", callback_data="about:open_usdt")])
+    return InlineKeyboardMarkup(rows)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     db.upsert_user(user.id, user.username, user.full_name)
     await update.message.reply_text(
         WELCOME_TEXT.format(name=user.first_name or "دوست عزیز"),
         parse_mode="Markdown",
-        reply_markup=__import__("keyboards").main_menu(),
+        reply_markup=main_menu(),
     )
 
 
@@ -112,8 +129,15 @@ async def about_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     action = query.data.split(":", 1)[1]
 
     if action == "home":
-        await query.edit_message_text(
-            ABOUT_HOME_TEXT, parse_mode="Markdown", reply_markup=about_keyboard()
+        await query.edit_message_text(ABOUT_HOME_TEXT, parse_mode="Markdown", reply_markup=about_keyboard())
+        return
+
+    if action == "open_usdt":
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text="🪙 *خرید و فروش USDT*\n\nیکی از گزینه‌های زیر را انتخاب کنید:",
+            parse_mode="Markdown",
+            reply_markup=usdt_menu_keyboard(),
         )
         return
 
@@ -125,32 +149,13 @@ async def about_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         "developer": ABOUT_DEVELOPER_TEXT,
         "disclaimer": DISCLAIMER_TEXT,
     }
-
     text = pages.get(action)
-    if not text:
-        return
-
-    await query.edit_message_text(
-        text,
-        parse_mode="Markdown",
-        reply_markup=about_keyboard(page=action),
-    )
-
-
-async def about_usdt_open_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
-    await context.bot.send_message(
-        chat_id=query.message.chat_id,
-        text="🪙 *خرید و فروش USDT*\n\nیکی از گزینه‌های زیر را انتخاب کنید:",
-        parse_mode="Markdown",
-        reply_markup=usdt_menu_keyboard(),
-    )
+    if text:
+        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=about_keyboard(page=action))
 
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     db.deactivate_user(update.effective_user.id)
     await update.message.reply_text(
-        "شما از دریافت پیام‌های همگانی ربات خارج شدید. هر وقت خواستید با /start "
-        "دوباره فعال شوید."
+        "شما از دریافت پیام‌های همگانی ربات خارج شدید. هر وقت خواستید با /start دوباره فعال شوید."
     )
