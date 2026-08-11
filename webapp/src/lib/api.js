@@ -7,8 +7,15 @@ class ApiError extends Error {
   }
 }
 
-async function request(path, { method = "GET", body, isForm = false } = {}) {
-  const headers = { "X-Telegram-Init-Data": getInitData() };
+function newIdempotencyKey() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  globalThis.crypto?.getRandomValues?.(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") || `${Date.now()}-${Math.random()}`;
+}
+
+async function request(path, { method = "GET", body, isForm = false, headers: extraHeaders = {} } = {}) {
+  const headers = { "X-Telegram-Init-Data": getInitData(), ...extraHeaders };
   if (!isForm && body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
@@ -44,9 +51,19 @@ export const api = {
     return request("/usdt/kyc", { method: "POST", body: form, isForm: true });
   },
 
-  createBuyOrder: (payload) => request("/usdt/orders/buy", { method: "POST", body: payload }),
+  createBuyOrder: (payload, idempotencyKey = newIdempotencyKey()) =>
+    request("/usdt/orders/buy", {
+      method: "POST",
+      body: payload,
+      headers: { "Idempotency-Key": idempotencyKey },
+    }),
 
-  createSellOrder: (payload) => request("/usdt/orders/sell", { method: "POST", body: payload }),
+  createSellOrder: (payload, idempotencyKey = newIdempotencyKey()) =>
+    request("/usdt/orders/sell", {
+      method: "POST",
+      body: payload,
+      headers: { "Idempotency-Key": idempotencyKey },
+    }),
 
   getMyOrders: () => request("/usdt/orders/me"),
 
@@ -62,4 +79,4 @@ export const api = {
   },
 };
 
-export { ApiError };
+export { ApiError, newIdempotencyKey };
