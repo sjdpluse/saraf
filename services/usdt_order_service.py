@@ -52,6 +52,30 @@ def get_customer_bot() -> Bot:
     return _customer_bot_instance
 
 
+def _md_escape(value) -> str:
+    """
+    کاراکترهای خاص Markdown (نسخهٔ legacy تلگرام) را در متن‌های آزاد/وارد‌شده توسط
+    کاربر (نام کاربری تلگرام، اطلاعات بانکی، نام صرافی سفارشی، TxID و...) فرار
+    می‌دهد.
+
+    این تابع علت اصلی باگ «دکمه‌های تایید/رد به ادمین نمی‌رسند» بود: نام‌های
+    کاربری تلگرام معمولاً کاراکتر «_» دارند (مثل sajad_2024). وقتی چنین متنی
+    بدون فرار دادن داخل پیامی با parse_mode=Markdown قرار می‌گیرد، اگر تعداد
+    کاراکترهای خاص در کل پیام فرد شود، تلگرام کل پیام را رد می‌کند و اصلاً ارسال
+    نمی‌شود — نه متن، نه دکمه‌ها. چون خطا در حلقهٔ ارسال با except گرفته و فقط
+    لاگ می‌شد، این اتفاق کاملاً بی‌صدا رخ می‌داد.
+    """
+    if value is None:
+        return "-"
+    text = str(value)
+    if not text:
+        return "-"
+    # ترتیب مهم است: بک‌اسلش باید اول فرار داده شود تا فرارهای بعدی دوباره escape نشوند
+    for ch in ("\\", "_", "*", "`", "["):
+        text = text.replace(ch, f"\\{ch}")
+    return text
+
+
 async def notify_admins(text: str, order_id: Optional[int] = None) -> None:
     # ایمپورت داخل تابع برای جلوگیری از وابستگی حلقوی (keyboards <-> services)
     from keyboards import admin_order_review_keyboard
@@ -69,7 +93,14 @@ async def notify_admins(text: str, order_id: Optional[int] = None) -> None:
                 chat_id=admin_id, text=text, parse_mode=ParseMode.MARKDOWN, reply_markup=markup
             )
         except Exception:
-            logger.exception("خطا در اطلاع‌رسانی به ادمین %s", admin_id)
+            # اگر باز هم به هر دلیلی (مثلاً خطای دیگر Markdown) ارسال شکست بخورد،
+            # حداقل یک نسخهٔ ساده و بدون فرمت‌بندی را ارسال می‌کنیم تا ادمین
+            # دکمه‌های تایید/رد را از دست ندهد.
+            logger.exception("خطا در اطلاع‌رسانی به ادمین %s با Markdown؛ تلاش دوباره بدون فرمت‌بندی", admin_id)
+            try:
+                await bot.send_message(chat_id=admin_id, text=text, reply_markup=markup)
+            except Exception:
+                logger.exception("ارسال نسخهٔ ساده هم برای ادمین %s ناموفق بود", admin_id)
 
 
 def build_order_code(order_id: Optional[int]) -> str:
@@ -187,7 +218,7 @@ async def create_buy_order(
         f"✅ *سفارش شما ثبت شد*\n\n"
         f"کد سفارش: `{order_code}`\n"
         f"مقدار: {amount:g} USDT\n"
-        f"شبکه: {network}\n"
+        f"شبکه: {_md_escape(network)}\n"
         f"آدرس دریافت: `{wallet_address}`\n\n"
         "تتر شما پس از تأیید پرداخت، ظرف کمتر از *۱ ساعت* به آدرس فوق واریز خواهد شد.\n\n"
         f"🆘 پشتیبانی: {SUPPORT_TELEGRAM_USERNAME}"
@@ -199,13 +230,13 @@ async def create_buy_order(
         f"{risk_banner}"
         f"{_trust_snippet(profile)}\n"
         f"کد: `{order_code}`\n"
-        f"کاربر: @{username or '-'} ({chat_id})\n"
-        f"📞 تماس: {phone or '-'}\n"
+        f"کاربر: @{_md_escape(username)} ({chat_id})\n"
+        f"📞 تماس: {_md_escape(phone)}\n"
         f"مقدار: {amount:g} USDT\n"
         f"مبلغ: {quote['total_afn']:,.0f} افغانی (کارمزد {quote['fee_percent']}٪)\n"
-        f"روش پرداخت: {payment_method}\n"
-        f"مقصد: {exchange_name or '-'}\n"
-        f"شبکه: {network}\n"
+        f"روش پرداخت: {_md_escape(payment_method)}\n"
+        f"مقصد: {_md_escape(exchange_name)}\n"
+        f"شبکه: {_md_escape(network)}\n"
         f"آدرس ولت: `{wallet_address}`\n"
         f"منبع سفارش: {source}",
         order_id=order_id,
@@ -290,15 +321,15 @@ async def create_sell_order(
         f"{risk_banner}"
         f"{_trust_snippet(profile)}\n"
         f"کد: `{order_code}`\n"
-        f"کاربر: @{username or '-'} ({chat_id})\n"
-        f"📞 تماس: {phone or '-'}\n"
+        f"کاربر: @{_md_escape(username)} ({chat_id})\n"
+        f"📞 تماس: {_md_escape(phone)}\n"
         f"مقدار: {amount:g} USDT\n"
         f"مبلغ: {quote['total_afn']:,.0f} افغانی\n"
-        f"صرافی: {exchange_name}\n"
-        f"شبکه: {network}\n"
+        f"صرافی: {_md_escape(exchange_name)}\n"
+        f"شبکه: {_md_escape(network)}\n"
         f"روش دریافت: {receive_label}\n"
-        f"اثبات تراکنش: {tx_proof or '-'}\n"
-        f"اطلاعات بانکی کاربر: {bank_info or '-'}\n"
+        f"اثبات تراکنش: {_md_escape(tx_proof)}\n"
+        f"اطلاعات بانکی کاربر: {_md_escape(bank_info)}\n"
         f"منبع سفارش: {source}",
         order_id=order_id,
     )
