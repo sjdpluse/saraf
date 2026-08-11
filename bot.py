@@ -9,40 +9,18 @@
 import logging
 
 from telegram import Update
-from telegram.ext import (
-    Application,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
-)
-from config import (
-    BOT_TOKEN,
-    FETCH_INTERVAL_MINUTES,
-    LOCAL_MARKET_FETCH_INTERVAL_MINUTES,
-    FACEBOOK_CHECK_INTERVAL_MINUTES,
-)
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
+from config import BOT_TOKEN, FETCH_INTERVAL_MINUTES, LOCAL_MARKET_FETCH_INTERVAL_MINUTES, FACEBOOK_CHECK_INTERVAL_MINUTES
 from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT
 from handlers import start, currency, gold, compare, admin, converter, usdt, kyc
-from jobs import (
-    fetch_and_store_snapshot,
-    fetch_and_store_local_market,
-    check_and_post_facebook_update,
-)
+from jobs import fetch_and_store_snapshot, fetch_and_store_local_market, check_and_post_facebook_update
 
-
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """پیام‌های متنی معمولی را بر اساس دکمهٔ منوی فشرده‌شده یا حالت انتظار هدایت می‌کند."""
-    # مراحل احراز هویت (KYC) — اولویت بالا، چون قبل از هر سفارش ممکن است در جریان باشد
     if await kyc.handle_first_name(update, context):
         return
     if await kyc.handle_last_name(update, context):
@@ -51,7 +29,6 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     if await kyc.handle_payment_info(update, context):
         return
-
     if await gold.handle_gold_grams_input(update, context):
         return
     if await currency.handle_currency_calc_input(update, context):
@@ -85,9 +62,7 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif text == BTN_ABOUT:
         await start.about(update, context)
     else:
-        await update.message.reply_text(
-            "لطفاً یکی از گزینه‌های منو را انتخاب کنید 👇"
-        )
+        await update.message.reply_text("لطفاً یکی از گزینه‌های منو را انتخاب کنید 👇")
 
 
 async def photo_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -111,7 +86,6 @@ def build_application() -> Application:
 
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # دستورات
     app.add_handler(CommandHandler("start", start.start))
     app.add_handler(CommandHandler("about", start.about))
     app.add_handler(CommandHandler("stop", start.stop))
@@ -122,39 +96,21 @@ def build_application() -> Application:
     app.add_handler(CommandHandler("usdtpending", admin.usdt_pending))
     app.add_handler(CommandHandler("usdtconfirm", admin.usdt_confirm))
 
-    # منوی اصلی (متن دکمه‌ها)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu_router))
-
     app.add_handler(MessageHandler(filters.PHOTO, photo_router))
     app.add_handler(MessageHandler(filters.CONTACT, contact_router))
 
-    # کال‌بک‌های اینلاین
+    app.add_handler(CallbackQueryHandler(start.about_callback, pattern=r"^about:"))
     app.add_handler(CallbackQueryHandler(currency.currency_callback, pattern=r"^cur:"))
-    app.add_handler(
-        CallbackQueryHandler(currency.currency_calc_callback, pattern=r"^curcalc:")
-    )
+    app.add_handler(CallbackQueryHandler(currency.currency_calc_callback, pattern=r"^curcalc:"))
     app.add_handler(CallbackQueryHandler(gold.gold_callback, pattern=r"^gold:"))
-    app.add_handler(
-        CallbackQueryHandler(gold.gold_calc_mode_callback, pattern=r"^goldcalc_mode:")
-    )
-    app.add_handler(
-        CallbackQueryHandler(gold.gold_calc_karat_callback, pattern=r"^goldcalc_karat:")
-    )
-    app.add_handler(
-        CallbackQueryHandler(compare.compare_target_callback, pattern=r"^cmp_target:")
-    )
-    app.add_handler(
-        CallbackQueryHandler(compare.compare_period_callback, pattern=r"^cmp_period:")
-    )
-    app.add_handler(
-        CallbackQueryHandler(converter.converter_from_callback, pattern=r"^convfrom:")
-    )
-    app.add_handler(
-        CallbackQueryHandler(converter.converter_to_callback, pattern=r"^convto:")
-    )
-    app.add_handler(
-        CallbackQueryHandler(converter.converter_amount_callback, pattern=r"^convamt:")
-    )
+    app.add_handler(CallbackQueryHandler(gold.gold_calc_mode_callback, pattern=r"^goldcalc_mode:"))
+    app.add_handler(CallbackQueryHandler(gold.gold_calc_karat_callback, pattern=r"^goldcalc_karat:"))
+    app.add_handler(CallbackQueryHandler(compare.compare_target_callback, pattern=r"^cmp_target:"))
+    app.add_handler(CallbackQueryHandler(compare.compare_period_callback, pattern=r"^cmp_period:"))
+    app.add_handler(CallbackQueryHandler(converter.converter_from_callback, pattern=r"^convfrom:"))
+    app.add_handler(CallbackQueryHandler(converter.converter_to_callback, pattern=r"^convto:"))
+    app.add_handler(CallbackQueryHandler(converter.converter_amount_callback, pattern=r"^convamt:"))
     app.add_handler(CallbackQueryHandler(usdt.usdt_action_callback, pattern=r"^usdt_action:"))
     app.add_handler(CallbackQueryHandler(usdt.usdt_continue_callback, pattern=r"^usdt_continue:"))
     app.add_handler(CallbackQueryHandler(usdt.usdt_pay_callback, pattern=r"^usdt_pay:"))
@@ -164,23 +120,10 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(usdt.usdt_buy_exch_callback, pattern=r"^usdt_buy_exch:"))
     app.add_handler(CallbackQueryHandler(usdt.usdt_rate_callback, pattern=r"^usdt_rate:"))
 
-    # وظایف زمان‌بندی‌شده
     if app.job_queue:
-        app.job_queue.run_repeating(
-            fetch_and_store_snapshot,
-            interval=FETCH_INTERVAL_MINUTES * 60,
-            first=10,
-        )
-        app.job_queue.run_repeating(
-            fetch_and_store_local_market,
-            interval=LOCAL_MARKET_FETCH_INTERVAL_MINUTES * 60,
-            first=20,
-        )
-        app.job_queue.run_repeating(
-            check_and_post_facebook_update,
-            interval=FACEBOOK_CHECK_INTERVAL_MINUTES * 60,
-            first=90,
-        )
+        app.job_queue.run_repeating(fetch_and_store_snapshot, interval=FETCH_INTERVAL_MINUTES * 60, first=10)
+        app.job_queue.run_repeating(fetch_and_store_local_market, interval=LOCAL_MARKET_FETCH_INTERVAL_MINUTES * 60, first=20)
+        app.job_queue.run_repeating(check_and_post_facebook_update, interval=FACEBOOK_CHECK_INTERVAL_MINUTES * 60, first=90)
 
     return app
 
