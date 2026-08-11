@@ -10,12 +10,20 @@ import logging
 
 from telegram import Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
-from config import BOT_TOKEN, FETCH_INTERVAL_MINUTES, LOCAL_MARKET_FETCH_INTERVAL_MINUTES, FACEBOOK_CHECK_INTERVAL_MINUTES
+from config import (
+    BOT_TOKEN,
+    FETCH_INTERVAL_MINUTES,
+    LOCAL_MARKET_FETCH_INTERVAL_MINUTES,
+    FACEBOOK_CHECK_INTERVAL_MINUTES,
+)
 from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT
 from handlers import start, currency, gold, compare, admin, converter, usdt, kyc
 from jobs import fetch_and_store_snapshot, fetch_and_store_local_market, check_and_post_facebook_update
 
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
 logger = logging.getLogger(__name__)
 
 
@@ -29,6 +37,7 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     if await kyc.handle_payment_info(update, context):
         return
+
     if await gold.handle_gold_grams_input(update, context):
         return
     if await currency.handle_currency_calc_input(update, context):
