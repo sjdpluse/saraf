@@ -15,10 +15,13 @@ supabase_service) استفاده می‌کند، بنابراین اعدادی �
 """
 import logging
 import os
+import re
+import time
+import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import Depends, Form, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, Form, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -34,6 +37,11 @@ from services import (
     usdt_order_service,
     webapp_auth,
     kyc_service,
+    usdt_api_guard,
+    wallet_validator,
+    rate_limiter,
+    audit_service,
+    api_errors,
 )
 from services import supabase_service as db
 
@@ -62,6 +70,38 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def _log_requests(request: Request, call_next):
+    """
+    لاگ observability سبک (spec §14 «Observability»): method/path/status/duration
+    برای هر درخواست، به‌اضافهٔ یک request_id کوتاه برای ردیابی در لاگ‌ها.
+
+    ⚠️ عمداً چیزی که سطح این middleware می‌بیند محدود است — نه بدنهٔ درخواست، نه
+    هدرها (که ممکن است X-Telegram-Init-Data حاوی امضای معتبر کاربر باشد)، و نه
+    پاسخ. بنابراین هیچ payment_info/wallet_address/KYC data/token ای از این
+    مسیر امکان لو رفتن به لاگ را ندارد؛ فقط شکل درخواست (نه محتوای آن) ثبت می‌شود.
+    """
+    request_id = uuid.uuid4().hex[:12]
+    start = time.monotonic()
+    response = None
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        duration_ms = (time.monotonic() - start) * 1000
+        status = response.status_code if response is not None else 500
+        logger.info(
+            "request_id=%s method=%s path=%s status=%s duration_ms=%.1f",
+            request_id, request.method, request.url.path, status, duration_ms,
+        )
+        if response is not None:
+            response.headers["X-Request-Id"] = request_id
+
+# پاسخ خطای استاندارد (§16) — success/error در کنار detail قدیمی، بدون شکستن
+# فرانت‌اند فعلی.
+api_errors.register(app)
+
+
 # ---------------------------------------------------------------------------
 # اسکیماهای پاسخ
 # ---------------------------------------------------------------------------
@@ -84,7 +124,28 @@ def _pct_change(old: float, new: float) -> float:
 # ---------------------------------------------------------------------------
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "time": datetime.utcnow().isoformat()}
+    """Liveness/Readiness ساده (spec §29): وضعیت اپلیکیشن همیشه گزارش می‌شود؛
+    دسترسی واقعی به دیتابیس هم جداگانه چک می‌شود تا یک readiness واقعی باشد نه
+    صرفاً «پردازه بالاست». اگر دیتابیس در دسترس نباشد، هنوز 200 برمی‌گردد (چون
+    endpoint های عمومی نرخ ارز/طلا به Supabase وابسته نیستند) اما status را
+    'degraded' گزارش می‌کند تا مانیتورینگ متوجه شود."""
+    db_ok = True
+    db_error = None
+    try:
+        db.get_client().table("usdt_quotes").select("id").limit(1).execute()
+    except Exception as exc:  # noqa: BLE001 — health check باید هر خطایی را ببلعد
+        db_ok = False
+        db_error = str(exc)[:200]
+        logger.warning("Health check: دیتابیس در دسترس نیست: %s", db_error)
+
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "time": datetime.utcnow().isoformat(),
+        "checks": {
+            "application": "ok",
+            "database": "ok" if db_ok else "unavailable",
+        },
+    }
 
 
 @app.get("/api/currencies")
@@ -261,6 +322,54 @@ def _authenticate(x_telegram_init_data: Optional[str] = Header(None)) -> dict:
         raise HTTPException(status_code=401, detail=str(exc))
 
 
+_SAFE_EXT_BY_CONTENT_TYPE = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "application/pdf": "pdf",
+}
+_ALLOWED_EXTS = {"jpg", "jpeg", "png", "webp", "pdf"}
+
+
+def _validate_own_receipt_reference(raw: Optional[str], chat_id: int) -> str:
+    """
+    قبل از این تغییر، receipt_url مستقیماً از کلاینت گرفته و بدون هیچ اعتبارسنجی
+    به‌عنوان receipt_file_id سفارش ذخیره می‌شد — یعنی هر رشتهٔ دلخواهی (نه لزوماً
+    خروجی واقعی /api/usdt/upload-receipt) پذیرفته می‌شد.
+
+    این تابع تضمین می‌کند مقدار ارسالی واقعاً به فایلی اشاره دارد که همین کاربر
+    (بر اساس chat_id احرازشده، نه ادعای کلاینت) از طریق endpoint آپلود رسید ما
+    ساخته — چون نام فایل با قرارداد ثابت `{chat_id}_{timestamp}.{ext}` ساخته
+    می‌شود و در signed URL برگشتی به‌صورت یک segment مسیر ظاهر می‌شود. این یک
+    راه‌حل سبک است (بدون تغییر قرارداد API یا فرانت‌اند)، نه یک مکانیزم کامل
+    توکن-محور؛ اما جلوی ارسال یک URL کاملاً دلخواه/خارجی یا رسید یک کاربر دیگر
+    را می‌گیرد.
+    """
+    if not raw or len(raw) > 2048:
+        raise HTTPException(status_code=400, detail="لینک رسید نامعتبر است.")
+    pattern = re.compile(rf"(^|/){re.escape(str(chat_id))}_\d+\.(jpg|jpeg|png|webp|pdf)(\?|$)")
+    if not pattern.search(raw):
+        raise HTTPException(
+            status_code=400,
+            detail="لینک رسید باید نتیجهٔ آپلود واقعی شما از همین حساب باشد؛ لطفاً دوباره رسید را آپلود کنید.",
+        )
+    return raw
+
+
+def _safe_ext(filename: Optional[str], content_type: Optional[str]) -> str:
+    """پسوند فایل را به‌جای اعتماد مستقیم به filename ارسالی کلاینت (که می‌تواند
+    حاوی `/` یا `..` باشد و در کلید Storage تزریق شود)، از یک allow-list استخراج
+    می‌کند — اولویت با content_type واقعی است، filename فقط یک راهنمای کمکی است
+    که هرگز مستقیماً در نام فایل نهایی استفاده نمی‌شود."""
+    if content_type in _SAFE_EXT_BY_CONTENT_TYPE:
+        return _SAFE_EXT_BY_CONTENT_TYPE[content_type]
+    if filename and "." in filename:
+        candidate = filename.rsplit(".", 1)[-1].lower()
+        if candidate in _ALLOWED_EXTS:
+            return candidate
+    return "jpg"
+
+
 def _full_name(user: dict) -> Optional[str]:
     name = " ".join(filter(None, [user.get("first_name"), user.get("last_name")])).strip()
     return name or None
@@ -281,6 +390,7 @@ async def get_my_profile(user: dict = Depends(_authenticate)):
 
 @app.post("/api/usdt/kyc")
 async def submit_kyc(
+    request: Request,
     first_name: str = Form(...),
     last_name: str = Form(...),
     phone: str = Form(...),
@@ -289,6 +399,7 @@ async def submit_kyc(
     selfie: UploadFile = File(...),
     user: dict = Depends(_authenticate),
 ):
+    rate_limiter.enforce("kyc_upload", request, identity=str(user["id"]))
     if len(first_name.strip()) < 2 or len(last_name.strip()) < 2:
         raise HTTPException(status_code=400, detail="نام و نام خانوادگی معتبر لازم است.")
     if len(phone.strip()) < 7:
@@ -305,8 +416,8 @@ async def submit_kyc(
     if len(id_doc_bytes) > 8 * 1024 * 1024 or len(selfie_bytes) > 8 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="حجم هر فایل نباید بیشتر از ۸ مگابایت باشد.")
 
-    id_doc_ext = (id_document.filename or "id.jpg").rsplit(".", 1)[-1].lower()
-    selfie_ext = (selfie.filename or "selfie.jpg").rsplit(".", 1)[-1].lower()
+    id_doc_ext = _safe_ext(id_document.filename, id_document.content_type)
+    selfie_ext = _safe_ext(selfie.filename, selfie.content_type)
 
     ok = await kyc_service.complete_kyc(
         chat_id=user["id"],
@@ -323,6 +434,10 @@ async def submit_kyc(
     )
     if not ok:
         raise HTTPException(status_code=503, detail="ثبت پروفایل ناموفق بود؛ لطفاً دوباره تلاش کنید.")
+    audit_service.record(
+        action="kyc_docs_uploaded", entity="user_profile", entity_id=user["id"], actor=user["id"],
+        after={"id_doc_ext": id_doc_ext, "selfie_ext": selfie_ext},
+    )
     return {"ok": True}
 
 
@@ -365,8 +480,14 @@ async def create_usdt_buy_order(payload: UsdtBuyOrderRequest, user: dict = Depen
         raise HTTPException(status_code=400, detail="روش پرداخت نامعتبر است.")
     if payload.payment_method == "online" and not payload.receipt_url:
         raise HTTPException(status_code=400, detail="برای پرداخت آنلاین، رسید بانکی الزامی است.")
+    if payload.payment_method == "online":
+        _validate_own_receipt_reference(payload.receipt_url, user["id"])
     if not payload.wallet_address or not payload.network:
         raise HTTPException(status_code=400, detail="آدرس ولت و شبکه الزامی است.")
+    try:
+        wallet_validator.validate_wallet_address(payload.network, payload.wallet_address)
+    except wallet_validator.WalletValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     profile = db.get_user_profile(user["id"])
     phone = profile.get("phone") if profile else None
@@ -395,6 +516,8 @@ async def create_usdt_buy_order(payload: UsdtBuyOrderRequest, user: dict = Depen
         wallet_address=payload.wallet_address,
         receipt_file_id=payload.receipt_url,
         source="miniapp",
+        idempotency_key=(usdt_api_guard.get_order_context() or {}).get("key"),
+        quote_id=quote.get("quote_id"),
     )
     return {"order_id": result["order_id"], "order_code": result["order_code"], "quote": quote}
 
@@ -420,6 +543,10 @@ async def create_usdt_sell_order(payload: UsdtSellOrderRequest, user: dict = Dep
         raise HTTPException(status_code=400, detail="اثبات تراکنش (TxID یا رسید) الزامی است.")
     if not payload.exchange_name or not payload.network:
         raise HTTPException(status_code=400, detail="نام صرافی و شبکه الزامی است.")
+    try:
+        wallet_validator.validate_network(payload.network, [])
+    except wallet_validator.WalletValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     profile = db.get_user_profile(user["id"])
     phone = profile.get("phone") if profile else None
@@ -445,6 +572,8 @@ async def create_usdt_sell_order(payload: UsdtSellOrderRequest, user: dict = Dep
         receive_method=payload.receive_method,
         bank_info=payload.bank_info,
         source="miniapp",
+        idempotency_key=(usdt_api_guard.get_order_context() or {}).get("key"),
+        quote_id=quote.get("quote_id"),
     )
     return {"order_id": result["order_id"], "order_code": result["order_code"], "quote": quote}
 
@@ -479,18 +608,20 @@ async def rate_usdt_order(order_id: int, payload: UsdtRatingRequest, user: dict 
 
 
 @app.post("/api/usdt/upload-receipt")
-async def upload_usdt_receipt(file: UploadFile = File(...), user: dict = Depends(_authenticate)):
+async def upload_usdt_receipt(request: Request, file: UploadFile = File(...), user: dict = Depends(_authenticate)):
+    rate_limiter.enforce("receipt_upload", request, identity=str(user["id"]))
     if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
         raise HTTPException(status_code=400, detail="فقط فایل تصویری (jpg/png/webp) پذیرفته می‌شود.")
     content = await file.read()
     if len(content) > 8 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="حجم فایل نباید بیشتر از ۸ مگابایت باشد.")
 
-    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    ext = _safe_ext(file.filename, file.content_type)
     filename = f"{user['id']}_{int(datetime.utcnow().timestamp())}.{ext}"
     url = db.upload_usdt_receipt(content, filename, file.content_type)
     if not url:
         raise HTTPException(status_code=503, detail="آپلود رسید ناموفق بود؛ لطفاً دوباره تلاش کنید.")
+    audit_service.record(action="receipt_uploaded", entity="usdt_receipt", entity_id=filename, actor=user["id"])
     return {"url": url}
 
 

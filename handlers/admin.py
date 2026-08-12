@@ -6,7 +6,8 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from config import ADMIN_CHAT_IDS, TRACKED_CURRENCIES
-from services import supabase_service as db, spread_service
+from services import supabase_service as db, spread_service, order_transition_service
+from services.order_state_machine import InvalidStateTransition
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,23 @@ async def usdt_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not order:
         await update.message.reply_text("⚠️ سفارشی با این کد یافت نشد.")
         return
-    db.update_usdt_order_status(order_id, "confirmed")
+    # این دستور قبلاً مستقیماً db.update_usdt_order_status را صدا می‌زد — بدون
+    # بررسی وضعیت فعلی سفارش، بدون actor/reason، و بدون Audit Log؛ یعنی یک مسیر
+    # دوم و ناهماهنگ برای همان business rule که در admin_bot.py با
+    # order_transition_service پیاده‌سازی شده بود (§9، §26: یکپارچه‌سازی duplicate
+    # logic). حالا از همان منبع واحد استفاده می‌کند.
+    try:
+        order_transition_service.transition_order_status(
+            order_id, "confirmed", changed_by=update.effective_user.id, reason="تایید از طریق دستور /usdtconfirm"
+        )
+    except order_transition_service.OrderNotFoundError:
+        await update.message.reply_text("⚠️ سفارشی با این کد یافت نشد.")
+        return
+    except InvalidStateTransition:
+        await update.message.reply_text(
+            f"⚠️ سفارش USDT-{order_id:05d} در وضعیت «{order['status']}» است و قابل تایید نیست."
+        )
+        return
     await update.message.reply_text(f"✅ سفارش USDT-{order_id:05d} تأیید شد.")
     try:
         await context.bot.send_message(

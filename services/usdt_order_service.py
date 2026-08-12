@@ -23,7 +23,7 @@ from config import (
     USDT_CARDS_BUCKET,
 )
 from services import supabase_service as db
-from services import risk_engine, card_service
+from services import risk_engine, card_service, quote_service, audit_service
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +107,33 @@ def build_order_code(order_id: Optional[int]) -> str:
     return f"USDT-{order_id:05d}" if order_id else "USDT-?????"
 
 
+def _find_existing_order(chat_id: int, idempotency_key: str) -> Optional[dict]:
+    res = (
+        db.get_client()
+        .table("usdt_orders")
+        .select("*")
+        .eq("chat_id", chat_id)
+        .eq("idempotency_key", idempotency_key)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def _duplicate_response(row: dict) -> dict:
+    """پاسخ استاندارد برای زمانی که یک idempotency_key تکراری تشخیص داده می‌شود —
+    چه چون کاربر همان سفارش را دوباره فرستاده (double-click/retry شبکه)، چه چون
+    یک درخواست هم‌زمان دیگر برنده شده. هر دو مورد باید دقیقاً همان سفارش را
+    برگردانند، نه خطا و نه سفارش جدید."""
+    return {
+        "order_id": row["id"],
+        "order_code": build_order_code(row["id"]),
+        "message": "سفارش قبلی شما برای همین درخواست ثبت شده است.",
+        "risk_level": row.get("risk_level"),
+        "duplicate": True,
+    }
+
+
 _KYC_STATUS_SHORT = {"pending": "🟡 Pending", "verified": "🔵 Verified", "trusted": "🟢 Trusted", "restricted": "🔴 Restricted"}
 
 
@@ -178,6 +205,8 @@ async def create_buy_order(
     wallet_address: str,
     receipt_file_id: Optional[str] = None,
     source: str = "bot",
+    idempotency_key: Optional[str] = None,
+    quote_id: Optional[int] = None,
 ) -> dict:
     """
     سفارش خرید تتر را در پایگاه داده ثبت می‌کند، ریسک را ارزیابی می‌کند، به ادمین
@@ -185,7 +214,23 @@ async def create_buy_order(
     نمایش به کاربر را برمی‌گرداند.
 
     source: "bot" یا "miniapp" — فقط برای تفکیک گزارشی، تاثیری در منطق ندارد.
+
+    idempotency_key/quote_id (SARAF 2.0 Spec §3, §4, §26): این پارامترها منبع واحد
+    idempotency برای هر دو مسیر (ربات و مینی‌اپ) هستند — دیگر منطق جداگانه‌ای در
+    usdt_api_guard.py یا هیچ‌جای دیگر این کار را تکرار نمی‌کند. اگر ارائه شوند:
+      1) اگر سفارشی از قبل با همین (chat_id, idempotency_key) وجود دارد، همان
+         سفارش برگردانده می‌شود (بدون اعلان تکراری به ادمین، بدون ثبت سفارش جدید).
+      2) idempotency_key مستقیماً در INSERT قرار می‌گیرد (نه در یک UPDATE بعدی) تا
+         قید یکتایی دیتابیس (UNIQUE(chat_id, idempotency_key)) واقعاً درخواست‌های
+         هم‌زمان تکراری را در سطح INSERT رد کند، نه بعد از آن.
+      3) اگر INSERT به‌خاطر یک درخواست هم‌زمان دیگر با موفقیت رد شود، سفارشِ برندهٔ
+         آن مسابقه دوباره جست‌وجو و برگردانده می‌شود — نه یک پاسخ خراب.
     """
+    if idempotency_key:
+        existing = _find_existing_order(chat_id, idempotency_key)
+        if existing:
+            return _duplicate_response(existing)
+
     profile = db.get_user_profile(chat_id)
     risk_level, risk_reasons = risk_engine.assess_risk(profile, amount)
 
@@ -210,9 +255,29 @@ async def create_buy_order(
         "risk_level": risk_level,
         "risk_reasons": "؛ ".join(risk_reasons) if risk_reasons else None,
     }
+    if idempotency_key:
+        order["idempotency_key"] = idempotency_key
+    if quote_id:
+        order["quote_id"] = quote_id
+
     row = db.insert_usdt_order(order)
+    if not row and idempotency_key:
+        # INSERT به دلیل برخورد با UNIQUE(chat_id, idempotency_key) رد شده — یعنی
+        # یک درخواست هم‌زمان دیگر با همین کلید زودتر برنده شده است.
+        existing = _find_existing_order(chat_id, idempotency_key)
+        if existing:
+            return _duplicate_response(existing)
+
     order_id = row["id"] if row else None
     order_code = build_order_code(order_id)
+
+    if order_id and quote_id:
+        quote_service.consume(quote_id, chat_id=chat_id, order_id=order_id)
+    if order_id:
+        audit_service.record(
+            action="order_created", entity="usdt_order", entity_id=order_id, actor=chat_id,
+            after={"order_type": "buy", "quote_id": quote_id, "source": source},
+        )
 
     user_message = (
         f"✅ *سفارش شما ثبت شد*\n\n"
@@ -262,7 +327,14 @@ async def create_sell_order(
     receive_method: str,
     bank_info: Optional[str] = None,
     source: str = "bot",
+    idempotency_key: Optional[str] = None,
+    quote_id: Optional[int] = None,
 ) -> dict:
+    if idempotency_key:
+        existing = _find_existing_order(chat_id, idempotency_key)
+        if existing:
+            return _duplicate_response(existing)
+
     profile = db.get_user_profile(chat_id)
     risk_level, risk_reasons = risk_engine.assess_risk(profile, amount)
 
@@ -291,9 +363,27 @@ async def create_sell_order(
         "risk_level": risk_level,
         "risk_reasons": "؛ ".join(risk_reasons) if risk_reasons else None,
     }
+    if idempotency_key:
+        order["idempotency_key"] = idempotency_key
+    if quote_id:
+        order["quote_id"] = quote_id
+
     row = db.insert_usdt_order(order)
+    if not row and idempotency_key:
+        existing = _find_existing_order(chat_id, idempotency_key)
+        if existing:
+            return _duplicate_response(existing)
+
     order_id = row["id"] if row else None
     order_code = build_order_code(order_id)
+
+    if order_id and quote_id:
+        quote_service.consume(quote_id, chat_id=chat_id, order_id=order_id)
+    if order_id:
+        audit_service.record(
+            action="order_created", entity="usdt_order", entity_id=order_id, actor=chat_id,
+            after={"order_type": "sell", "quote_id": quote_id, "source": source},
+        )
 
     if receive_method == "in_person":
         receive_text = (

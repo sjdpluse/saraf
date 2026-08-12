@@ -72,6 +72,41 @@ def update_usdt_order_status(order_id: int, status: str, **extra_fields) -> None
         logger.exception("خطا در به‌روزرسانی وضعیت سفارش تتر")
 
 
+def update_usdt_order_status_audited(
+    order_id: int, status: str, *, changed_by: Optional[int] = None, reason: Optional[str] = None, **extra_fields
+) -> None:
+    """مثل update_usdt_order_status، ولی علاوه بر آن actor/reason را روی ردیف
+    تاریخچه‌ای که trigger پایگاه‌داده خودش ساخته می‌نویسد.
+
+    این کار در دو مرحله (نه یک تراکنش اتمیک واحد) انجام می‌شود، چون هر فراخوانی
+    PostgREST یک تراکنش مستقل است و امکان انتقال یک session variable بین دو
+    HTTP request به سرور جداگانه وجود ندارد. مرحلهٔ دوم best-effort است: اگر
+    شکست بخورد، خودِ تغییر وضعیت (که مرحلهٔ حیاتی است) قبلاً با موفقیت ثبت شده و
+    خراب نمی‌شود — فقط attribution آن روی جدول تاریخچه گم می‌شود، که در audit_log
+    عمومی (که همزمان توسط لایهٔ سرویس نوشته می‌شود) همچنان قابل ردیابی است.
+    """
+    update_usdt_order_status(order_id, status, **extra_fields)
+    if changed_by is None and reason is None:
+        return
+    try:
+        patch = {}
+        if changed_by is not None:
+            patch["changed_by"] = changed_by
+        if reason is not None:
+            patch["reason"] = reason
+        (
+            get_client()
+            .table("usdt_order_status_history")
+            .update(patch)
+            .eq("order_id", order_id)
+            .eq("to_status", status)
+            .is_("changed_by", "null")
+            .execute()
+        )
+    except Exception:
+        logger.exception("خطا در ثبت actor/reason روی تاریخچهٔ وضعیت سفارش %s", order_id)
+
+
 def mark_usdt_order_confirmed(order_id: int) -> None:
     update_usdt_order_status(order_id, "confirmed", confirmed_at=datetime.now(timezone.utc).isoformat())
 
@@ -195,25 +230,33 @@ def get_usdt_orders_by_chat_id(chat_id: int, limit: int = 50) -> list[dict]:
 
 def upload_usdt_receipt(file_bytes: bytes, filename: str, content_type: str) -> Optional[str]:
     """
-    رسید/اسکرین‌شات ارسالی از مینی‌اپ را در Supabase Storage آپلود می‌کند و لینک عمومی
-    قابل‌دسترسی را برمی‌گرداند، یا None در صورت خطا.
+    رسید/اسکرین‌شات ارسالی از مینی‌اپ را در یک باکت **خصوصی** Supabase Storage
+    آپلود می‌کند و یک signed URL ۲۴ساعته برمی‌گرداند (نه لینک عمومی دائمی).
 
-    نیازمند این است که یک باکت عمومی (public) با نام USDT_RECEIPTS_BUCKET از قبل در
-    پنل Supabase Storage ساخته شده باشد (راهنما در فایل SQL/راه‌اندازی پیوست شده).
+    ⚠️ تغییر امنیتی (SARAF 2.0 Spec §11): این تابع قبلاً از storage.get_public_url
+    استفاده می‌کرد؛ چون نام فایل از الگوی قابل‌حدس‌زدن `{chat_id}_{timestamp}.ext`
+    ساخته می‌شود، رسید پرداخت (که می‌تواند شمارهٔ حساب/کارت را نشان دهد) عملاً
+    برای هرکسی که لینک را حدس بزند در دسترس بود.
+
+    **این یک راه‌حل میانی است، نه ایده‌آل**: مقدار برگشتی همچنان یک URL منقضی‌شونده
+    است (نه یک شناسهٔ پایدار)، چون قرارداد فعلی API (`receipt_url` که مستقیماً در
+    ثبت سفارش استفاده می‌شود) بدون تغییر فرانت‌اند مینی‌اپ حفظ شده است. اعتبار ۲۴
+    ساعته برای این‌که ادمین طی همان روز سفارش را بررسی کند کافی است، اما اگر
+    بررسی دیرتر انجام شود، لینک منقضی می‌شود. راه‌حل کامل این است که فقط مسیر
+    داخلی فایل ذخیره شود و صفحهٔ بررسی ادمین هر بار یک signed URL تازه بسازد —
+    این تغییر نیازمند بازبینی جریان بررسی سفارش در admin_bot.py/فرانت‌اند است که
+    خارج از محدودهٔ این تغییر انجام نشده.
+
+    **نیازمند اقدام دستی در Supabase**: باکت USDT_RECEIPTS_BUCKET باید به‌صورت
+    private ساخته/تنظیم شود (دقیقاً مثل USDT_KYC_DOCS_BUCKET که از قبل private
+    است) — این کار از طریق کد قابل‌انجام نیست.
     """
     from config import USDT_RECEIPTS_BUCKET
 
-    try:
-        storage = get_client().storage.from_(USDT_RECEIPTS_BUCKET)
-        storage.upload(
-            filename,
-            file_bytes,
-            {"content-type": content_type, "upsert": "true"},
-        )
-        return storage.get_public_url(filename)
-    except Exception:
-        logger.exception("خطا در آپلود رسید تتر به Supabase Storage")
+    path = upload_private_file(USDT_RECEIPTS_BUCKET, file_bytes, filename, content_type)
+    if not path:
         return None
+    return get_signed_url(USDT_RECEIPTS_BUCKET, path, expires_in=24 * 60 * 60)
 
 # ---------------------------------------------------------------------------
 # وضعیت آخرین پست فیسبوک (برای تشخیص تغییر محسوس نرخ)
@@ -505,16 +548,30 @@ def update_payment_info(chat_id: int, new_payment_info: str) -> None:
         profile = get_user_profile(chat_id)
         if not profile:
             return
+        changed = bool(profile.get("payment_info") and profile["payment_info"] != new_payment_info)
         fields = {"payment_info": new_payment_info}
-        if profile.get("payment_info") and profile["payment_info"] != new_payment_info:
+        if changed:
             fields["payment_info_change_count"] = (profile.get("payment_info_change_count") or 0) + 1
         get_client().table("user_profiles").update(fields).eq("chat_id", chat_id).execute()
+        if changed:
+            # ایمپورت داخل تابع برای جلوگیری از وابستگی حلقوی (audit_service <-> این ماژول)
+            from services import audit_service
+
+            audit_service.record(
+                action="payment_info_changed",
+                entity="user_profile",
+                entity_id=chat_id,
+                actor=chat_id,
+                before=audit_service.mask_dict({"payment_info": profile.get("payment_info")}),
+                after=audit_service.mask_dict({"payment_info": new_payment_info}),
+            )
     except Exception:
         logger.exception("خطا در به‌روزرسانی اطلاعات پرداخت کاربر")
 
 
 def set_kyc_status(chat_id: int, status: str, verified_by: Optional[int] = None, reason: Optional[str] = None) -> None:
     try:
+        previous = get_user_profile(chat_id)
         fields = {"kyc_status": status}
         if status in ("verified", "trusted"):
             fields["verified_by"] = verified_by
@@ -522,6 +579,18 @@ def set_kyc_status(chat_id: int, status: str, verified_by: Optional[int] = None,
         if status == "restricted":
             fields["restricted_reason"] = reason
         get_client().table("user_profiles").update(fields).eq("chat_id", chat_id).execute()
+
+        from services import audit_service
+
+        audit_service.record(
+            action=f"kyc_{status}",
+            entity="user_profile",
+            entity_id=chat_id,
+            actor=verified_by,
+            before={"kyc_status": previous.get("kyc_status")} if previous else None,
+            after={"kyc_status": status},
+            reason=reason,
+        )
     except Exception:
         logger.exception("خطا در به‌روزرسانی وضعیت KYC کاربر")
 
@@ -548,17 +617,19 @@ def record_order_outcome(chat_id: int, amount_usdt: float, success: bool) -> Non
     if not profile:
         return
 
+    from services.money import D, to_float
+
     total_orders = (profile.get("total_orders") or 0) + 1
     successful = profile.get("successful_orders") or 0
     cancelled = profile.get("cancelled_orders") or 0
     streak = profile.get("current_success_streak") or 0
-    volume = float(profile.get("total_volume_usdt") or 0)
+    volume = D(profile.get("total_volume_usdt") or 0)
     kyc_status = profile.get("kyc_status") or "pending"
 
     if success:
         successful += 1
         streak += 1
-        volume += amount_usdt
+        volume += D(amount_usdt)
     else:
         cancelled += 1
         streak = 0
@@ -574,7 +645,7 @@ def record_order_outcome(chat_id: int, amount_usdt: float, success: bool) -> Non
         "successful_orders": successful,
         "cancelled_orders": cancelled,
         "current_success_streak": streak,
-        "total_volume_usdt": volume,
+        "total_volume_usdt": to_float(volume),
         "trust_score": trust_score,
         "last_order_at": datetime.now(timezone.utc).isoformat(),
     }

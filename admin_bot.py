@@ -29,6 +29,8 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 from config import ADMIN_BOT_TOKEN, ADMIN_CHAT_IDS, BOT_TOKEN, SUPPORT_TELEGRAM_USERNAME, USDT_KYC_DOCS_BUCKET
 from keyboards import admin_order_complete_keyboard, usdt_rating_keyboard
 from services import supabase_service as db
+from services import order_transition_service
+from services.order_state_machine import InvalidStateTransition
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -123,6 +125,7 @@ async def review_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     order_code = f"USDT-{order_id:05d}"
     customer_bot = _get_customer_bot()
+    admin_id = update.effective_user.id
 
     # ---------------------------------------------------------------
     # مرحلهٔ ۱: تایید یا رد سفارش pending
@@ -133,7 +136,13 @@ async def review_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return
 
         if action == "admin_confirm":
-            db.mark_usdt_order_confirmed(order_id)
+            try:
+                order_transition_service.transition_order_status(
+                    order_id, "confirmed", changed_by=admin_id
+                )
+            except InvalidStateTransition:
+                await query.answer("این سفارش قابل تایید نیست (وضعیت تغییر کرده).", show_alert=True)
+                return
             await query.answer("تایید شد ✅")
             await query.edit_message_reply_markup(reply_markup=admin_order_complete_keyboard(order_id))
             await query.message.reply_text(
@@ -153,7 +162,13 @@ async def review_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 logger.exception("خطا در اطلاع‌رسانی تایید سفارش به کاربر")
 
         else:  # admin_reject
-            db.mark_usdt_order_cancelled(order_id)
+            try:
+                order_transition_service.transition_order_status(
+                    order_id, "cancelled", changed_by=admin_id, reason="رد شده توسط ادمین"
+                )
+            except InvalidStateTransition:
+                await query.answer("این سفارش قابل رد کردن نیست (وضعیت تغییر کرده).", show_alert=True)
+                return
             db.record_order_outcome(order["chat_id"], float(order["usdt_amount"]), success=False)
             await query.answer("رد شد ❌")
             await query.edit_message_reply_markup(reply_markup=None)
@@ -179,7 +194,13 @@ async def review_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             await query.answer("این سفارش در وضعیت قابل‌تکمیل نیست.", show_alert=True)
             return
 
-        db.mark_usdt_order_completed(order_id)
+        try:
+            order_transition_service.transition_order_status(
+                order_id, "completed", changed_by=admin_id
+            )
+        except InvalidStateTransition:
+            await query.answer("این سفارش قابل تکمیل نیست (وضعیت تغییر کرده).", show_alert=True)
+            return
         db.record_order_outcome(order["chat_id"], float(order["usdt_amount"]), success=True)
         await query.answer("تکمیل شد 📦")
         await query.edit_message_reply_markup(reply_markup=None)

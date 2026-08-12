@@ -1,5 +1,6 @@
 import logging
 import time
+import uuid
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -24,7 +25,7 @@ from keyboards import (
     usdt_exchange_keyboard,
     usdt_buy_exchange_keyboard,
 )
-from services import usdt_service, usdt_order_service
+from services import usdt_service, usdt_order_service, quote_service, wallet_validator
 from services import supabase_service as db
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 AMOUNT = "usdt_amount"
 QUOTE = "usdt_quote"
 QUOTE_TIME = "usdt_quote_time"
+IDEMPOTENCY_KEY = "usdt_idempotency_key"
 PAYMENT_METHOD = "usdt_payment_method"
 NETWORK = "usdt_network"
 EXCHANGE = "usdt_exchange"
@@ -50,7 +52,7 @@ AWAITING_RECEIPT = "usdt_awaiting_receipt"
 AWAITING_BANK_INFO = "usdt_awaiting_bank_info"
 
 _ALL_KEYS = (
-    AMOUNT, QUOTE, QUOTE_TIME, PAYMENT_METHOD, NETWORK, EXCHANGE,
+    AMOUNT, QUOTE, QUOTE_TIME, IDEMPOTENCY_KEY, PAYMENT_METHOD, NETWORK, EXCHANGE,
     WALLET_ADDRESS, BANK_INFO, TX_PROOF, RECEIPT_FILE_ID,
     AWAITING_AMOUNT, AWAITING_WALLET, AWAITING_EXCHANGE_CUSTOM,
     AWAITING_NETWORK_CUSTOM, AWAITING_TX_PROOF, AWAITING_RECEIPT,
@@ -127,10 +129,25 @@ async def handle_usdt_amount_input(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text(f"⚠️ خطا در دریافت نرخ: {exc}")
         return True
 
+    # Quote روی دیتابیس ذخیره می‌شود (SARAF 2.0 Spec §3) — دقیقاً همان مکانیزمی
+    # که مینی‌اپ استفاده می‌کند (services/quote_service.py، منبع مشترک). دیگر
+    # نرخی که ربات نشان می‌دهد صرفاً در حافظهٔ گفتگو نیست؛ expires_at و quote_id
+    # واقعی از دیتابیس می‌آید و در پایان (_finalize_*) دوباره از سرور اعتبارسنجی
+    # می‌شود، نه فقط با یک تایمر سمت کلاینت.
+    try:
+        quote = quote_service.create_quote(update.effective_chat.id, action, amount, quote)
+    except quote_service.QuoteError as exc:
+        await update.message.reply_text(f"⚠️ {exc.message}")
+        return True
+
     context.user_data[AWAITING_AMOUNT] = None
     context.user_data[AMOUNT] = amount
     context.user_data[QUOTE] = quote
     context.user_data[QUOTE_TIME] = time.time()
+    # یک idempotency key یکتا برای همین «نیت ثبت سفارش» — تا پایان این جریان
+    # (finalize موفق یا _reset_state) ثابت می‌ماند، حتی اگر کاربر پیام را دوباره
+    # ارسال کند یا تلگرام همان به‌روزرسانی را دوباره تحویل بدهد.
+    context.user_data[IDEMPOTENCY_KEY] = uuid.uuid4().hex
 
     if action == "buy":
         text_out = (
@@ -396,15 +413,14 @@ async def handle_usdt_network_custom_input(update: Update, context: ContextTypes
 async def handle_usdt_wallet_address_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if not context.user_data.get(AWAITING_WALLET):
         return False
-    context.user_data[AWAITING_WALLET] = False
-    context.user_data[WALLET_ADDRESS] = update.message.text.strip()
-
-    if _quote_expired(context):
-        await update.message.reply_text(
-            "⚠️ نرخ نمایش‌داده‌شده منقضی شده است. لطفاً دوباره از منوی «🪙 خرید و فروش تتر» شروع کنید."
-        )
-        _reset_state(context)
+    wallet_address = update.message.text.strip()
+    try:
+        wallet_address = wallet_validator.validate_wallet_address(context.user_data.get(NETWORK), wallet_address)
+    except wallet_validator.WalletValidationError as exc:
+        await update.message.reply_text(f"⚠️ {exc}\n\nلطفاً آدرس ولت را دوباره ارسال کنید.")
         return True
+    context.user_data[AWAITING_WALLET] = False
+    context.user_data[WALLET_ADDRESS] = wallet_address
 
     await _finalize_buy_order(update.message.reply_text, context, update.effective_chat.id, update.effective_user)
     return True
@@ -412,6 +428,23 @@ async def handle_usdt_wallet_address_input(update: Update, context: ContextTypes
 
 async def _finalize_buy_order(send_func, context: ContextTypes.DEFAULT_TYPE, chat_id: int, user) -> None:
     quote = context.user_data.get(QUOTE)
+    amount = context.user_data.get(AMOUNT)
+    quote_id = quote.get("quote_id") if quote else None
+    if not quote or not quote_id or amount is None:
+        await send_func("⚠️ لطفاً دوباره از منوی «🪙 خرید و فروش تتر» شروع کنید.")
+        _reset_state(context)
+        return
+
+    # منبع نهایی حقیقت سرور است، نه تایمر سمت کلاینت (_quote_expired فقط برای
+    # بازخورد سریع‌تر استفاده می‌شود) — Quote دوباره از دیتابیس اعتبارسنجی می‌شود:
+    # مالکیت (chat_id)، نوع (buy)، انقضا و تطابق amount.
+    try:
+        quote_service.load_and_validate(chat_id, quote_id, "buy", amount)
+    except quote_service.QuoteError as exc:
+        await send_func(f"⚠️ {exc.message}")
+        _reset_state(context)
+        return
+
     profile = db.get_user_profile(chat_id)
     phone = profile.get("phone") if profile else None
 
@@ -420,7 +453,7 @@ async def _finalize_buy_order(send_func, context: ContextTypes.DEFAULT_TYPE, cha
         username=user.username,
         full_name=user.full_name,
         phone=phone,
-        amount=context.user_data.get(AMOUNT),
+        amount=amount,
         quote=quote,
         payment_method=context.user_data.get(PAYMENT_METHOD),
         exchange_name=context.user_data.get(EXCHANGE),
@@ -428,6 +461,8 @@ async def _finalize_buy_order(send_func, context: ContextTypes.DEFAULT_TYPE, cha
         wallet_address=context.user_data.get(WALLET_ADDRESS),
         receipt_file_id=context.user_data.get(RECEIPT_FILE_ID),
         source="bot",
+        idempotency_key=context.user_data.get(IDEMPOTENCY_KEY),
+        quote_id=quote_id,
     )
     await send_func(result["message"], parse_mode="Markdown")
     _reset_state(context)
@@ -482,6 +517,20 @@ async def handle_usdt_bank_info_input(update: Update, context: ContextTypes.DEFA
 
 async def _finalize_sell_order(send_func, context: ContextTypes.DEFAULT_TYPE, chat_id: int, user, payment_note: str) -> None:
     quote = context.user_data.get(QUOTE)
+    amount = context.user_data.get(AMOUNT)
+    quote_id = quote.get("quote_id") if quote else None
+    if not quote or not quote_id or amount is None:
+        await send_func("⚠️ لطفاً دوباره از منوی «🪙 خرید و فروش تتر» شروع کنید.")
+        _reset_state(context)
+        return
+
+    try:
+        quote_service.load_and_validate(chat_id, quote_id, "sell", amount)
+    except quote_service.QuoteError as exc:
+        await send_func(f"⚠️ {exc.message}")
+        _reset_state(context)
+        return
+
     profile = db.get_user_profile(chat_id)
     phone = profile.get("phone") if profile else None
 
@@ -490,7 +539,7 @@ async def _finalize_sell_order(send_func, context: ContextTypes.DEFAULT_TYPE, ch
         username=user.username,
         full_name=user.full_name,
         phone=phone,
-        amount=context.user_data.get(AMOUNT),
+        amount=amount,
         quote=quote,
         exchange_name=context.user_data.get(EXCHANGE),
         network=context.user_data.get(NETWORK),
@@ -498,6 +547,8 @@ async def _finalize_sell_order(send_func, context: ContextTypes.DEFAULT_TYPE, ch
         receive_method=context.user_data.get(PAYMENT_METHOD),
         bank_info=context.user_data.get(BANK_INFO),
         source="bot",
+        idempotency_key=context.user_data.get(IDEMPOTENCY_KEY),
+        quote_id=quote_id,
     )
     await send_func(result["message"], parse_mode="Markdown")
     _reset_state(context)
