@@ -20,6 +20,15 @@ $$;
 
 -- Add defensive bounds for profile counters. NOT VALID avoids blocking rollout
 -- if legacy data needs cleanup first.
+--
+-- DROP...IF EXISTS + ADD instead of a bare ADD CONSTRAINT: Postgres has no
+-- ADD CONSTRAINT IF NOT EXISTS, so a straight re-run of this file (e.g. it
+-- was already applied once before) fails with "constraint already exists"
+-- and rolls back the whole transaction, including the CREATE OR REPLACE
+-- FUNCTION above it, even though that part is itself idempotent.
+ALTER TABLE public.user_profiles
+  DROP CONSTRAINT IF EXISTS user_profiles_nonnegative_counters_check;
+
 ALTER TABLE public.user_profiles
   ADD CONSTRAINT user_profiles_nonnegative_counters_check
   CHECK (

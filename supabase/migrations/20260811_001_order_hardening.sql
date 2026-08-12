@@ -156,6 +156,15 @@ EXECUTE FUNCTION public.record_usdt_order_status_history();
 
 -- 6) Basic invariants for new writes. NOT VALID keeps the migration safe for
 -- existing production rows; they can be validated after a data-quality review.
+--
+-- ADD CONSTRAINT has no IF NOT EXISTS in Postgres, so on a re-run (e.g. this
+-- migration was already applied once) it errors with "constraint already
+-- exists" and rolls back the whole transaction. DROP...IF EXISTS + ADD makes
+-- this block safely re-runnable, matching the pattern already used above for
+-- usdt_orders_status_check.
+ALTER TABLE public.usdt_orders
+  DROP CONSTRAINT IF EXISTS usdt_orders_positive_amounts_check;
+
 ALTER TABLE public.usdt_orders
   ADD CONSTRAINT usdt_orders_positive_amounts_check
   CHECK (
@@ -164,6 +173,9 @@ ALTER TABLE public.usdt_orders
     AND total_afn >= 0
     AND total_usd >= 0
   ) NOT VALID;
+
+ALTER TABLE public.usdt_orders
+  DROP CONSTRAINT IF EXISTS usdt_orders_fee_percent_check;
 
 ALTER TABLE public.usdt_orders
   ADD CONSTRAINT usdt_orders_fee_percent_check
