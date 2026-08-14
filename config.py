@@ -113,6 +113,12 @@ SARAF_LOGO_URL = os.getenv("SARAF_LOGO_URL", "https://i.postimg.cc/B6ZCWdXp/logo
 USDT_MIN_AMOUNT = float(os.getenv("USDT_MIN_AMOUNT", "10"))
 USDT_MAX_AMOUNT = float(os.getenv("USDT_MAX_AMOUNT", "10000"))
 
+# آستانهٔ اجباری‌شدن احراز هویت کامل (مدرک هویتی + سلفی). زیر این مبلغ، تکمیل
+# اطلاعات پایه (نام/نام خانوادگی/شماره تماس) برای ثبت سفارش کافی است.
+USDT_IDENTITY_VERIFICATION_THRESHOLD_USD = float(
+    os.getenv("USDT_IDENTITY_VERIFICATION_THRESHOLD_USD", "250")
+)
+
 # کارمزد پلکانی خرید تتر (٪) — فقط برای خرید؛ فروش کارمزد اضافه ندارد و صرفاً
 # بر مبنای نرخ خرید دالر صرافی‌های محلی محاسبه می‌شود.
 # هر ردیف: (حداقل مقدار, حداکثر مقدار, درصد کارمزد)

@@ -26,7 +26,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from config import BOT_TOKEN, TRACKED_CURRENCIES, GOLD_KARATS
+from services.api_errors import ApiError
+from config import BOT_TOKEN, TRACKED_CURRENCIES, GOLD_KARATS, USDT_IDENTITY_VERIFICATION_THRESHOLD_USD
 from services import (
     currency_service,
     converter_service,
@@ -380,32 +381,68 @@ def _full_name(user: dict) -> Optional[str]:
 # ---------------------------------------------------------------------------
 @app.get("/api/usdt/profile")
 async def get_my_profile(user: dict = Depends(_authenticate)):
-    """وضعیت پروفایل کاربر برای مینی‌اپ — مشخص می‌کند آیا باید به فرم KYC هدایت شود یا نه."""
+    """
+    وضعیت پروفایل کاربر برای مینی‌اپ — دو سطح جدا:
+      - has_basic_profile: نام/نام‌خانوادگی/شماره تماس؛ برای هر سفارشی لازم است.
+      - has_identity_verification: مدرک هویتی + سلفی؛ فقط برای سفارش‌های
+        بالای USDT_IDENTITY_VERIFICATION_THRESHOLD_USD لازم است.
+    """
     profile = db.get_user_profile(user["id"])
     return {
-        "kyc_complete": db.is_kyc_complete(user["id"]),
+        "has_basic_profile": db.has_basic_profile(user["id"]),
+        "has_identity_verification": db.has_identity_verification(user["id"]),
+        "identity_verification_threshold_usd": USDT_IDENTITY_VERIFICATION_THRESHOLD_USD,
         "profile": profile,
     }
 
 
-@app.post("/api/usdt/kyc")
-async def submit_kyc(
+@app.post("/api/usdt/profile")
+async def submit_basic_profile(
     request: Request,
     first_name: str = Form(...),
     last_name: str = Form(...),
     phone: str = Form(...),
-    payment_info: str = Form(...),
+    user: dict = Depends(_authenticate),
+):
+    """
+    مرحلهٔ اول و اجباری تکمیل پروفایل — فقط نام، نام‌خانوادگی، شمارهٔ تماس.
+    نه اطلاعات پرداخت لازم است، نه مدرک هویتی؛ آن‌ها مرحلهٔ دوم و جداگانه‌اند
+    (POST /api/usdt/kyc) که فقط برای سفارش‌های بزرگ‌تر از آستانه لازم می‌شود.
+    """
+    rate_limiter.enforce("kyc_upload", request, identity=str(user["id"]))
+    first_name, last_name, phone = first_name.strip(), last_name.strip(), phone.strip()
+    if len(first_name) < 2 or len(last_name) < 2:
+        raise HTTPException(status_code=400, detail="نام و نام خانوادگی معتبر لازم است.")
+    if len(phone) < 7:
+        raise HTTPException(status_code=400, detail="شمارهٔ تماس معتبر لازم است.")
+
+    try:
+        await kyc_service.save_basic_profile(chat_id=user["id"], first_name=first_name, last_name=last_name, phone=phone)
+    except Exception:
+        raise HTTPException(status_code=503, detail="ثبت پروفایل ناموفق بود؛ لطفاً دوباره تلاش کنید.")
+
+    audit_service.record(action="basic_profile_saved", entity="user_profile", entity_id=user["id"], actor=user["id"])
+    return {"ok": True}
+
+
+@app.post("/api/usdt/kyc")
+async def submit_identity_verification(
+    request: Request,
+    payment_info: Optional[str] = Form(None),
     id_document: UploadFile = File(...),
     selfie: UploadFile = File(...),
     user: dict = Depends(_authenticate),
 ):
+    """
+    مرحلهٔ دوم (اختیاری تا وقتی مبلغ سفارش کاربر از آستانه بیشتر شود): مدرک
+    هویتی + سلفی. اطلاعات پرداخت عمداً اختیاری است — کاربر می‌تواند بعداً موقع
+    ثبت سفارش وارد کند.
+    """
     rate_limiter.enforce("kyc_upload", request, identity=str(user["id"]))
-    if len(first_name.strip()) < 2 or len(last_name.strip()) < 2:
-        raise HTTPException(status_code=400, detail="نام و نام خانوادگی معتبر لازم است.")
-    if len(phone.strip()) < 7:
-        raise HTTPException(status_code=400, detail="شمارهٔ تماس معتبر لازم است.")
-    if len(payment_info.strip()) < 4:
-        raise HTTPException(status_code=400, detail="اطلاعات پرداخت معتبر لازم است.")
+    if not db.has_basic_profile(user["id"]):
+        raise HTTPException(status_code=400, detail="ابتدا باید اطلاعات پایهٔ پروفایل را تکمیل کنید.")
+    if payment_info is not None and len(payment_info.strip()) > 0 and len(payment_info.strip()) < 4:
+        raise HTTPException(status_code=400, detail="اطلاعات پرداخت وارد‌شده معتبر نیست.")
 
     for f, label in ((id_document, "مدرک هویتی"), (selfie, "سلفی")):
         if f.content_type not in ("image/jpeg", "image/png", "image/webp"):
@@ -419,12 +456,9 @@ async def submit_kyc(
     id_doc_ext = _safe_ext(id_document.filename, id_document.content_type)
     selfie_ext = _safe_ext(selfie.filename, selfie.content_type)
 
-    ok = await kyc_service.complete_kyc(
+    ok = await kyc_service.submit_identity_verification(
         chat_id=user["id"],
-        first_name=first_name.strip(),
-        last_name=last_name.strip(),
-        phone=phone.strip(),
-        payment_info=payment_info.strip(),
+        payment_info=(payment_info or "").strip() or None,
         id_doc_bytes=id_doc_bytes,
         id_doc_ext=id_doc_ext,
         id_doc_content_type=id_document.content_type,
@@ -433,7 +467,7 @@ async def submit_kyc(
         selfie_content_type=selfie.content_type,
     )
     if not ok:
-        raise HTTPException(status_code=503, detail="ثبت پروفایل ناموفق بود؛ لطفاً دوباره تلاش کنید.")
+        raise HTTPException(status_code=503, detail="ثبت مدارک احراز هویت ناموفق بود؛ لطفاً دوباره تلاش کنید.")
     audit_service.record(
         action="kyc_docs_uploaded", entity="user_profile", entity_id=user["id"], actor=user["id"],
         after={"id_doc_ext": id_doc_ext, "selfie_ext": selfie_ext},
@@ -444,29 +478,6 @@ async def submit_kyc(
 class UsdtQuoteRequest(BaseModel):
     action: str  # "buy" | "sell"
     amount: float
-
-
-@app.get("/api/usdt/rate-ticker")
-async def usdt_rate_ticker():
-    """
-    نرخ لحظه‌یی مرجع (بدون Idempotency و بدون Auth) — فقط برای نمایش در کارت
-    اصلی Home، نه برای ثبت سفارش. عمداً به مسیر /api/usdt/quote (که Quote
-    واقعی می‌سازد و در دیتابیس ذخیره می‌شود) وصل نیست — این‌جا از یک مقدار
-    نمایشی (amount=1) استفاده می‌شود و usdt_api_guard آن را persist نمی‌کند
-    چون این route هیچ Dependency ای از _guard_quote ندارد (فقط مسیرهای
-    /api/usdt/quote و /orders/buy|sell به‌صورت خودکار guard می‌شوند).
-    """
-    try:
-        buy = await usdt_service.get_buy_quote(1)
-        sell = await usdt_service.get_sell_quote(1)
-    except Exception:
-        logger.exception("خطا در دریافت نرخ لحظه‌یی تتر برای کارت اصلی")
-        raise HTTPException(status_code=503, detail="نرخ لحظه‌یی در دسترس نیست.")
-    return {
-        "buy_rate": buy["total_afn"],
-        "sell_rate": sell["total_afn"],
-        "basis": buy.get("basis"),
-    }
 
 
 @app.post("/api/usdt/quote")
@@ -497,8 +508,14 @@ class UsdtBuyOrderRequest(BaseModel):
 
 @app.post("/api/usdt/orders/buy")
 async def create_usdt_buy_order(payload: UsdtBuyOrderRequest, user: dict = Depends(_authenticate)):
-    if not db.is_kyc_complete(user["id"]):
-        raise HTTPException(status_code=403, detail="ابتدا باید پروفایل خود را تکمیل کنید (KYC).")
+    if not db.has_basic_profile(user["id"]):
+        raise HTTPException(status_code=403, detail="ابتدا باید پروفایل خود را تکمیل کنید.")
+    if payload.amount > USDT_IDENTITY_VERIFICATION_THRESHOLD_USD and not db.has_identity_verification(user["id"]):
+        raise ApiError(
+            status_code=403,
+            code="IDENTITY_VERIFICATION_REQUIRED",
+            message=f"برای معاملات بالای {USDT_IDENTITY_VERIFICATION_THRESHOLD_USD:g} دالر، ابتدا باید احراز هویت تکمیل شود.",
+        )
     if payload.payment_method not in ("in_person", "online"):
         raise HTTPException(status_code=400, detail="روش پرداخت نامعتبر است.")
     if payload.payment_method == "online" and not payload.receipt_url:
@@ -556,8 +573,14 @@ class UsdtSellOrderRequest(BaseModel):
 
 @app.post("/api/usdt/orders/sell")
 async def create_usdt_sell_order(payload: UsdtSellOrderRequest, user: dict = Depends(_authenticate)):
-    if not db.is_kyc_complete(user["id"]):
-        raise HTTPException(status_code=403, detail="ابتدا باید پروفایل خود را تکمیل کنید (KYC).")
+    if not db.has_basic_profile(user["id"]):
+        raise HTTPException(status_code=403, detail="ابتدا باید پروفایل خود را تکمیل کنید.")
+    if payload.amount > USDT_IDENTITY_VERIFICATION_THRESHOLD_USD and not db.has_identity_verification(user["id"]):
+        raise ApiError(
+            status_code=403,
+            code="IDENTITY_VERIFICATION_REQUIRED",
+            message=f"برای معاملات بالای {USDT_IDENTITY_VERIFICATION_THRESHOLD_USD:g} دالر، ابتدا باید احراز هویت تکمیل شود.",
+        )
     if payload.receive_method not in ("in_person", "online"):
         raise HTTPException(status_code=400, detail="روش دریافت نامعتبر است.")
     if payload.receive_method == "online" and not payload.bank_info:

@@ -1,9 +1,10 @@
 import { getInitData } from "./telegram";
 
 class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, code) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -33,7 +34,7 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
   } catch (_) {}
 
   if (!res.ok) {
-    throw new ApiError(data?.detail || "خطایی رخ داد. لطفاً دوباره تلاش کنید.", res.status);
+    throw new ApiError(data?.detail || "خطایی رخ داد. لطفاً دوباره تلاش کنید.", res.status, data?.error?.code);
   }
   return data;
 }
@@ -61,9 +62,17 @@ export const api = {
 
   getProfile: () => request("/usdt/profile"),
 
-  submitKyc: (fields) => {
+  submitBasicProfile: (fields) => {
     const form = new FormData();
     Object.entries(fields).forEach(([k, v]) => form.append(k, v));
+    return request("/usdt/profile", { method: "POST", body: form, isForm: true });
+  },
+
+  submitIdentityVerification: (fields) => {
+    const form = new FormData();
+    Object.entries(fields).forEach(([k, v]) => {
+      if (v !== null && v !== undefined && v !== "") form.append(k, v);
+    });
     return request("/usdt/kyc", { method: "POST", body: form, isForm: true });
   },
 
@@ -87,7 +96,6 @@ export const api = {
 
   getMyOrders: () => request("/usdt/orders/me"),
   getStats: () => request("/usdt/stats"),
-  getRateTicker: () => request("/usdt/rate-ticker"),
 
   rateOrder: (orderId, rating, comment) =>
     request(`/usdt/orders/${orderId}/rate`, { method: "POST", body: { rating, comment } }),

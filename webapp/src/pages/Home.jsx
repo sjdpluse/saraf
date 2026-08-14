@@ -17,8 +17,6 @@ import { SARAF_LOGO_URL, TETHER_LOGO_URL } from "../lib/brand";
 
 export default function Home({ navigate, startTransaction }) {
   const [stats, setStats] = useState(null);
-  const [rate, setRate] = useState(null);
-  const [rateError, setRateError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -28,12 +26,6 @@ export default function Home({ navigate, startTransaction }) {
       .catch(() => {
         /* آمار غیربحرانی است؛ در صورت خطا فقط نمایش داده نمی‌شود */
       });
-    api
-      .getRateTicker()
-      .then((r) => mounted && setRate(r))
-      .catch(() => {
-        if (mounted) setRateError(true);
-      });
     return () => {
       mounted = false;
     };
@@ -41,7 +33,7 @@ export default function Home({ navigate, startTransaction }) {
 
   return (
     <div className="app-shell">
-      {/* --- کارت اصلی: گرادیانت آبی + نرخ لحظه‌یی + داک شیشه‌یی خرید/فروش --- */}
+      {/* --- کارت اصلی: گرادیانت آبی + داک شیشه‌یی خرید/فروش --- */}
       <div className="hero-card animate-in">
         <div className="hero-top">
           <div className="hero-row">
@@ -51,27 +43,9 @@ export default function Home({ navigate, startTransaction }) {
               </div>
               <span className="hero-brand-name">Saraf</span>
             </div>
-            <div className="live-pill">
-              <span className="live-dot" />
-              نرخ لحظه‌یی
-            </div>
           </div>
 
-          <div className="hero-rate-label">قیمت هر ۱ USDT برای خرید (تقریبی)</div>
-          {rate ? (
-            <div className="hero-rate-value num">
-              {Number(rate.buy_rate).toLocaleString()}
-              <span className="unit">افغانی</span>
-            </div>
-          ) : rateError ? (
-            <div className="hero-rate-value" style={{ fontSize: 15, fontWeight: 600, opacity: 0.85 }}>
-              نرخ لحظه‌یی موقتاً در دسترس نیست
-            </div>
-          ) : (
-            <div className="hero-rate-value num" style={{ opacity: 0.6 }}>
-              …
-            </div>
-          )}
+          <div className="hero-tagline">خرید و فروش تتر با نرخ منصفانه و پرداخت آسان</div>
 
           <div className="hero-chip-row">
             <div className="hero-chip">

@@ -286,64 +286,15 @@ body {
   letter-spacing: -0.01em;
 }
 
-.hero-card .live-pill {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: var(--radius-pill);
-  padding: 5px 11px 5px 9px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.hero-card .live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #34ffa0;
-  box-shadow: 0 0 0 3px rgba(52, 255, 160, 0.25);
-  animation: pulse-dot 1.8s ease infinite;
-}
-
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-}
-
-.hero-card .hero-rate-label {
+.hero-card .hero-tagline {
   position: relative;
   z-index: 1;
-  font-size: 12px;
-  opacity: 0.82;
-  margin-top: 18px;
-  font-weight: 500;
-}
-
-.hero-card .hero-rate-value {
-  position: relative;
-  z-index: 1;
-  font-size: 34px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-top: 4px;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.hero-card .hero-rate-value .unit {
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 600;
-  opacity: 0.85;
+  line-height: 1.7;
+  margin-top: 16px;
+  max-width: 240px;
+  opacity: 0.96;
 }
 
 .hero-card .hero-chip-row {
@@ -1298,10 +1249,26 @@ textarea.input {
   animation: fade-slide-in 0.42s var(--ease-ios) both;
 }
 
+/* --- ترنزیشن بین صفحات (سبک و ثابت، بدون کتابخانهٔ روتینگ) --- */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.page-transition {
+  animation: page-enter 0.36s var(--ease-ios) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-in,
+  .page-transition,
   .skeleton,
-  .live-dot,
   .success-icon {
     animation: none !important;
   }

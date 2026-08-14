@@ -63,3 +63,13 @@ export function showConfirm(message) {
 export function closeApp() {
   getWebApp()?.close?.();
 }
+
+export function openTelegramChat(username) {
+  const wa = getWebApp();
+  const url = `https://t.me/${username}`;
+  if (wa?.openTelegramLink) {
+    wa.openTelegramLink(url);
+  } else {
+    window.open(url, "_blank");
+  }
+}

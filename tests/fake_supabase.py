@@ -32,6 +32,8 @@ class FakeTable:
         self._filters: list[tuple] = []
         self._insert_payload = None
         self._update_payload = None
+        self._upsert_payload = None
+        self._upsert_on_conflict = None
         self._limit_n = None
 
     def select(self, *_args, **_kwargs):
@@ -54,6 +56,11 @@ class FakeTable:
 
     def insert(self, payload):
         self._insert_payload = payload
+        return self
+
+    def upsert(self, payload, on_conflict=None):
+        self._upsert_payload = payload
+        self._upsert_on_conflict = on_conflict or "id"
         return self
 
     def update(self, payload):
@@ -100,6 +107,18 @@ class FakeTable:
                 for r in matched:
                     r.update(self._update_payload)
                 return FakeResult([dict(r) for r in matched])
+
+            if self._upsert_payload is not None:
+                key_field = self._upsert_on_conflict
+                key_value = self._upsert_payload.get(key_field)
+                existing = next((r for r in rows if r.get(key_field) == key_value), None)
+                if existing is not None:
+                    existing.update(self._upsert_payload)
+                    return FakeResult([dict(existing)])
+                row = dict(self._upsert_payload)
+                row.setdefault("id", self._next_id(rows))
+                rows.append(row)
+                return FakeResult([dict(row)])
 
             matched = [r for r in rows if self._match(r)]
             if self._limit_n:

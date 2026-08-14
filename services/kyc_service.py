@@ -67,6 +67,61 @@ async def complete_kyc(
     return True
 
 
+async def save_basic_profile(*, chat_id: int, first_name: str, last_name: str, phone: str) -> None:
+    """مینی‌اپ — مرحلهٔ اول: فقط اطلاعات پایه، بدون نیاز به مدرک یا اطلاعات
+    پرداخت. کافی است تا کاربر بتواند سفارش‌های زیر آستانهٔ احراز هویت را ثبت
+    کند (services/supabase_service.has_basic_profile)."""
+    db.save_basic_profile(chat_id=chat_id, first_name=first_name, last_name=last_name, phone=phone)
+
+
+async def submit_identity_verification(
+    *,
+    chat_id: int,
+    payment_info: Optional[str],
+    id_doc_bytes: bytes,
+    id_doc_ext: str,
+    id_doc_content_type: str,
+    selfie_bytes: bytes,
+    selfie_ext: str,
+    selfie_content_type: str,
+) -> bool:
+    """مینی‌اپ — مرحلهٔ دوم (اختیاری، فقط وقتی مبلغ سفارش از آستانه بیشتر است):
+    مدرک هویتی + سلفی، به‌اضافهٔ اطلاعات پرداخت که *اختیاری* است. نیازمند این
+    است که پروفایل پایه (نام/نام‌خانوادگی/شماره تماس) از قبل با
+    save_basic_profile ثبت شده باشد."""
+    profile = db.get_user_profile(chat_id)
+    if not profile or not profile.get("first_name"):
+        logger.error("تلاش برای ارسال مدارک احراز هویت بدون پروفایل پایه — chat_id=%s", chat_id)
+        return False
+
+    id_doc_path = db.upload_private_file(
+        USDT_KYC_DOCS_BUCKET, id_doc_bytes, f"{chat_id}_id_document.{id_doc_ext}", id_doc_content_type
+    )
+    selfie_path = db.upload_private_file(
+        USDT_KYC_DOCS_BUCKET, selfie_bytes, f"{chat_id}_selfie.{selfie_ext}", selfie_content_type
+    )
+    if not id_doc_path or not selfie_path:
+        logger.error("آپلود مدارک احراز هویت برای کاربر %s ناموفق بود", chat_id)
+        return False
+
+    try:
+        db.save_identity_verification(chat_id, id_doc_path, selfie_path, payment_info=payment_info or None)
+    except Exception:
+        logger.exception("ثبت مدارک احراز هویت ناموفق بود")
+        return False
+
+    full_name = f"{profile.get('first_name', '')} {profile.get('last_name', '')}".strip()
+    await _notify_admins_kyc_review(
+        chat_id=chat_id,
+        full_name=full_name,
+        phone=profile.get("phone") or "—",
+        payment_info=payment_info or "—",
+        id_doc_bytes=id_doc_bytes,
+        selfie_bytes=selfie_bytes,
+    )
+    return True
+
+
 async def _notify_admins_kyc_review(
     *,
     chat_id: int,

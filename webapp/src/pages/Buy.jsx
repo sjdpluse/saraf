@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CaretRight,
   TrendUp,
@@ -9,22 +9,26 @@ import {
   Warning,
   ClipboardText,
   House,
+  ChatCircleDots,
+  ArrowRight,
 } from "@phosphor-icons/react";
 import { api, ApiError } from "../lib/api";
-import { hapticSuccess, hapticError } from "../lib/telegram";
+import { hapticSuccess, hapticError, openTelegramChat } from "../lib/telegram";
 import CopyRow from "../components/CopyRow";
 import { TETHER_LOGO_URL } from "../lib/brand";
+import NetworkIcon from "../components/NetworkIcon";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const NETWORKS = ["TRC20", "ERC20", "BEP20"];
 
-const STEPS = ["amount", "payment", "receipt", "exchange", "network", "wallet", "done"];
+const STEPS = ["amount", "quote", "payment", "receipt", "exchange", "network", "wallet", "done"];
 
-export default function Buy({ navigate, showError }) {
+export default function Buy({ navigate, showError, resumeState, onResumeConsumed, onNeedProfile, onNeedVerification }) {
   const [stepIdx, setStepIdx] = useState(0);
   const [amount, setAmount] = useState("");
   const [quote, setQuote] = useState(null);
   const [loadingQuote, setLoadingQuote] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [receiptUrl, setReceiptUrl] = useState(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
@@ -37,6 +41,20 @@ export default function Buy({ navigate, showError }) {
   const [orderCode, setOrderCode] = useState(null);
 
   const step = STEPS[stepIdx];
+
+  // اگر کاربر برای تکمیل پروفایل یا احراز هویت از این صفحه بیرون فرستاده شده
+  // بود، با برگشت، دقیقاً همان مبلغ/نرخ بازیابی می‌شود و gate دوباره چک می‌شود
+  // (ممکن است هنوز یک مرحله باقی مانده باشد، مثلاً پروفایل پایه کامل شد ولی
+  // برای مبلغ بزرگ هنوز احراز هویت لازم است).
+  useEffect(() => {
+    if (resumeState?.amount && resumeState?.quote) {
+      setAmount(String(resumeState.amount));
+      setQuote(resumeState.quote);
+      checkGateAndProceed(resumeState.amount, resumeState.quote);
+      onResumeConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function goBack() {
     if (stepIdx === 0) {
@@ -56,7 +74,7 @@ export default function Buy({ navigate, showError }) {
     try {
       const q = await api.getQuote("buy", amt);
       setQuote(q);
-      setStepIdx(1);
+      setStepIdx(1); // -> quote
     } catch (e) {
       showError(e instanceof ApiError ? e.message : "خطا در دریافت نرخ.");
     } finally {
@@ -64,9 +82,36 @@ export default function Buy({ navigate, showError }) {
     }
   }
 
+  /**
+   * دکمهٔ «درخواست تتر»: قبل از رفتن به مرحلهٔ پرداخت، وضعیت پروفایل کاربر چک
+   * می‌شود. اگر پروفایل پایه ناقص است -> onNeedProfile؛ اگر مبلغ از آستانه
+   * بیشتر است و احراز هویت انجام نشده -> onNeedVerification. در غیر این
+   * صورت مستقیم به انتخاب روش پرداخت می‌رود.
+   */
+  async function checkGateAndProceed(amt, q) {
+    setCheckingProfile(true);
+    try {
+      const profile = await api.getProfile();
+      if (!profile.has_basic_profile) {
+        onNeedProfile?.({ amount: amt, quote: q });
+        return;
+      }
+      const threshold = profile.identity_verification_threshold_usd || 250;
+      if (amt > threshold && !profile.has_identity_verification) {
+        onNeedVerification?.({ amount: amt, quote: q }, threshold);
+        return;
+      }
+      setStepIdx(2); // -> payment
+    } catch (e) {
+      showError(e instanceof ApiError ? e.message : "خطا در بررسی وضعیت پروفایل.");
+    } finally {
+      setCheckingProfile(false);
+    }
+  }
+
   function choosePayment(method) {
     setPaymentMethod(method);
-    setStepIdx(method === "online" ? 2 : 3); // آنلاین -> رسید | حضوری -> مستقیم صرافی
+    setStepIdx(method === "online" ? 3 : 4); // آنلاین -> رسید | حضوری -> مستقیم صرافی
   }
 
   async function handleReceiptFile(e) {
@@ -85,12 +130,12 @@ export default function Buy({ navigate, showError }) {
 
   function chooseExchange(ex) {
     setExchange(ex);
-    setStepIdx(4);
+    setStepIdx(5);
   }
 
   function chooseNetwork(net) {
     setNetwork(net);
-    setStepIdx(5);
+    setStepIdx(6);
   }
 
   async function submitOrder() {
@@ -112,10 +157,14 @@ export default function Buy({ navigate, showError }) {
         receipt_url: receiptUrl,
       });
       setOrderCode(res.order_code);
-      setStepIdx(6);
+      setStepIdx(7); // -> done
       hapticSuccess();
     } catch (err) {
       hapticError();
+      if (err instanceof ApiError && err.code === "IDENTITY_VERIFICATION_REQUIRED") {
+        onNeedVerification?.({ amount: parseFloat(amount), quote });
+        return;
+      }
       showError(err instanceof ApiError ? err.message : "ثبت سفارش ناموفق بود.");
     } finally {
       setSubmitting(false);
@@ -141,7 +190,7 @@ export default function Buy({ navigate, showError }) {
 
       {step !== "done" && (
         <div className="stepper">
-          {STEPS.slice(0, 6).map((s, i) => (
+          {STEPS.slice(0, -1).map((s, i) => (
             <div key={s} className={`dot ${i <= stepIdx ? "active" : ""}`} />
           ))}
         </div>
@@ -171,41 +220,57 @@ export default function Buy({ navigate, showError }) {
         </div>
       )}
 
-      {step === "payment" && quote && (
-        <>
-          <div className="card animate-in">
-            <div className="quote-box">
-              <div className="quote-row">
-                <span>نرخ دالر (صرافی محلی)</span>
-                <span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span>
-              </div>
-              <div className="quote-row">
-                <span>مبلغ پایه</span>
-                <span className="value num">{quote.base_afn.toLocaleString()} افغانی</span>
-              </div>
-              <div className="quote-row">
-                <span>کارمزد ({quote.fee_percent}٪)</span>
-                <span className="value num">{quote.fee_afn.toLocaleString()} افغانی</span>
-              </div>
-              <div className="quote-total buy">
-                <span className="label">مبلغ نهایی قابل پرداخت</span>
-                <span className="amount num">{quote.total_afn.toLocaleString()} ؋</span>
-              </div>
+      {step === "quote" && quote && (
+        <div className="card animate-in">
+          <div className="quote-box">
+            <div className="quote-row">
+              <span>مقدار درخواستی</span>
+              <span className="value num" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <img src={TETHER_LOGO_URL} alt="" className="tether-badge" />
+                {Number(amount).toLocaleString()} USDT
+              </span>
+            </div>
+            <div className="quote-row">
+              <span>نرخ دالر (صرافی محلی)</span>
+              <span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span>
+            </div>
+            <div className="quote-row">
+              <span>مبلغ پایه</span>
+              <span className="value num">{quote.base_afn.toLocaleString()} افغانی</span>
+            </div>
+            <div className="quote-row">
+              <span>کارمزد ({quote.fee_percent}٪)</span>
+              <span className="value num">{quote.fee_afn.toLocaleString()} افغانی</span>
+            </div>
+            <div className="quote-total buy">
+              <span className="label">مبلغ نهایی قابل پرداخت</span>
+              <span className="amount num">{quote.total_afn.toLocaleString()} ؋</span>
             </div>
           </div>
 
-          <div className="card animate-in">
-            <label className="field-label">روش پرداخت خود را انتخاب کنید</label>
-            <div className="choice-row" style={{ marginTop: 4 }}>
-              <button className="choice-btn" onClick={() => choosePayment("in_person")}>
-                <Buildings size={16} /> حضوری
-              </button>
-              <button className="choice-btn" onClick={() => choosePayment("online")}>
-                <Bank size={16} /> آنلاین (بانکی)
-              </button>
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+            <button className="btn btn-buy" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>
+              {checkingProfile ? <span className="spinner" /> : <>درخواست تتر <ArrowRight size={16} weight="bold" /></>}
+            </button>
+            <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS")}>
+              <ChatCircleDots size={17} /> اطلاعات بیشتر
+            </button>
           </div>
-        </>
+        </div>
+      )}
+
+      {step === "payment" && (
+        <div className="card animate-in">
+          <label className="field-label">روش پرداخت خود را انتخاب کنید</label>
+          <div className="choice-row" style={{ marginTop: 4 }}>
+            <button className="choice-btn" onClick={() => choosePayment("in_person")}>
+              <Buildings size={16} /> حضوری
+            </button>
+            <button className="choice-btn" onClick={() => choosePayment("online")}>
+              <Bank size={16} /> آنلاین (بانکی)
+            </button>
+          </div>
+        </div>
       )}
 
       {step === "receipt" && (
@@ -231,7 +296,7 @@ export default function Buy({ navigate, showError }) {
             className="btn btn-buy"
             style={{ marginTop: 16 }}
             disabled={!receiptUrl}
-            onClick={() => setStepIdx(3)}
+            onClick={() => setStepIdx(4)}
           >
             ادامه
           </button>
@@ -283,6 +348,7 @@ export default function Buy({ navigate, showError }) {
                 className={`choice-btn ${network === n ? "selected" : ""}`}
                 onClick={() => chooseNetwork(n)}
               >
+                <NetworkIcon network={n} size={18} />
                 {n}
               </button>
             ))}

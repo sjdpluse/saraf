@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CaretRight,
   TrendDown,
@@ -9,23 +9,27 @@ import {
   Warning,
   ClipboardText,
   House,
+  ChatCircleDots,
+  ArrowRight,
 } from "@phosphor-icons/react";
 import { api, ApiError } from "../lib/api";
-import { hapticSuccess, hapticError } from "../lib/telegram";
+import { hapticSuccess, hapticError, openTelegramChat } from "../lib/telegram";
 import CopyRow from "../components/CopyRow";
 import { TETHER_LOGO_URL } from "../lib/brand";
+import NetworkIcon from "../components/NetworkIcon";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const NETWORKS = ["TRC20", "ERC20", "BEP20"];
 const DEPOSIT_WALLETS = { BEP20: "0x4c49Ff39798C564A01F5fdEcB7E335a178f781BA" };
 
-const STEPS = ["amount", "exchange", "network", "deposit", "txproof", "receive", "bank", "done"];
+const STEPS = ["amount", "quote", "exchange", "network", "deposit", "txproof", "receive", "bank", "done"];
 
-export default function Sell({ navigate, showError }) {
+export default function Sell({ navigate, showError, resumeState, onResumeConsumed, onNeedProfile, onNeedVerification }) {
   const [stepIdx, setStepIdx] = useState(0);
   const [amount, setAmount] = useState("");
   const [quote, setQuote] = useState(null);
   const [loadingQuote, setLoadingQuote] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(false);
   const [exchange, setExchange] = useState(null);
   const [exchangeCustom, setExchangeCustom] = useState("");
   const [network, setNetwork] = useState(null);
@@ -42,6 +46,16 @@ export default function Sell({ navigate, showError }) {
   const finalNetwork = network === "other" ? networkCustom.trim() : network;
   const finalExchange = exchange === "other" ? exchangeCustom.trim() : exchange;
   const walletForNetwork = finalNetwork ? DEPOSIT_WALLETS[finalNetwork.toUpperCase()] : null;
+
+  useEffect(() => {
+    if (resumeState?.amount && resumeState?.quote) {
+      setAmount(String(resumeState.amount));
+      setQuote(resumeState.quote);
+      checkGateAndProceed(resumeState.amount, resumeState.quote);
+      onResumeConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function goBack() {
     if (stepIdx === 0) {
@@ -61,7 +75,7 @@ export default function Sell({ navigate, showError }) {
     try {
       const q = await api.getQuote("sell", amt);
       setQuote(q);
-      setStepIdx(1);
+      setStepIdx(1); // -> quote
     } catch (e) {
       showError(e instanceof ApiError ? e.message : "خطا در دریافت نرخ.");
     } finally {
@@ -69,9 +83,30 @@ export default function Sell({ navigate, showError }) {
     }
   }
 
+  async function checkGateAndProceed(amt, q) {
+    setCheckingProfile(true);
+    try {
+      const profile = await api.getProfile();
+      if (!profile.has_basic_profile) {
+        onNeedProfile?.({ amount: amt, quote: q });
+        return;
+      }
+      const threshold = profile.identity_verification_threshold_usd || 250;
+      if (amt > threshold && !profile.has_identity_verification) {
+        onNeedVerification?.({ amount: amt, quote: q }, threshold);
+        return;
+      }
+      setStepIdx(2); // -> exchange
+    } catch (e) {
+      showError(e instanceof ApiError ? e.message : "خطا در بررسی وضعیت پروفایل.");
+    } finally {
+      setCheckingProfile(false);
+    }
+  }
+
   function chooseExchange(ex) {
     setExchange(ex);
-    setStepIdx(2);
+    setStepIdx(3);
   }
 
   function chooseNetwork(net) {
@@ -81,7 +116,7 @@ export default function Sell({ navigate, showError }) {
       showError("در حال حاضر فقط شبکهٔ BEP20 برای دریافت تتر پشتیبانی می‌شود.");
       return;
     }
-    setStepIdx(3);
+    setStepIdx(4);
   }
 
   async function handleProofFile(e) {
@@ -101,7 +136,7 @@ export default function Sell({ navigate, showError }) {
   function chooseReceive(method) {
     setReceiveMethod(method);
     if (method === "online") {
-      setStepIdx(6); // بانک
+      setStepIdx(7); // بانک
     } else {
       submitOrder(method);
     }
@@ -130,10 +165,14 @@ export default function Sell({ navigate, showError }) {
         bank_info: method === "online" ? bankInfo.trim() : null,
       });
       setOrderCode(res.order_code);
-      setStepIdx(7);
+      setStepIdx(8); // -> done
       hapticSuccess();
     } catch (err) {
       hapticError();
+      if (err instanceof ApiError && err.code === "IDENTITY_VERIFICATION_REQUIRED") {
+        onNeedVerification?.({ amount: parseFloat(amount), quote });
+        return;
+      }
       showError(err instanceof ApiError ? err.message : "ثبت سفارش ناموفق بود.");
     } finally {
       setSubmitting(false);
@@ -159,7 +198,7 @@ export default function Sell({ navigate, showError }) {
 
       {step !== "done" && (
         <div className="stepper">
-          {STEPS.slice(0, 7).map((s, i) => (
+          {STEPS.slice(0, -1).map((s, i) => (
             <div key={s} className={`dot ${i <= stepIdx ? "active" : ""}`} />
           ))}
         </div>
@@ -189,53 +228,70 @@ export default function Sell({ navigate, showError }) {
         </div>
       )}
 
-      {step === "exchange" && quote && (
-        <>
-          <div className="card animate-in">
-            <div className="quote-box">
-              <div className="quote-row">
-                <span>نرخ دالر (صرافی محلی)</span>
-                <span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span>
-              </div>
-              <div className="quote-total sell">
-                <span className="label">مبلغ قابل دریافت</span>
-                <span className="amount num">{quote.total_afn.toLocaleString()} ؋</span>
-              </div>
+      {step === "quote" && quote && (
+        <div className="card animate-in">
+          <div className="quote-box">
+            <div className="quote-row">
+              <span>مقدار درخواستی</span>
+              <span className="value num" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <img src={TETHER_LOGO_URL} alt="" className="tether-badge" />
+                {Number(amount).toLocaleString()} USDT
+              </span>
+            </div>
+            <div className="quote-row">
+              <span>نرخ دالر (صرافی محلی)</span>
+              <span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span>
+            </div>
+            <div className="quote-total sell">
+              <span className="label">مبلغ قابل دریافت</span>
+              <span className="amount num">{quote.total_afn.toLocaleString()} ؋</span>
             </div>
           </div>
-          <div className="card animate-in">
-            <label className="field-label">معاملهٔ خود را از کدام صرافی انجام می‌دهید؟</label>
-            <div className="choice-row" style={{ marginTop: 4 }}>
-              {EXCHANGES.map((ex) => (
-                <button
-                  key={ex}
-                  className={`choice-btn ${exchange === ex ? "selected" : ""}`}
-                  onClick={() => chooseExchange(ex)}
-                >
-                  {ex}
-                </button>
-              ))}
-            </div>
-            <div style={{ marginTop: 10 }}>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+            <button className="btn btn-sell" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>
+              {checkingProfile ? <span className="spinner" /> : <>درخواست تتر <ArrowRight size={16} weight="bold" /></>}
+            </button>
+            <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS")}>
+              <ChatCircleDots size={17} /> اطلاعات بیشتر
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === "exchange" && (
+        <div className="card animate-in">
+          <label className="field-label">معاملهٔ خود را از کدام صرافی انجام می‌دهید؟</label>
+          <div className="choice-row" style={{ marginTop: 4 }}>
+            {EXCHANGES.map((ex) => (
               <button
-                className={`choice-btn ${exchange === "other" ? "selected" : ""}`}
-                style={{ width: "100%" }}
-                onClick={() => chooseExchange("other")}
+                key={ex}
+                className={`choice-btn ${exchange === ex ? "selected" : ""}`}
+                onClick={() => chooseExchange(ex)}
               >
-                صرافی دیگر
+                {ex}
               </button>
-            </div>
-            {exchange === "other" && (
-              <input
-                className="input"
-                style={{ marginTop: 12 }}
-                placeholder="نام صرافی"
-                value={exchangeCustom}
-                onChange={(e) => setExchangeCustom(e.target.value)}
-              />
-            )}
+            ))}
           </div>
-        </>
+          <div style={{ marginTop: 10 }}>
+            <button
+              className={`choice-btn ${exchange === "other" ? "selected" : ""}`}
+              style={{ width: "100%" }}
+              onClick={() => chooseExchange("other")}
+            >
+              صرافی دیگر
+            </button>
+          </div>
+          {exchange === "other" && (
+            <input
+              className="input"
+              style={{ marginTop: 12 }}
+              placeholder="نام صرافی"
+              value={exchangeCustom}
+              onChange={(e) => setExchangeCustom(e.target.value)}
+            />
+          )}
+        </div>
       )}
 
       {step === "network" && (
@@ -248,6 +304,7 @@ export default function Sell({ navigate, showError }) {
                 className={`choice-btn ${network === n ? "selected" : ""}`}
                 onClick={() => chooseNetwork(n)}
               >
+                <NetworkIcon network={n} size={18} />
                 {n}
               </button>
             ))}
@@ -287,7 +344,7 @@ export default function Sell({ navigate, showError }) {
             پیش از ارسال، آدرس و شبکه را با دقت بررسی کنید؛ ارسال در شبکهٔ اشتباه ممکن
             است باعث از دست رفتن دارایی شود.
           </div>
-          <button className="btn btn-sell" onClick={() => setStepIdx(4)}>
+          <button className="btn btn-sell" onClick={() => setStepIdx(5)}>
             تتر را ارسال کردم، ادامه
           </button>
         </div>
@@ -318,7 +375,7 @@ export default function Sell({ navigate, showError }) {
             className="btn btn-sell"
             style={{ marginTop: 16 }}
             disabled={!txProof.trim() && !txProofUrl}
-            onClick={() => setStepIdx(5)}
+            onClick={() => setStepIdx(6)}
           >
             ادامه
           </button>

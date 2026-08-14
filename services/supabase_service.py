@@ -498,7 +498,10 @@ def get_user_profile(chat_id: int) -> Optional[dict]:
 
 
 def is_kyc_complete(chat_id: int) -> bool:
-    """آیا کاربر قبلاً فرم احراز هویت را یک‌بار کامل کرده (صرف‌نظر از تایید نهایی ادمین)؟"""
+    """آیا کاربر قبلاً فرم کامل احراز هویت (شامل مدارک) را یک‌بار تکمیل کرده
+    (صرف‌نظر از تایید نهایی ادمین)؟ فقط توسط جریان گفتگویی ربات استفاده می‌شود؛
+    مینی‌اپ از has_basic_profile/has_identity_verification استفاده می‌کند
+    (دو سطحی — نگاه کنید به همین فایل)."""
     profile = get_user_profile(chat_id)
     if not profile:
         return False
@@ -511,6 +514,57 @@ def is_kyc_complete(chat_id: int) -> bool:
         profile.get("selfie_path"),
     )
     return all(required)
+
+
+def has_basic_profile(chat_id: int) -> bool:
+    """مینی‌اپ — مرحلهٔ اول: آیا نام، نام‌خانوادگی و شماره تماس ثبت شده؟ این سطح
+    برای ثبت سفارش‌های زیر آستانهٔ احراز هویت (USDT_IDENTITY_VERIFICATION_THRESHOLD_USD)
+    کافی است."""
+    profile = get_user_profile(chat_id)
+    if not profile:
+        return False
+    return bool(profile.get("first_name")) and bool(profile.get("last_name")) and bool(profile.get("phone"))
+
+
+def has_identity_verification(chat_id: int) -> bool:
+    """مینی‌اپ — مرحلهٔ دوم (اختیاری، فقط برای سفارش‌های بزرگ‌تر از آستانه): آیا
+    مدرک هویتی و سلفی ارسال شده؟ اطلاعات پرداخت عمداً در این شرط نیست چون
+    اختیاری است."""
+    profile = get_user_profile(chat_id)
+    if not profile:
+        return False
+    return bool(profile.get("id_document_path")) and bool(profile.get("selfie_path"))
+
+
+def save_basic_profile(chat_id: int, first_name: str, last_name: str, phone: str) -> None:
+    """مینی‌اپ — ثبت/به‌روزرسانی فقط اطلاعات پایهٔ پروفایل. عمداً فقط همین سه
+    فیلد را می‌نویسد (upsert جزئی): اگر کاربر قبلاً مدارک هویتی هم ارسال کرده
+    باشد، آن فیلدها دست‌نخورده باقی می‌مانند."""
+    try:
+        get_client().table("user_profiles").upsert(
+            {"chat_id": chat_id, "first_name": first_name, "last_name": last_name, "phone": phone},
+            on_conflict="chat_id",
+        ).execute()
+    except Exception:
+        logger.exception("خطا در ثبت اطلاعات پایهٔ پروفایل کاربر")
+        raise
+
+
+def save_identity_verification(
+    chat_id: int, id_document_path: str, selfie_path: str, payment_info: Optional[str] = None
+) -> None:
+    """مینی‌اپ — ثبت مرحلهٔ دوم (مدارک هویتی + اطلاعات پرداخت اختیاری). نیازمند
+    این است که پروفایل پایه از قبل با save_basic_profile ساخته شده باشد
+    (این تابع UPDATE می‌کند، نه upsert، تا اگر به اشتباه بدون پروفایل پایه صدا
+    زده شد، سرصدا خاموش شکست بخورد نه یک ردیف ناقص جدید بسازد)."""
+    fields = {"id_document_path": id_document_path, "selfie_path": selfie_path, "kyc_status": "pending"}
+    if payment_info:
+        fields["payment_info"] = payment_info
+    try:
+        get_client().table("user_profiles").update(fields).eq("chat_id", chat_id).execute()
+    except Exception:
+        logger.exception("خطا در ثبت مدارک احراز هویت کاربر")
+        raise
 
 
 def create_user_profile(
