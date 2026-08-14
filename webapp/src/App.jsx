@@ -8,6 +8,7 @@ import Kyc from "./pages/Kyc";
 import Toast from "./components/Toast";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
 import { api } from "./lib/api";
+import { SARAF_LOGO_URL } from "./lib/brand";
 
 export default function App() {
   const [page, setPage] = useState("home");
@@ -58,9 +59,11 @@ export default function App() {
   if (!isInsideTelegram()) {
     return (
       <div className="app-shell">
-        <div className="card" style={{ marginTop: 60, textAlign: "center" }}>
-          <div style={{ fontSize: 30, marginBottom: 10 }}>🪙</div>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>این صفحه فقط داخل تلگرام کار می‌کند</div>
+        <div className="outside-telegram animate-in">
+          <div className="logo-badge">
+            <img src={SARAF_LOGO_URL} alt="Saraf" />
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>این صفحه فقط داخل تلگرام کار می‌کند</div>
           <div className="notice" style={{ justifyContent: "center" }}>
             لطفاً از طریق ربات Saraf در تلگرام دکمهٔ «خرید و فروش تتر» را بزنید تا این
             اپلیکیشن به‌درستی باز شود.

@@ -13,6 +13,7 @@ import {
 import { api, ApiError } from "../lib/api";
 import { hapticSuccess, hapticError } from "../lib/telegram";
 import CopyRow from "../components/CopyRow";
+import { TETHER_LOGO_URL } from "../lib/brand";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const NETWORKS = ["TRC20", "ERC20", "BEP20"];
@@ -150,14 +151,19 @@ export default function Buy({ navigate, showError }) {
         <div className="card animate-in">
           <div className="field">
             <label className="field-label">چند USDT می‌خواهید بخرید؟</label>
-            <input
-              className="input num"
-              type="number"
-              inputMode="decimal"
-              placeholder="مثال: 100"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
+            <div className="amount-field">
+              <input
+                className="input num"
+                type="number"
+                inputMode="decimal"
+                placeholder="مثال: 100"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              <span className="amount-badge">
+                <img src={TETHER_LOGO_URL} alt="USDT" />
+              </span>
+            </div>
           </div>
           <button className="btn btn-buy" onClick={fetchQuote} disabled={loadingQuote}>
             {loadingQuote ? <span className="spinner" /> : "محاسبهٔ نرخ"}

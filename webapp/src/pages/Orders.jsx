@@ -11,6 +11,7 @@ import StatusBadge from "../components/StatusBadge";
 import OrderTimeline from "../components/OrderTimeline";
 import RatingStars from "../components/RatingStars";
 import Skeleton from "../components/Skeleton";
+import { TETHER_LOGO_URL } from "../lib/brand";
 
 function OrderDetail({ order, onBack, onRated, showError }) {
   const [rating, setRating] = useState(order.rating || 0);
@@ -53,7 +54,10 @@ function OrderDetail({ order, onBack, onRated, showError }) {
           </div>
           <div className="row">
             <span className="label">مقدار</span>
-            <span className="value num">{Number(order.usdt_amount).toLocaleString()} USDT</span>
+            <span className="value num" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <img src={TETHER_LOGO_URL} alt="" className="tether-badge" />
+              {Number(order.usdt_amount).toLocaleString()} USDT
+            </span>
           </div>
           <div className="row">
             <span className="label">مبلغ</span>
@@ -161,7 +165,10 @@ export default function Orders({ navigate, showError }) {
               <StatusBadge status={o.status} />
             </div>
             <div className="amount-row">
-              <span className="usdt-amount num">{Number(o.usdt_amount).toLocaleString()} USDT</span>
+              <span className="usdt-amount num">
+                <img src={TETHER_LOGO_URL} alt="" className="tether-badge" />
+                {Number(o.usdt_amount).toLocaleString()} USDT
+              </span>
               <span className="afn-amount num">{Number(o.total_afn).toLocaleString()} افغانی</span>
             </div>
           </div>

@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  Wallet,
-  TrendUp,
-  TrendDown,
+  ArrowDown,
+  ArrowUp,
   ClipboardText,
   FileText,
   CaretLeft,
@@ -14,9 +13,12 @@ import {
   Star,
 } from "@phosphor-icons/react";
 import { api } from "../lib/api";
+import { SARAF_LOGO_URL, TETHER_LOGO_URL } from "../lib/brand";
 
 export default function Home({ navigate, startTransaction }) {
   const [stats, setStats] = useState(null);
+  const [rate, setRate] = useState(null);
+  const [rateError, setRateError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -26,6 +28,12 @@ export default function Home({ navigate, startTransaction }) {
       .catch(() => {
         /* آمار غیربحرانی است؛ در صورت خطا فقط نمایش داده نمی‌شود */
       });
+    api
+      .getRateTicker()
+      .then((r) => mounted && setRate(r))
+      .catch(() => {
+        if (mounted) setRateError(true);
+      });
     return () => {
       mounted = false;
     };
@@ -33,30 +41,63 @@ export default function Home({ navigate, startTransaction }) {
 
   return (
     <div className="app-shell">
-      <div className="brand-hero animate-in">
-        <div className="logo-badge">
-          <Wallet size={24} weight="fill" />
-        </div>
-        <div className="titles">
-          <h1>Saraf</h1>
-          <div className="subtitle">خرید و فروش مطمئن تتر (USDT)</div>
-        </div>
-      </div>
+      {/* --- کارت اصلی: گرادیانت آبی + نرخ لحظه‌یی + داک شیشه‌یی خرید/فروش --- */}
+      <div className="hero-card animate-in">
+        <div className="hero-top">
+          <div className="hero-row">
+            <div className="hero-brand">
+              <div className="hero-logo">
+                <img src={SARAF_LOGO_URL} alt="Saraf" />
+              </div>
+              <span className="hero-brand-name">Saraf</span>
+            </div>
+            <div className="live-pill">
+              <span className="live-dot" />
+              نرخ لحظه‌یی
+            </div>
+          </div>
 
-      <div className="menu-grid animate-in" style={{ animationDelay: "0.03s" }}>
-        <div className="menu-tile buy" onClick={() => startTransaction("buy")}>
-          <div className="tile-icon">
-            <TrendUp size={22} weight="bold" />
+          <div className="hero-rate-label">قیمت هر ۱ USDT برای خرید (تقریبی)</div>
+          {rate ? (
+            <div className="hero-rate-value num">
+              {Number(rate.buy_rate).toLocaleString()}
+              <span className="unit">افغانی</span>
+            </div>
+          ) : rateError ? (
+            <div className="hero-rate-value" style={{ fontSize: 15, fontWeight: 600, opacity: 0.85 }}>
+              نرخ لحظه‌یی موقتاً در دسترس نیست
+            </div>
+          ) : (
+            <div className="hero-rate-value num" style={{ opacity: 0.6 }}>
+              …
+            </div>
+          )}
+
+          <div className="hero-chip-row">
+            <div className="hero-chip">
+              <ShieldCheck size={13} weight="fill" />
+              بررسی دستی هر سفارش
+            </div>
+            <div className="hero-chip">
+              <Clock size={13} weight="fill" />
+              تحویل زیر ۱ ساعت
+            </div>
           </div>
-          <div className="title">خرید تتر</div>
-          <div className="subtitle num">AFN → USDT</div>
         </div>
-        <div className="menu-tile sell" onClick={() => startTransaction("sell")}>
-          <div className="tile-icon">
-            <TrendDown size={22} weight="bold" />
-          </div>
-          <div className="title">فروش تتر</div>
-          <div className="subtitle num">USDT → AFN</div>
+
+        <div className="hero-dock">
+          <button className="hero-dock-btn buy" onClick={() => startTransaction("buy")}>
+            <span className="dock-icon">
+              <ArrowDown size={16} weight="bold" />
+            </span>
+            خرید تتر
+          </button>
+          <button className="hero-dock-btn sell" onClick={() => startTransaction("sell")}>
+            <span className="dock-icon">
+              <ArrowUp size={16} weight="bold" />
+            </span>
+            فروش تتر
+          </button>
         </div>
       </div>
 
@@ -94,7 +135,7 @@ export default function Home({ navigate, startTransaction }) {
 
       <div className="card animate-in" style={{ animationDelay: "0.12s" }}>
         <div className="section-title">
-          <ShieldCheck size={16} />
+          <img src={TETHER_LOGO_URL} alt="" className="tether-badge" style={{ width: 16, height: 16 }} />
           چرا Saraf؟
         </div>
         <div className="trust-list">

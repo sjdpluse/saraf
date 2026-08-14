@@ -446,6 +446,29 @@ class UsdtQuoteRequest(BaseModel):
     amount: float
 
 
+@app.get("/api/usdt/rate-ticker")
+async def usdt_rate_ticker():
+    """
+    نرخ لحظه‌یی مرجع (بدون Idempotency و بدون Auth) — فقط برای نمایش در کارت
+    اصلی Home، نه برای ثبت سفارش. عمداً به مسیر /api/usdt/quote (که Quote
+    واقعی می‌سازد و در دیتابیس ذخیره می‌شود) وصل نیست — این‌جا از یک مقدار
+    نمایشی (amount=1) استفاده می‌شود و usdt_api_guard آن را persist نمی‌کند
+    چون این route هیچ Dependency ای از _guard_quote ندارد (فقط مسیرهای
+    /api/usdt/quote و /orders/buy|sell به‌صورت خودکار guard می‌شوند).
+    """
+    try:
+        buy = await usdt_service.get_buy_quote(1)
+        sell = await usdt_service.get_sell_quote(1)
+    except Exception:
+        logger.exception("خطا در دریافت نرخ لحظه‌یی تتر برای کارت اصلی")
+        raise HTTPException(status_code=503, detail="نرخ لحظه‌یی در دسترس نیست.")
+    return {
+        "buy_rate": buy["total_afn"],
+        "sell_rate": sell["total_afn"],
+        "basis": buy.get("basis"),
+    }
+
+
 @app.post("/api/usdt/quote")
 async def usdt_quote(payload: UsdtQuoteRequest, user: dict = Depends(_authenticate)):
     if payload.action not in ("buy", "sell"):

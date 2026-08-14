@@ -1,41 +1,70 @@
 :root {
-  /* --- توکن‌های رنگی سیستم طراحی «Vault Dark» --- */
-  --color-bg: var(--tg-theme-bg-color, #0f172a);
-  --color-bg-elevated: var(--tg-theme-secondary-bg-color, #16233a);
-  --color-card: #182338;
-  --color-card-hover: #1c2a45;
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-strong: rgba(255, 255, 255, 0.14);
+  /* =====================================================================
+     Saraf Design System — «روشن، آبی، شیشه‌یی» با الهام از زبان بصری Apple
+     (Apple Card / Apple Wallet / apple.com). نام کلاس‌ها با نسخهٔ قبلی یکی
+     نگه داشته شده تا هیچ صفحه‌یی نیاز به تغییر ساختاری نداشته باشد؛ فقط
+     توکن‌ها و جزئیات بصری عوض شده‌اند.
+     ===================================================================== */
 
-  --color-text: var(--tg-theme-text-color, #f8fafc);
-  --color-text-muted: var(--tg-theme-hint-color, #8ca0bd);
-  --color-text-faint: #5b6c86;
+  /* --- سطوح و پس‌زمینه ---
+     عمداً به var(--tg-theme-*) وابسته نیست: چون تم روشن یک تصمیم برند است
+     (نه چیزی که باید با حالت تاریک/روشن خود تلگرام کاربر عوض شود)، مقادیر
+     مستقیم و ثابت هستند. */
+  --color-bg: #f5f5f7;
+  --color-bg-elevated: #f2f2f5;
+  --color-card: #ffffff;
+  --color-card-hover: #f7f7f9;
+  --color-border: rgba(0, 0, 0, 0.06);
+  --color-border-strong: rgba(0, 0, 0, 0.12);
 
-  --color-primary: #1e3a5f;
-  --color-primary-light: #2c527f;
+  /* --- متن --- */
+  --color-text: #1d1d1f;
+  --color-text-muted: #6e6e73;
+  --color-text-faint: #aeaeb4;
+
+  /* --- برند: آبی اپل --- */
+  --color-primary: #0071e3;
+  --color-primary-light: #0a84ff;
+  --color-primary-dark: #0040c9;
   --color-on-primary: #ffffff;
+  --gradient-primary: linear-gradient(135deg, #2b9dff 0%, #0071e3 52%, #0040c9 100%);
 
-  --color-buy: #059669;
-  --color-buy-bg: rgba(5, 150, 105, 0.14);
-  --color-buy-border: rgba(5, 150, 105, 0.4);
+  /* --- سبز/قرمز/نارنجی به سبک iOS --- */
+  --color-buy: #1ca64c;
+  --color-buy-bg: rgba(52, 199, 89, 0.12);
+  --color-buy-border: rgba(52, 199, 89, 0.35);
 
-  --color-sell: #dc2626;
-  --color-sell-bg: rgba(220, 38, 38, 0.14);
-  --color-sell-border: rgba(220, 38, 38, 0.4);
+  --color-sell: #ff3b30;
+  --color-sell-bg: rgba(255, 59, 48, 0.1);
+  --color-sell-border: rgba(255, 59, 48, 0.32);
 
-  --color-warn: #f0b429;
-  --color-warn-bg: rgba(240, 180, 41, 0.14);
+  --color-warn: #ff9500;
+  --color-warn-bg: rgba(255, 149, 0, 0.12);
 
-  --color-info: #3b82f6;
+  --color-info: #0071e3;
+  --color-info-bg: rgba(0, 113, 227, 0.1);
 
-  --radius-lg: 18px;
-  --radius-md: 14px;
-  --radius-sm: 10px;
+  /* --- شعاع گوشه --- */
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+  --radius-pill: 999px;
 
-  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.25);
+  /* --- سایه‌های نرم اپلی (چندلایه، خیلی محو) --- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 10px 28px rgba(0, 0, 0, 0.055);
+  --shadow-card-hover: 0 2px 6px rgba(0, 0, 0, 0.05), 0 16px 36px rgba(0, 0, 0, 0.08);
+  --shadow-hero: 0 2px 6px rgba(0, 64, 201, 0.16), 0 20px 44px rgba(0, 113, 227, 0.24);
+  --shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.1);
 
-  --font-fa: "Vazirmatn", "Segoe UI", sans-serif;
-  --font-num: "Inter", "Vazirmatn", sans-serif;
+  /* --- تایپوگرافی --- */
+  --font-fa: "Vazirmatn", "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-num: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Inter", "Vazirmatn", sans-serif;
+
+  /* --- ایزینگ حرکت به سبک iOS (spring-like ease-out) --- */
+  --ease-ios: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-ios-in: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -56,6 +85,7 @@ body {
   color: var(--color-text);
   direction: rtl;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .num {
@@ -69,7 +99,7 @@ body {
   max-width: 520px;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(40px + env(safe-area-inset-bottom));
   padding-top: calc(16px + env(safe-area-inset-top));
   display: flex;
   flex-direction: column;
@@ -89,33 +119,37 @@ body {
   font-size: 17px;
   margin: 0;
   font-weight: 700;
+  letter-spacing: -0.01em;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .header-icon {
-  color: var(--color-primary-light);
+  color: var(--color-primary);
   display: flex;
 }
 
 .back-btn {
   background: var(--color-card);
   border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
+  color: var(--color-text);
   font-size: 14px;
   cursor: pointer;
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.15s var(--ease-ios), background 0.15s ease;
 }
 
 .back-btn:active {
   background: var(--color-card-hover);
+  transform: scale(0.92);
 }
 
 .header-spacer {
@@ -129,16 +163,18 @@ body {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 18px;
+  box-shadow: var(--shadow-card);
 }
 
 .card-tappable {
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.18s var(--ease-ios), box-shadow 0.18s var(--ease-ios), background 0.15s ease;
 }
 
 .card-tappable:active {
+  transform: scale(0.985);
   background: var(--color-card-hover);
-  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-xs);
 }
 
 /* --- لوگو / برند --- */
@@ -153,19 +189,26 @@ body {
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 6px 16px rgba(30, 58, 95, 0.4);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.brand-hero .logo-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .brand-hero .titles h1 {
   margin: 0;
   font-size: 17px;
   font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .brand-hero .titles .subtitle {
@@ -174,7 +217,213 @@ body {
   margin-top: 2px;
 }
 
-/* --- کاشی منوی خرید/فروش --- */
+/* =====================================================================
+   کارت اصلی موجودی/نرخ در Home — کارت ترکیبی («Hero Card»)
+   نیمهٔ بالا: گرادیانت آبی اپلی با لوگو + نرخ لحظه‌یی
+   نیمهٔ پایین: پنل شیشه‌یی سفید با دو دکمهٔ Pill خرید/فروش (مثل Send/Receive)
+   ===================================================================== */
+.hero-card {
+  position: relative;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-hero);
+  background: var(--gradient-primary);
+}
+
+.hero-card .hero-top {
+  position: relative;
+  padding: 20px 20px 54px;
+  color: #fff;
+  overflow: hidden;
+}
+
+.hero-card .hero-top::before {
+  content: "";
+  position: absolute;
+  inset: -40% -20% auto auto;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 70%);
+  pointer-events: none;
+}
+
+.hero-card .hero-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-card .hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.hero-card .hero-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.hero-card .hero-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-card .hero-brand-name {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.hero-card .live-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-pill);
+  padding: 5px 11px 5px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.hero-card .live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34ffa0;
+  box-shadow: 0 0 0 3px rgba(52, 255, 160, 0.25);
+  animation: pulse-dot 1.8s ease infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.hero-card .hero-rate-label {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  opacity: 0.82;
+  margin-top: 18px;
+  font-weight: 500;
+}
+
+.hero-card .hero-rate-value {
+  position: relative;
+  z-index: 1;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.hero-card .hero-rate-value .unit {
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.hero-card .hero-chip-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.hero-card .hero-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-pill);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hero-card .hero-dock {
+  position: relative;
+  margin: -34px 8px 8px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-lg);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  box-shadow: 0 12px 28px rgba(0, 30, 80, 0.14);
+}
+
+.hero-card .hero-dock-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  transition: transform 0.15s var(--ease-ios), filter 0.15s ease;
+}
+
+.hero-card .hero-dock-btn:active {
+  transform: scale(0.96);
+}
+
+.hero-card .hero-dock-btn.buy {
+  background: var(--color-buy);
+  color: #fff;
+}
+
+.hero-card .hero-dock-btn.sell {
+  background: #1d1d1f;
+  color: #fff;
+}
+
+.hero-card .hero-dock-btn .dock-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- کاشی منوی خرید/فروش (fallback / صفحات دیگر) --- */
 .menu-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -183,7 +432,7 @@ body {
 
 .menu-tile {
   background: var(--color-card);
-  border: 1.5px solid var(--color-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 20px 14px;
   text-align: center;
@@ -192,28 +441,14 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s var(--ease-ios), box-shadow 0.15s var(--ease-ios);
   min-height: 44px;
 }
 
 .menu-tile:active {
   transform: scale(0.97);
-}
-
-.menu-tile.buy {
-  border-color: var(--color-buy-border);
-}
-
-.menu-tile.buy:active {
-  background: var(--color-buy-bg);
-}
-
-.menu-tile.sell {
-  border-color: var(--color-sell-border);
-}
-
-.menu-tile.sell:active {
-  background: var(--color-sell-bg);
+  box-shadow: var(--shadow-xs);
 }
 
 .menu-tile .tile-icon {
@@ -257,7 +492,7 @@ body {
   height: 40px;
   border-radius: 12px;
   background: var(--color-bg-elevated);
-  color: var(--color-primary-light);
+  color: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -294,7 +529,8 @@ body {
 }
 
 .stat-box {
-  background: var(--color-bg-elevated);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 14px;
   text-align: center;
@@ -302,10 +538,11 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  box-shadow: var(--shadow-card);
 }
 
 .stat-box .stat-icon {
-  color: var(--color-buy);
+  color: var(--color-primary);
 }
 
 .stat-box .stat-value {
@@ -334,7 +571,7 @@ body {
 }
 
 .trust-item .trust-icon {
-  color: var(--color-buy);
+  color: var(--color-primary);
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -363,14 +600,14 @@ select.input,
 textarea.input {
   width: 100%;
   background: var(--color-bg-elevated);
-  border: 1.5px solid var(--color-border);
+  border: 1.5px solid transparent;
   border-radius: var(--radius-sm);
   padding: 13px 14px;
   color: var(--color-text);
   font-size: 15px;
   font-family: inherit;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .input.num {
@@ -378,7 +615,9 @@ textarea.input {
 }
 
 .input:focus {
-  border-color: var(--color-primary-light);
+  border-color: var(--color-primary);
+  background: var(--color-card);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
 }
 
 .input.input-error {
@@ -398,11 +637,41 @@ textarea.input {
   gap: 5px;
 }
 
-/* --- دکمه‌ها --- */
+/* --- ورودی مبلغ با نشان تتر (Buy/Sell) --- */
+.amount-field {
+  position: relative;
+}
+
+.amount-field .input {
+  padding-left: 52px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.amount-field .amount-badge {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  pointer-events: none;
+}
+
+.amount-field .amount-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* --- دکمه‌ها (Pill به سبک iOS) --- */
 .btn {
   width: 100%;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   padding: 15px;
   font-size: 15px;
   font-weight: 700;
@@ -413,31 +682,34 @@ textarea.input {
   justify-content: center;
   gap: 8px;
   min-height: 44px;
-  transition: transform 0.1s ease, opacity 0.15s ease;
+  transition: transform 0.12s var(--ease-ios), opacity 0.15s ease, filter 0.15s ease;
 }
 
 .btn:active:not(:disabled) {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
+  box-shadow: 0 8px 20px rgba(0, 113, 227, 0.28);
 }
 
 .btn-buy {
   background: var(--color-buy);
   color: #fff;
+  box-shadow: 0 8px 20px rgba(28, 166, 76, 0.26);
 }
 
 .btn-sell {
-  background: var(--color-sell);
+  background: #1d1d1f;
   color: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 
 .btn-secondary {
@@ -448,7 +720,7 @@ textarea.input {
 
 .btn-outline {
   background: transparent;
-  border: 1.5px solid var(--color-border);
+  border: 1.5px solid var(--color-border-strong);
   color: var(--color-text);
 }
 
@@ -456,11 +728,11 @@ textarea.input {
   width: auto;
   padding: 8px 14px;
   font-size: 12.5px;
-  border-radius: 9px;
+  border-radius: var(--radius-pill);
   min-height: 32px;
 }
 
-/* --- انتخاب‌های چندگزینه‌یی --- */
+/* --- انتخاب‌های چندگزینه‌یی (Segmented / Chip) --- */
 .choice-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -486,7 +758,7 @@ textarea.input {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s var(--ease-ios);
 }
 
 .choice-btn:active {
@@ -494,9 +766,9 @@ textarea.input {
 }
 
 .choice-btn.selected {
-  border-color: var(--color-primary-light);
-  background: rgba(44, 82, 127, 0.22);
-  color: #fff;
+  border-color: var(--color-primary);
+  background: var(--color-info-bg);
+  color: var(--color-primary);
 }
 
 /* --- کارت نرخ/قیمت --- */
@@ -526,7 +798,7 @@ textarea.input {
   justify-content: space-between;
   align-items: baseline;
   padding-top: 10px;
-  border-top: 1px dashed var(--color-border);
+  border-top: 1px dashed var(--color-border-strong);
 }
 
 .quote-total .label {
@@ -544,7 +816,7 @@ textarea.input {
 }
 
 .quote-total.sell .amount {
-  color: var(--color-buy);
+  color: var(--color-primary);
 }
 
 /* --- یادداشت‌ها --- */
@@ -563,7 +835,7 @@ textarea.input {
 }
 
 .notice.warn {
-  color: #f0b429;
+  color: #b8720a;
 }
 
 .notice.error {
@@ -580,13 +852,13 @@ textarea.input {
 .stepper .dot {
   flex: 1;
   height: 4px;
-  border-radius: 4px;
-  background: var(--color-border);
-  transition: background 0.2s ease;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-strong);
+  transition: background 0.25s ease;
 }
 
 .stepper .dot.active {
-  background: var(--color-primary-light);
+  background: var(--color-primary);
 }
 
 /* --- جعبهٔ اطلاعات (بانک/ولت) --- */
@@ -626,7 +898,7 @@ textarea.input {
 }
 
 .copy-btn {
-  background: var(--color-bg);
+  background: var(--color-card);
   color: var(--color-text-muted);
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -637,11 +909,17 @@ textarea.input {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
+  transition: transform 0.12s var(--ease-ios);
+}
+
+.copy-btn:active {
+  transform: scale(0.9);
 }
 
 .copy-btn.copied {
   color: var(--color-buy);
   border-color: var(--color-buy-border);
+  background: var(--color-buy-bg);
 }
 
 /* --- آپلود فایل --- */
@@ -658,6 +936,7 @@ textarea.input {
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .upload-box.has-file {
@@ -683,6 +962,7 @@ textarea.input {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-shadow: var(--shadow-card);
 }
 
 .order-card .top-row {
@@ -704,7 +984,7 @@ textarea.input {
 }
 
 .order-card .type-badge.sell {
-  color: var(--color-sell);
+  color: var(--color-primary);
 }
 
 .order-code {
@@ -718,7 +998,7 @@ textarea.input {
 .status-badge {
   font-size: 11px;
   padding: 5px 11px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -727,11 +1007,11 @@ textarea.input {
 
 .status-pending {
   background: var(--color-warn-bg);
-  color: var(--color-warn);
+  color: #b8720a;
 }
 
 .status-confirmed {
-  background: rgba(59, 130, 246, 0.14);
+  background: var(--color-info-bg);
   color: var(--color-info);
 }
 
@@ -756,11 +1036,22 @@ textarea.input {
 .order-card .amount-row .usdt-amount {
   font-weight: 700;
   font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .order-card .amount-row .afn-amount {
   font-size: 12.5px;
   color: var(--color-text-muted);
+}
+
+.tether-badge {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 /* --- Timeline وضعیت سفارش --- */
@@ -807,7 +1098,7 @@ textarea.input {
 .timeline-step.current .tl-dot {
   background: var(--color-warn-bg);
   border-color: var(--color-warn);
-  color: var(--color-warn);
+  color: #b8720a;
 }
 
 .timeline-step.cancelled .tl-dot {
@@ -861,6 +1152,11 @@ textarea.input {
   padding: 4px;
   color: var(--color-border-strong);
   display: flex;
+  transition: transform 0.12s var(--ease-ios);
+}
+
+.rating-star-btn:active {
+  transform: scale(0.85);
 }
 
 .rating-star-btn.filled {
@@ -902,6 +1198,18 @@ textarea.input {
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: pop-in 0.4s var(--ease-ios) both;
+}
+
+@keyframes pop-in {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .success-screen .code {
@@ -911,17 +1219,12 @@ textarea.input {
   direction: ltr;
   background: var(--color-bg-elevated);
   padding: 6px 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
 }
 
 /* --- اسکلتون لودینگ --- */
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--color-bg-elevated) 25%,
-    var(--color-card-hover) 37%,
-    var(--color-bg-elevated) 63%
-  );
+  background: linear-gradient(90deg, var(--color-bg-elevated) 25%, #ffffff 37%, var(--color-bg-elevated) 63%);
   background-size: 400% 100%;
   animation: skeleton-loading 1.4s ease infinite;
   border-radius: var(--radius-md);
@@ -945,7 +1248,7 @@ textarea.input {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2.5px solid rgba(255, 255, 255, 0.25);
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   animation: spin 0.7s linear infinite;
   flex-shrink: 0;
@@ -957,45 +1260,49 @@ textarea.input {
   }
 }
 
-/* --- توست خطا --- */
+/* --- توست خطا (شیشه‌یی روشن) --- */
 .toast {
   position: fixed;
   bottom: calc(20px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
-  background: #2a1414;
-  border: 1px solid var(--color-sell-border);
-  color: #fecaca;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: #b3261e;
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-size: 13.5px;
   max-width: 90%;
   display: flex;
   align-items: center;
   gap: 8px;
   z-index: 50;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-floating);
 }
 
-/* --- انیمیشن ورود ملایم --- */
+/* --- انیمیشن ورود ملایم (سبک iOS) --- */
 @keyframes fade-slide-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px) scale(0.99);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .animate-in {
-  animation: fade-slide-in 0.28s ease both;
+  animation: fade-slide-in 0.42s var(--ease-ios) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-in,
-  .skeleton {
+  .skeleton,
+  .live-dot,
+  .success-icon {
     animation: none !important;
   }
 }
@@ -1015,4 +1322,28 @@ textarea.input {
 
 .terms-content h3:first-child {
   margin-top: 0;
+}
+
+/* --- صفحهٔ بیرون از تلگرام --- */
+.outside-telegram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  margin-top: 80px;
+}
+
+.outside-telegram .logo-badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.outside-telegram .logo-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
