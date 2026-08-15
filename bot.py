@@ -6,10 +6,20 @@
 
 متغیرهای محیطی لازم در فایل .env (بر اساس .env.example) تنظیم شوند.
 """
+import asyncio
 import logging
+from datetime import datetime, timezone
 
 from telegram import Update
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    TypeHandler,
+    filters,
+)
 from config import (
     BOT_TOKEN,
     FETCH_INTERVAL_MINUTES,
@@ -19,12 +29,46 @@ from config import (
 from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_SILVER, BTN_CRYPTO, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT
 from handlers import start, currency, gold, silver, crypto, compare, admin, converter, usdt, kyc
 from jobs import fetch_and_store_snapshot, fetch_and_store_local_market, check_and_post_facebook_update
+from services import supabase_service
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+
+async def touch_last_seen(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    آخرین بازدید کاربر را روی هر نوع تعامل با ربات به‌روز می‌کند — نه فقط /start.
+
+    قبلاً last_seen_at فقط داخل db.upsert_user (که تنها در handlers/start.py صدا
+    زده می‌شد) به‌روز می‌شد؛ یعنی کاربری که فقط روی دکمه‌های نرخ ارز/طلا/تتر کلیک
+    می‌کرد ولی /start نمی‌زد، در آمار «آنلاین» / «فعال امروز» دیده نمی‌شد.
+
+    این هندلر با group=-1 روی همهٔ آپدیت‌ها (پیام، callback، عکس، مخاطب و...)
+    اجرا می‌شود و قبل از هندلرهای معمولی (group=0) کار می‌کند، بدون این‌که جلوی
+    اجرای آن‌ها را بگیرد. برای این‌که یک کلیک ساده باعث کندی پاسخ ربات نشود،
+    کوئری Supabase (که sync است) داخل یک ترد جدا و به‌صورت fire-and-forget
+    زمان‌بندی می‌شود؛ اگر خطا بخورد فقط لاگ می‌شود و به کاربر چیزی نشان داده
+    نمی‌شود.
+    """
+    user = update.effective_user
+    if user is None:
+        return
+
+    def _update_last_seen() -> None:
+        try:
+            supabase_service.get_client().table("users").update(
+                {
+                    "last_seen_at": datetime.now(timezone.utc).isoformat(),
+                    "is_active": True,
+                }
+            ).eq("chat_id", user.id).execute()
+        except Exception:
+            logger.exception("خطا در به‌روزرسانی last_seen_at")
+
+    context.application.create_task(asyncio.to_thread(_update_last_seen))
 
 
 async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -100,6 +144,11 @@ def build_application() -> Application:
         raise RuntimeError("BOT_TOKEN تنظیم نشده است. آن را در .env قرار دهید.")
 
     app = Application.builder().token(BOT_TOKEN).build()
+
+    # group=-1 یعنی قبل از همهٔ هندلرهای دیگر (که در group=0 پیش‌فرض ثبت
+    # می‌شوند) اجرا می‌شود، اما چون ApplicationHandlerStop پرتاب نمی‌کند،
+    # جلوی اجرای بقیهٔ هندلرها را نمی‌گیرد — روی همهٔ انواع Update کار می‌کند.
+    app.add_handler(TypeHandler(Update, touch_last_seen), group=-1)
 
     app.add_handler(CommandHandler("start", start.start))
     app.add_handler(CommandHandler("about", start.about))
