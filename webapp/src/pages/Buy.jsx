@@ -276,9 +276,15 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
       {step === "receipt" && (
         <div className="card animate-in">
           <div className="info-box" style={{ marginBottom: 16 }}>
-            <CopyRow label="بانک" value="Azizi Bank" />
-            <CopyRow label="صاحب حساب" value="SAJAD ALI MOHAMMADI" />
-            <CopyRow label="شماره حساب" value="000601102302066" />
+            {paymentInfo ? (
+              <>
+                <CopyRow label="بانک" value={paymentInfo.bank_name} />
+                <CopyRow label="صاحب حساب" value={paymentInfo.bank_account_holder} />
+                <CopyRow label="شماره حساب" value={paymentInfo.bank_account_number} />
+              </>
+            ) : (
+              <div className="skeleton skeleton-order-card" style={{ height: 76 }} />
+            )}
           </div>
           <label className="field-label">پس از واریز، عکس رسید بانکی را بارگذاری کنید</label>
           <label className={`upload-box ${receiptUrl ? "has-file" : ""}`}>

@@ -22,6 +22,8 @@ from config import (
 # --- دکمه‌های منوی اصلی ---
 BTN_CURRENCY = "💵 نرخ ارزها"
 BTN_GOLD = "🥇 نرخ طلا"
+BTN_SILVER = "🥈 نرخ نقره"
+BTN_CRYPTO = "🪙 نرخ رمزارزها"
 BTN_COMPARE = "📊 مقایسه با گذشته"
 BTN_CONVERTER = "🔄 مبدل ارز جهانی"
 BTN_USDT = "🥇 USDT - تتر"
@@ -37,6 +39,7 @@ def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [
             [BTN_CURRENCY, BTN_GOLD],
+            [BTN_SILVER, BTN_CRYPTO],
             [BTN_COMPARE, BTN_CONVERTER],
             [BTN_USDT],
             [BTN_ABOUT],
@@ -102,6 +105,20 @@ def gold_calc_karat_keyboard(mode: str) -> InlineKeyboardMarkup:
         for k in GOLD_KARATS
     ]
     return InlineKeyboardMarkup(rows)
+
+
+# ---------------------------------------------------------------------------
+# نرخ نقره
+# ---------------------------------------------------------------------------
+def silver_calc_mode_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🟢 خرید نقره", callback_data="silvercalc_mode:buy"),
+                InlineKeyboardButton("🔴 فروش نقره", callback_data="silvercalc_mode:sell"),
+            ]
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -199,12 +216,30 @@ def usdt_menu_keyboard() -> InlineKeyboardMarkup:
                 )
             ]
         )
-    rows.append(
-        [
-            InlineKeyboardButton("🟢 خرید تتر", callback_data="usdt_action:buy"),
-            InlineKeyboardButton("🔴 فروش تتر", callback_data="usdt_action:sell"),
-        ]
-    )
+        # دکمه‌های خرید/فروش هم مستقیم به همان صفحهٔ خرید/فروش مینی‌اپ باز می‌شوند
+        # (نه جریان گفتگویی قدیمی) — با یک پارامتر URL که مینی‌اپ در بارگذاری اول
+        # می‌خواند و مستقیم همان صفحه را باز می‌کند.
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    "🟢 خرید تتر",
+                    web_app=WebAppInfo(url=f"{MINI_APP_URL.rstrip('/')}/miniapp/?action=buy"),
+                ),
+                InlineKeyboardButton(
+                    "🔴 فروش تتر",
+                    web_app=WebAppInfo(url=f"{MINI_APP_URL.rstrip('/')}/miniapp/?action=sell"),
+                ),
+            ]
+        )
+    else:
+        # نبود MINI_APP_URL یعنی مینی‌اپ روی این استقرار فعال نیست — جریان
+        # گفتگویی قدیمی داخل خود ربات به‌عنوان تنها مسیر باقی می‌ماند.
+        rows.append(
+            [
+                InlineKeyboardButton("🟢 خرید تتر", callback_data="usdt_action:buy"),
+                InlineKeyboardButton("🔴 فروش تتر", callback_data="usdt_action:sell"),
+            ]
+        )
     return InlineKeyboardMarkup(rows)
 
 

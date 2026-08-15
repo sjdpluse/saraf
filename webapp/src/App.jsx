@@ -21,6 +21,14 @@ export default function App() {
 
   useEffect(() => {
     initTelegram();
+    // اگر ربات با دکمهٔ «خرید تتر»/«فروش تتر» کاربر را مستقیم به این‌جا
+    // فرستاده باشد (?action=buy یا ?action=sell)، همان صفحه بلافاصله باز
+    // می‌شود — دیگر نیازی نیست کاربر از صفحهٔ اصلی مینی‌اپ دوباره انتخاب کند.
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get("action");
+    if (action === "buy" || action === "sell") {
+      setPage(action);
+    }
   }, []);
 
   function navigate(p) {

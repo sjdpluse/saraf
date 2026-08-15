@@ -89,6 +89,12 @@ GOLD_KARATS = {24: 1.0, 22: 22 / 24, 21: 21 / 24, 18: 18 / 24}
 GOLD_MAKING_CHARGE_PERCENT = float(os.getenv("GOLD_MAKING_CHARGE_PERCENT", "5"))
 GOLD_SELL_DEDUCTION_PERCENT = float(os.getenv("GOLD_SELL_DEDUCTION_PERCENT", "2"))
 
+# --- ماشین‌حساب خرید و فروش نقره (خالص/۹۹۹ — رایج‌ترین شکل عرضهٔ جهانی نقره؛
+# برخلاف طلا، دادهٔ معتبری از عیارهای رایج نقره در بازار محلی افغانستان در
+# دسترس نبود، پس فقط همین یک عیار نمایش داده می‌شود) ---
+SILVER_MAKING_CHARGE_PERCENT = float(os.getenv("SILVER_MAKING_CHARGE_PERCENT", "5"))
+SILVER_SELL_DEDUCTION_PERCENT = float(os.getenv("SILVER_SELL_DEDUCTION_PERCENT", "2"))
+
 # --- فیسبوک (پست خودکار نرخ‌ها هنگام تغییر محسوس) ---
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "")
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "")
@@ -142,7 +148,10 @@ USDT_DEPOSIT_WALLETS = {
 USDT_EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"]
 
 # --- اطلاعات پرداخت بانکی (برای خرید تتر به‌صورت آنلاین) ---
-BANK_NAME = "عزیز بانک (Azizi Bank)"
+# منبع واحد برای هم ربات چت (handlers/usdt.py) و هم مینی‌اپ (از طریق
+# GET /api/usdt/payment-info در api.py) — قبلاً مینی‌اپ این مقادیر را جدا و
+# hardcode شده در JSX داشت که با تغییر این‌جا هماهنگ نمی‌شد.
+BANK_NAME = os.getenv("BANK_NAME", "عزیز بانک (Azizi Bank)")
 BANK_ACCOUNT_NUMBER = os.getenv("BANK_ACCOUNT_NUMBER", "000601102302066")
 BANK_ACCOUNT_HOLDER = os.getenv("BANK_ACCOUNT_HOLDER", "SAJAD ALI MOHAMMADI")
 

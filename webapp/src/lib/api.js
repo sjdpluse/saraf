@@ -96,6 +96,7 @@ export const api = {
 
   getMyOrders: () => request("/usdt/orders/me"),
   getStats: () => request("/usdt/stats"),
+  getPaymentInfo: () => request("/usdt/payment-info"),
 
   rateOrder: (orderId, rating, comment) =>
     request(`/usdt/orders/${orderId}/rate`, { method: "POST", body: { rating, comment } }),

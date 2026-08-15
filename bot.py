@@ -16,8 +16,8 @@ from config import (
     LOCAL_MARKET_FETCH_INTERVAL_MINUTES,
     FACEBOOK_CHECK_INTERVAL_MINUTES,
 )
-from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT
-from handlers import start, currency, gold, compare, admin, converter, usdt, kyc
+from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_SILVER, BTN_CRYPTO, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT
+from handlers import start, currency, gold, silver, crypto, compare, admin, converter, usdt, kyc
 from jobs import fetch_and_store_snapshot, fetch_and_store_local_market, check_and_post_facebook_update
 
 logging.basicConfig(
@@ -39,6 +39,8 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     if await gold.handle_gold_grams_input(update, context):
+        return
+    if await silver.handle_silver_grams_input(update, context):
         return
     if await currency.handle_currency_calc_input(update, context):
         return
@@ -62,6 +64,10 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await currency.currency_menu(update, context)
     elif text == BTN_GOLD:
         await gold.gold_menu(update, context)
+    elif text == BTN_SILVER:
+        await silver.silver_menu(update, context)
+    elif text == BTN_CRYPTO:
+        await crypto.crypto_menu(update, context)
     elif text == BTN_COMPARE:
         await compare.compare_menu(update, context)
     elif text == BTN_CONVERTER:
@@ -115,6 +121,7 @@ def build_application() -> Application:
     app.add_handler(CallbackQueryHandler(gold.gold_callback, pattern=r"^gold:"))
     app.add_handler(CallbackQueryHandler(gold.gold_calc_mode_callback, pattern=r"^goldcalc_mode:"))
     app.add_handler(CallbackQueryHandler(gold.gold_calc_karat_callback, pattern=r"^goldcalc_karat:"))
+    app.add_handler(CallbackQueryHandler(silver.silver_calc_mode_callback, pattern=r"^silvercalc_mode:"))
     app.add_handler(CallbackQueryHandler(compare.compare_target_callback, pattern=r"^cmp_target:"))
     app.add_handler(CallbackQueryHandler(compare.compare_period_callback, pattern=r"^cmp_period:"))
     app.add_handler(CallbackQueryHandler(converter.converter_from_callback, pattern=r"^convfrom:"))

@@ -27,7 +27,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from services.api_errors import ApiError
-from config import BOT_TOKEN, TRACKED_CURRENCIES, GOLD_KARATS, USDT_IDENTITY_VERIFICATION_THRESHOLD_USD
+from config import (
+    BOT_TOKEN,
+    TRACKED_CURRENCIES,
+    GOLD_KARATS,
+    USDT_IDENTITY_VERIFICATION_THRESHOLD_USD,
+    BANK_NAME,
+    BANK_ACCOUNT_HOLDER,
+    BANK_ACCOUNT_NUMBER,
+)
 from services import (
     currency_service,
     converter_service,
@@ -633,6 +641,21 @@ async def get_my_usdt_orders(user: dict = Depends(_authenticate)):
 async def get_usdt_stats():
     """آمار عمومی اعتمادساز (تعداد معاملات تکمیل‌شده، میانگین امتیاز) — بدون نیاز به احراز هویت."""
     return db.get_usdt_stats()
+
+
+@app.get("/api/usdt/payment-info")
+async def get_usdt_payment_info():
+    """
+    اطلاعات حساب بانکی برای پرداخت آنلاین خرید تتر — بدون نیاز به احراز هویت
+    (همان اطلاعاتی که ربات چت هم به هر کاربری نشان می‌دهد، پس چیز حساسی
+    نیست). منبع واحد config.py است — قبلاً مینی‌اپ نسخهٔ جدا و hardcode‌شدهٔ
+    خودش را داشت که با تغییر متغیرهای محیطی هماهنگ نمی‌شد.
+    """
+    return {
+        "bank_name": BANK_NAME,
+        "bank_account_holder": BANK_ACCOUNT_HOLDER,
+        "bank_account_number": BANK_ACCOUNT_NUMBER,
+    }
 
 
 class UsdtRatingRequest(BaseModel):
