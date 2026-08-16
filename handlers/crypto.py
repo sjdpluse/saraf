@@ -24,10 +24,13 @@ def _format_usd(price: float) -> str:
 async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     thinking_msg = await update.message.reply_text("در حال دریافت نرخ رمزارزها... ⏳")
     try:
-        prices = await crypto_service.get_crypto_prices_usd()
-    except Exception as exc:
+        prices, source = await crypto_service.get_crypto_prices_usd()
+    except Exception:
         logger.exception("خطا در دریافت نرخ رمزارزها")
-        await thinking_msg.edit_text(f"⚠️ خطا در دریافت نرخ رمزارزها: {exc}")
+        await thinking_msg.edit_text(
+            "⚠️ در حال حاضر امکان دریافت نرخ رمزارزها نیست.\n"
+            "لطفاً چند لحظه دیگر دوباره تلاش کنید."
+        )
         return
 
     afn_per_usd = None
@@ -51,5 +54,7 @@ async def crypto_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         lines.append(line)
 
     lines.append(DIVIDER)
+    if source == "cache-stale":
+        lines.append("ℹ️ منابع لحظه‌یی موقتاً در دسترس نیستند؛ آخرین نرخ ثبت‌شده نمایش داده شد.")
     text = "\n".join(lines)
     await thinking_msg.edit_text(text, parse_mode="Markdown")
