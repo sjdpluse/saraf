@@ -2,9 +2,9 @@
 سرویس ارسال خودکار پست به صفحهٔ فیسبوک.
 
 از نسخهٔ فعلی به بعد، ربات به‌جای پست متنی ساده، یک تصویر ۱۰۸۰×۱۰۸۰ حرفه‌یی
-(طراحی‌شده در post_image_service با داده‌های لحظه‌یی نرخ دالر و طلا) به همراه یک
-کپشن کامل (شامل نرخ همهٔ ارزها، تفکیک کامل عیارهای طلا، لینک ربات و هشتگ‌ها) در
-صفحهٔ فیسبوک منتشر می‌کند.
+(طراحی‌شده در post_image_service با داده‌های لحظه‌یی نرخ دالر، طلا و نقره) به همراه
+یک کپشن کامل (شامل نرخ همهٔ ارزها، تفکیک کامل عیارهای طلا، نرخ نقره، لینک ربات و
+هشتگ‌ها) در صفحهٔ فیسبوک منتشر می‌کند.
 
 بخش نرخ ارزهای کپشن دقیقاً همان قالبی را دارد که در ربات تلگرام («نمایش همهٔ
 نرخ‌ها») نمایش داده می‌شود: برای هر ارز یک بلوکِ جداگانه شامل نرخ سرای شهزاده،
@@ -72,7 +72,7 @@ def _primary_sell(quote: dict) -> Optional[float]:
     return saraf["sell"] if saraf else None
 
 
-def _build_current_state(quotes: dict, gold_breakdown: Optional[dict]) -> dict:
+def _build_current_state(quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None) -> dict:
     state = {}
     for code, quote in quotes.items():
         rate = _primary_rate(quote)
@@ -80,6 +80,8 @@ def _build_current_state(quotes: dict, gold_breakdown: Optional[dict]) -> dict:
             state[code] = rate
     if gold_breakdown:
         state["gold_24k"] = gold_breakdown["karats"][24]["afn_per_gram"]
+    if silver_breakdown:
+        state["silver"] = silver_breakdown["afn_per_gram"]
     return state
 
 
@@ -137,9 +139,9 @@ def _build_currency_block(code: str, name: str, quote: dict) -> str:
     return "\n".join(lines)
 
 
-def _build_caption(quotes: dict, gold_breakdown: Optional[dict]) -> str:
+def _build_caption(quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None) -> str:
     """کپشن کامل پست فیسبوک: نرخ همهٔ ارزها (به‌سبک نمایش تلگرام) + تفکیک کامل
-    طلا + لینک ربات + هشتگ‌ها."""
+    طلا + نرخ نقره + لینک ربات + هشتگ‌ها."""
     date_str = get_afghan_datetime_str()
     lines = [
         "💵 (Saraf) نرخ ارزهای خارجی در برابر پول افغانی امروز — صراف",
@@ -168,6 +170,19 @@ def _build_caption(quotes: dict, gold_breakdown: Optional[dict]) -> str:
                 f"({vals['usd_per_gram']:,.2f}$) به ازای هر گرم — "
                 f"مثقال: {vals['afn_per_methqal']:,.0f} افغانی"
             )
+
+    if silver_breakdown:
+        lines.append("")
+        lines.append("🥈 نرخ لحظه‌یی نقره (خالص/۹۹۹)")
+        lines.append("")
+        lines.append(
+            f"قیمت جهانی: {silver_breakdown['price_usd_per_oz']:,.2f} دالر برای هر اونس تروی"
+        )
+        lines.append(
+            f"▫️ {silver_breakdown['afn_per_gram']:,.0f} افغانی "
+            f"({silver_breakdown['usd_per_gram']:,.2f}$) به ازای هر گرم — "
+            f"مثقال: {silver_breakdown['afn_per_methqal']:,.0f} افغانی"
+        )
 
     lines.append("")
     lines.append("🚀 نمایش همهٔ نرخ‌ها، مبدل ارز جهانی و ماشین‌حساب طلا، کاملاً رایگان و لحظه‌یی؛")
@@ -204,15 +219,17 @@ async def _post_photo_to_page(image_bytes: bytes, caption: str) -> bool:
         return False
 
 
-async def check_and_maybe_post(quotes: dict, gold_breakdown: Optional[dict]) -> None:
+async def check_and_maybe_post(quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None) -> None:
     """
     gold_breakdown: خروجی کامل gold_service.build_gold_breakdown(...) —
     نه فقط یک عدد، چون هم برای طراحی تصویر و هم برای کپشن (تفکیک همهٔ عیارها) لازم است.
+    silver_breakdown: خروجی کامل silver_service.build_silver_breakdown(...) — اختیاری؛
+        اگر داده نشود، پیل نقرهٔ تصویر خط تیره نمایش می‌دهد و کپشن بخش نقره ندارد.
     """
     if not quotes:
         return
 
-    current_state = _build_current_state(quotes, gold_breakdown)
+    current_state = _build_current_state(quotes, gold_breakdown, silver_breakdown)
     if not current_state:
         return
 
@@ -229,13 +246,13 @@ async def check_and_maybe_post(quotes: dict, gold_breakdown: Optional[dict]) -> 
     try:
         date_str = get_afghan_datetime_str()
         image_bytes = await post_image_service.generate_facebook_post_image(
-            usd_quote, gold_breakdown, date_str
+            usd_quote, gold_breakdown, date_str, silver_breakdown=silver_breakdown
         )
     except Exception:
         logger.exception("خطا در تولید تصویر پست فیسبوک")
         return
 
-    caption = _build_caption(quotes, gold_breakdown)
+    caption = _build_caption(quotes, gold_breakdown, silver_breakdown)
 
     if await _post_photo_to_page(image_bytes, caption):
         db.set_fb_post_state(current_state)

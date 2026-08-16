@@ -228,6 +228,28 @@ def get_usdt_orders_by_chat_id(chat_id: int, limit: int = 50) -> list[dict]:
         return []
 
 
+def upload_public_file(bucket: str, file_bytes: bytes, filename: str, content_type: str) -> Optional[str]:
+    """
+    فایل را در یک باکت **عمومی** Supabase Storage آپلود می‌کند و لینک عمومی دائمی
+    آن را برمی‌گرداند. برخلاف upload_private_file (که برای مدارک KYC/رسیدها به‌کار
+    می‌رود)، اینجا هیچ داده‌ی حساسی وجود ندارد — فقط تصویر پست نرخ ارز که قرار است
+    به‌هرحال به‌صورت عمومی در فیسبوک/اینستاگرام منتشر شود؛ تنها دلیل آپلودش این
+    است که Instagram Graph API (برخلاف فیسبوک) آپلود مستقیم فایل باینری را قبول
+    نمی‌کند و صرفاً یک image_url عمومی می‌پذیرد.
+
+    ⚠️ **نیازمند اقدام دستی در Supabase**: باکت (پیش‌فرض SOCIAL_POSTS_BUCKET =
+    "social-posts") باید public ساخته شود — رجوع کنید به
+    supabase/migrations/20260816_001_instagram_automation.sql
+    """
+    try:
+        storage = get_client().storage.from_(bucket)
+        storage.upload(filename, file_bytes, {"content-type": content_type, "upsert": "true"})
+        return storage.get_public_url(filename)
+    except Exception:
+        logger.exception("خطا در آپلود فایل عمومی به باکت %s", bucket)
+        return None
+
+
 def upload_usdt_receipt(file_bytes: bytes, filename: str, content_type: str) -> Optional[str]:
     """
     رسید/اسکرین‌شات ارسالی از مینی‌اپ را در یک باکت **خصوصی** Supabase Storage
@@ -287,6 +309,40 @@ def set_fb_post_state(state: dict) -> None:
         ).execute()
     except Exception:
         logger.exception("خطا در ذخیرهٔ وضعیت پست فیسبوک")
+
+
+# ---------------------------------------------------------------------------
+# وضعیت آخرین پست اینستاگرام (برای تشخیص تغییر محسوس نرخ) — دقیقاً همان الگوی
+# fb_post_state، فقط در جدول جداگانه چون چرخهٔ پست اینستاگرام مستقل از فیسبوک
+# است (ممکن است threshold یا زمان‌بندی متفاوتی داشته باشند).
+# ---------------------------------------------------------------------------
+def get_ig_post_state() -> dict:
+    try:
+        res = (
+            get_client()
+            .table("ig_post_state")
+            .select("rates")
+            .eq("id", 1)
+            .limit(1)
+            .execute()
+        )
+        if res.data:
+            return res.data[0]["rates"] or {}
+        return {}
+    except Exception:
+        logger.exception("خطا در خواندن وضعیت پست اینستاگرام")
+        return {}
+
+
+def set_ig_post_state(state: dict) -> None:
+    try:
+        get_client().table("ig_post_state").upsert(
+            {"id": 1, "rates": state, "updated_at": datetime.now(timezone.utc).isoformat()},
+            on_conflict="id",
+        ).execute()
+    except Exception:
+        logger.exception("خطا در ذخیرهٔ وضعیت پست اینستاگرام")
+
 
 def deactivate_user(chat_id: int) -> None:
     try:

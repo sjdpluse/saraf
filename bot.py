@@ -25,10 +25,16 @@ from config import (
     FETCH_INTERVAL_MINUTES,
     LOCAL_MARKET_FETCH_INTERVAL_MINUTES,
     FACEBOOK_CHECK_INTERVAL_MINUTES,
+    INSTAGRAM_CHECK_INTERVAL_MINUTES,
 )
 from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_SILVER, BTN_CRYPTO, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT
 from handlers import start, currency, gold, silver, crypto, compare, admin, converter, usdt, kyc
-from jobs import fetch_and_store_snapshot, fetch_and_store_local_market, check_and_post_facebook_update
+from jobs import (
+    fetch_and_store_snapshot,
+    fetch_and_store_local_market,
+    check_and_post_facebook_update,
+    check_and_post_instagram_update,
+)
 from services import supabase_service
 
 logging.basicConfig(
@@ -189,6 +195,7 @@ def build_application() -> Application:
         app.job_queue.run_repeating(fetch_and_store_snapshot, interval=FETCH_INTERVAL_MINUTES * 60, first=10)
         app.job_queue.run_repeating(fetch_and_store_local_market, interval=LOCAL_MARKET_FETCH_INTERVAL_MINUTES * 60, first=20)
         app.job_queue.run_repeating(check_and_post_facebook_update, interval=FACEBOOK_CHECK_INTERVAL_MINUTES * 60, first=90)
+        app.job_queue.run_repeating(check_and_post_instagram_update, interval=INSTAGRAM_CHECK_INTERVAL_MINUTES * 60, first=110)
 
     return app
 

@@ -110,6 +110,29 @@ FACEBOOK_HASHTAGS = os.getenv(
     "#saraf #صراف #سراف #نرخ_اسعار #سرای_شهزاده #نرخ_ارز #طلا #افغانستان #کابل",
 )
 
+# --- اینستاگرام (پست خودکار نرخ‌ها هنگام تغییر محسوس — از همان اپ/توکن فیسبوک) ---
+# اینستاگرام کسب‌وکاری/سازنده باید به همین صفحهٔ فیسبوک بالا وصل باشد؛ توکن هم
+# همان FACEBOOK_PAGE_ACCESS_TOKEN است (Graph API برای هر دو یکی است)، پس چیز
+# جدیدی برای احراز هویت لازم نیست — فقط شناسهٔ اکانت اینستاگرام کسب‌وکاری.
+INSTAGRAM_BUSINESS_ACCOUNT_ID = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID", "")
+# هر چند دقیقه یک‌بار بررسی شود که آیا تغییر محسوس رخ داده یا نه
+INSTAGRAM_CHECK_INTERVAL_MINUTES = int(os.getenv("INSTAGRAM_CHECK_INTERVAL_MINUTES", "30"))
+# حداقل درصد تغییر (نسبت به آخرین پست اینستاگرام) که باعث ارسال پست جدید شود
+INSTAGRAM_CHANGE_THRESHOLD_PERCENT = float(os.getenv("INSTAGRAM_CHANGE_THRESHOLD_PERCENT", "0.5"))
+# هشتگ‌های اینستاگرام (جدا از فیسبوک نگه داشته شده چون سبک هشتگ‌گذاری اینستاگرام
+# معمولاً متفاوت و پرتعدادتر است)
+INSTAGRAM_HASHTAGS = os.getenv(
+    "INSTAGRAM_HASHTAGS",
+    "#saraf #صراف #سراف #نرخ_ارز #نرخ_اسعار #دلار #طلا #نقره #کابل #افغانستان "
+    "#exchangerate #afghanistan #kabul #gold #silver #usdt",
+)
+# باکت عمومی (public) Supabase Storage که تصویر پست موقتاً در آن آپلود می‌شود تا
+# یک لینک عمومی (image_url) برای Instagram Graph API فراهم شود — اینستاگرام
+# برخلاف فیسبوک، آپلود مستقیم فایل باینری را نمی‌پذیرد و صرفاً یک URL عمومی
+# می‌خواهد. باید در Supabase به‌صورت public ساخته شود (راهنما در
+# supabase/migrations و README).
+SOCIAL_POSTS_BUCKET = os.getenv("SOCIAL_POSTS_BUCKET", "social-posts")
+
 # --- لوگوی Saraf (برای جاسازی در تصویر پست فیسبوک) ---
 # در هر بار تولید تصویر پست، این لینک فچ (دانلود) و در طراحی استفاده می‌شود؛
 # در صورت تغییر لوگو در آینده، فقط کافی است این متغیر محیطی به‌روزرسانی شود.

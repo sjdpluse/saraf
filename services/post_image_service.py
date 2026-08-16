@@ -107,7 +107,8 @@ def _fmt2(value: float) -> str:
     return f"{value:,.2f}"
 
 
-def _build_html(quote: dict, gold_breakdown: dict, logo_data_uri: str, date_str: str) -> str:
+def _build_html(quote: dict, gold_breakdown: dict, silver_breakdown: Optional[dict], logo_data_uri: str,
+                 date_str: str) -> str:
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
     local = quote.get("local") or {}
@@ -135,21 +136,32 @@ def _build_html(quote: dict, gold_breakdown: dict, logo_data_uri: str, date_str:
         "__GOLD_AFN__": f"{gold_24k['afn_per_gram']:,.0f} افغانی",
         "__GOLD_USD__": f"{gold_24k['usd_per_gram']:,.2f} دالر",
     }
+    if silver_breakdown:
+        values["__SILVER_AFN__"] = f"{silver_breakdown['afn_per_gram']:,.0f} افغانی"
+        values["__SILVER_USD__"] = f"{silver_breakdown['usd_per_gram']:,.2f} دالر"
+    else:
+        values["__SILVER_AFN__"] = "—"
+        values["__SILVER_USD__"] = ""
     for key, val in values.items():
         template = template.replace(key, val)
     return template
 
 
-async def generate_facebook_post_image(quote: dict, gold_breakdown: dict, date_str: str) -> bytes:
+async def generate_facebook_post_image(
+    quote: dict, gold_breakdown: dict, date_str: str, silver_breakdown: Optional[dict] = None
+) -> bytes:
     """
-    تصویر PNG نهایی پست فیسبوک را می‌سازد و بایت‌های آن را برمی‌گرداند.
+    تصویر PNG نهایی پست شبکه‌های اجتماعی را می‌سازد و بایت‌های آن را برمی‌گرداند.
+    این تصویر عیناً برای فیسبوک و اینستاگرام هر دو استفاده می‌شود (طرح برند یکسان).
 
     quote: خروجی rate_engine.get_full_quote("usd")
     gold_breakdown: خروجی gold_service.build_gold_breakdown(...)
     date_str: رشتهٔ تاریخ/ساعت افغانی (persian_date.get_afghan_datetime_str())
+    silver_breakdown: خروجی silver_service.build_silver_breakdown(...) — اختیاری؛ اگر
+        داده نشود، پیل نقره خط تیره («—») نمایش می‌دهد.
     """
     logo_data_uri = await _get_logo_data_uri()
-    html = _build_html(quote, gold_breakdown, logo_data_uri, date_str)
+    html = _build_html(quote, gold_breakdown, silver_breakdown, logo_data_uri, date_str)
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
