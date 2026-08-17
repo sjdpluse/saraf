@@ -344,6 +344,51 @@ def set_ig_post_state(state: dict) -> None:
         logger.exception("خطا در ذخیرهٔ وضعیت پست اینستاگرام")
 
 
+# ---------------------------------------------------------------------------
+# اتوماسیون کامنت اینستاگرام: idempotency برای وبهوک (متا گاهی همان event را
+# دوباره ارسال می‌کند/retry می‌کند؛ بدون این جدول، همان کامنت دوبار پاسخ AI یا
+# دوبار دایرکت می‌گرفت). comment_id کلید primary است — تلاش دوم برای همان
+# comment_id با خطای unique constraint شکست می‌خورد که یعنی «قبلاً پردازش شده،
+# نادیده بگیر».
+# ---------------------------------------------------------------------------
+def try_claim_ig_comment_event(comment_id: str, media_id: Optional[str], username: Optional[str], text: str) -> bool:
+    """اگر این comment_id برای اولین‌بار است، یک ردیف می‌سازد و True برمی‌گرداند
+    (یعنی «برو پردازشش کن»). اگر قبلاً وجود داشت (تلاش دوم وبهوک)، False
+    برمی‌گرداند (یعنی «نادیده بگیر، قبلاً پردازش شده»)."""
+    try:
+        get_client().table("ig_comment_events").insert(
+            {
+                "comment_id": comment_id,
+                "media_id": media_id,
+                "commenter_username": username,
+                "comment_text": text,
+                "dm_sent": False,
+                "ai_replied": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        ).execute()
+        return True
+    except Exception:
+        # پرشدن unique constroint (comment_id تکراری) هم از همین مسیر می‌گذرد؛
+        # چون معنایش «قبلاً claim شده» است، به‌جای فقط لاگ‌کردن، فرض می‌کنیم
+        # همین دلیل بوده (شایع‌ترین علت) و به آرامی False برمی‌گردانیم.
+        return False
+
+
+def mark_ig_comment_event(comment_id: str, *, dm_sent: Optional[bool] = None, ai_replied: Optional[bool] = None) -> None:
+    updates = {}
+    if dm_sent is not None:
+        updates["dm_sent"] = dm_sent
+    if ai_replied is not None:
+        updates["ai_replied"] = ai_replied
+    if not updates:
+        return
+    try:
+        get_client().table("ig_comment_events").update(updates).eq("comment_id", comment_id).execute()
+    except Exception:
+        logger.exception("خطا در به‌روزرسانی وضعیت رویداد کامنت اینستاگرام %s", comment_id)
+
+
 def deactivate_user(chat_id: int) -> None:
     try:
         get_client().table("users").update({"is_active": False}).eq(
@@ -528,141 +573,6 @@ def get_closest_local_market_rate(
     except Exception:
         logger.exception("خطا در بازیابی نرخ تاریخی بازار محلی")
         return None
-
-
-# ---------------------------------------------------------------------------
-# تاریخچهٔ نرخ نقره
-# ---------------------------------------------------------------------------
-def insert_silver_snapshot(price_usd_per_oz: float, afn_per_gram: float) -> None:
-    now = datetime.now(timezone.utc).isoformat()
-    try:
-        get_client().table("silver_history").insert(
-            {
-                "price_usd_per_oz": price_usd_per_oz,
-                "afn_per_gram": afn_per_gram,
-                "recorded_at": now,
-            }
-        ).execute()
-    except Exception:
-        logger.exception("خطا در ذخیرهٔ تاریخچهٔ نقره")
-
-
-# ---------------------------------------------------------------------------
-# سری‌های زمانی (برای نمودار روند واقعی در پست فیسبوک/اینستاگرام)
-#
-# نکته: این توابع برخلاف get_closest_* بالا، یک «تک عدد» نمی‌گیرند بلکه چند
-# نقطهٔ نمونه‌برداری‌شده در یک بازهٔ زمانی (مثلاً ۷ روز گذشته) برمی‌گردانند تا
-# بشود یک نمودار روند واقعی (spark line) رسم کرد. نمونه‌برداری به‌صورت
-# «روزانه» است (آخرین نرخ ثبت‌شدهٔ هر روز = نرخ بستهٔ آن روز) تا خروجی حداکثر
-# یک نقطه به ازای هر روز باشد و نمودار/برچسب‌های قیمت شلوغ نشوند.
-# ---------------------------------------------------------------------------
-def _downsample_series(values: list[float], max_points: int) -> list[float]:
-    """اگر تعداد نقاط از max_points بیشتر بود، به‌صورت یکنواخت نمونه‌برداری
-    می‌کند (همیشه اولین و آخرین نقطه را نگه می‌دارد) تا نمودار شلوغ نشود."""
-    if len(values) <= max_points:
-        return values
-    if max_points <= 1:
-        return values[-1:]
-    step = (len(values) - 1) / (max_points - 1)
-    indices = sorted({round(i * step) for i in range(max_points)})
-    return [values[i] for i in indices]
-
-
-def _bucket_daily(rows: list[dict], value_fn, max_points: int = 7) -> list[float]:
-    """رکوردهای مرتب‌شدهٔ صعودی بر اساس recorded_at را بر اساس روز تقویمی
-    (UTC) دسته‌بندی می‌کند و برای هر روز، آخرین مقدار ثبت‌شده («نرخ بستهٔ
-    روز») را نگه می‌دارد. خروجی: یک مقدار برای هر روزی که واقعاً داده در آن
-    ثبت شده (ممکن است کمتر از ۷ روز باشد اگر تاریخچه به‌تازگی شروع شده)."""
-    daily: dict = {}
-    for row in rows:
-        raw_ts = row["recorded_at"]
-        ts = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
-        day_key = ts.astimezone(timezone.utc).date()
-        daily[day_key] = value_fn(row)  # صعودی مرتب شده -> آخرین نوشته = آخرین مقدار همان روز
-    ordered_days = sorted(daily.keys())
-    values = [daily[d] for d in ordered_days]
-    return _downsample_series(values, max_points)
-
-
-def get_currency_rate_series(
-    currency: str, since: datetime, max_points: int = 7
-) -> list[float]:
-    """سری روزانهٔ نرخ مرجع جهانی یک ارز از since تا اکنون (یک نقطه به ازای هر روز)."""
-    try:
-        res = (
-            get_client()
-            .table("currency_history")
-            .select("afn_rate, recorded_at")
-            .eq("currency", currency)
-            .gte("recorded_at", since.isoformat())
-            .order("recorded_at", desc=False)
-            .execute()
-        )
-        return _bucket_daily(res.data or [], lambda r: float(r["afn_rate"]), max_points)
-    except Exception:
-        logger.exception("خطا در بازیابی سری تاریخی نرخ ارز")
-        return []
-
-
-def get_local_market_rate_series(
-    market: str, currency: str, since: datetime, max_points: int = 7
-) -> list[float]:
-    """سری روزانهٔ نرخ میانگین (خرید+فروش)/۲ یک ارز در یک بازار محلی."""
-    try:
-        res = (
-            get_client()
-            .table("local_market_history")
-            .select("buy, sell, recorded_at")
-            .eq("market", market)
-            .eq("currency", currency)
-            .gte("recorded_at", since.isoformat())
-            .order("recorded_at", desc=False)
-            .execute()
-        )
-        return _bucket_daily(
-            res.data or [],
-            lambda r: (float(r["buy"]) + float(r["sell"])) / 2,
-            max_points,
-        )
-    except Exception:
-        logger.exception("خطا در بازیابی سری تاریخی بازار محلی")
-        return []
-
-
-def get_gold_rate_series(since: datetime, max_points: int = 7) -> list[float]:
-    """سری روزانهٔ قیمت طلای ۲۴ عیار (افغانی به ازای هر گرم)."""
-    try:
-        res = (
-            get_client()
-            .table("gold_history")
-            .select("afn_per_gram_24k, recorded_at")
-            .gte("recorded_at", since.isoformat())
-            .order("recorded_at", desc=False)
-            .execute()
-        )
-        return _bucket_daily(
-            res.data or [], lambda r: float(r["afn_per_gram_24k"]), max_points
-        )
-    except Exception:
-        logger.exception("خطا در بازیابی سری تاریخی طلا")
-        return []
-
-
-def get_silver_rate_series(since: datetime, max_points: int = 7) -> list[float]:
-    """سری روزانهٔ قیمت نقرهٔ ۹۹۹ (افغانی به ازای هر گرم)."""
-    try:
-        res = (
-            get_client()
-            .table("silver_history")
-            .select("afn_per_gram, recorded_at")
-            .gte("recorded_at", since.isoformat())
-            .order("recorded_at", desc=False)
-            .execute()
-        )
-        return _bucket_daily(res.data or [], lambda r: float(r["afn_per_gram"]), max_points)
-    except Exception:
-        logger.exception("خطا در بازیابی سری تاریخی نقره")
-        return []
 
 
 def time_ago(days: int = 0, hours: int = 0) -> datetime:
