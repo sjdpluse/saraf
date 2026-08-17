@@ -21,6 +21,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+from contextlib import asynccontextmanager
 from fastapi import Depends, Form, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -51,6 +52,7 @@ from services import (
     rate_limiter,
     audit_service,
     api_errors,
+    instagram_subscription_service,
 )
 from services import supabase_service as db
 from services.instagram_webhook_router import router as instagram_webhook_router
@@ -60,11 +62,69 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Startup / Shutdown lifecycle.
 
+    هنگام startup:
+    وضعیت Webhook subscription اینستاگرام بررسی می‌شود.
+
+    اگر comments subscribe نشده باشد:
+    سیستم تلاش می‌کند آن را خودکار فعال کند.
+
+    خطای Instagram نباید کل Saraf API را crash کند؛
+    بنابراین exception فقط log می‌شود.
+    """
+
+    logger.info(
+        "Saraf API startup: "
+        "checking Instagram automation..."
+    )
+
+    try:
+
+        instagram_ok = (
+            await instagram_subscription_service
+            .ensure_webhook_subscription()
+        )
+
+        if instagram_ok:
+
+            logger.info(
+                "Instagram automation startup "
+                "check PASSED."
+            )
+
+        else:
+
+            logger.error(
+                "Instagram automation startup "
+                "check FAILED. "
+                "API will continue running; "
+                "check Railway logs."
+            )
+
+    except Exception:
+
+        logger.exception(
+            "Unexpected error during "
+            "Instagram automation startup."
+        )
+
+    yield
+
+    logger.info(
+        "Saraf API shutting down."
+    )
 app = FastAPI(
     title="Saraf API",
-    description="نرخ لحظه‌ای ارز و طلا در افغانستان — بازار سرای شهزاده و منابع بین‌المللی",
+    description=(
+        "نرخ لحظه‌ای ارز و طلا در افغانستان — "
+        "بازار سرای شهزاده و منابع بین‌المللی"
+    ),
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # دادهٔ نرخ ارز/طلا کاملاً عمومی است، ولی endpointهای usdt/* نیازمند initData معتبر
