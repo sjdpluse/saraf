@@ -172,39 +172,196 @@ async def handle_webhook_payload(
     payload: dict,
 ) -> None:
     """
-    پردازش payload ارسال‌شده توسط Instagram Webhook.
+    پردازش Instagram Webhook.
+
+    هر دو ساختار را پشتیبانی می‌کند:
+
+    1. Instagram API with Instagram Login:
+       entry.field
+       entry.value
+
+    2. ساختار قدیمی / برخی webhook payloadها:
+       entry.changes[].field
+       entry.changes[].value
     """
 
     if payload.get("object") != "instagram":
-        logger.debug(
-            "Webhook object غیر Instagram نادیده گرفته شد."
+        logger.warning(
+            "Instagram webhook ignored: object=%s",
+            payload.get("object"),
         )
         return
 
-    entries = payload.get("entry", [])
+    entries = payload.get("entry") or []
+
+    if not isinstance(entries, list):
+        logger.warning(
+            "Instagram webhook invalid entry type=%s",
+            type(entries).__name__,
+        )
+        return
+
+    logger.info(
+        "Instagram webhook payload received entries=%s",
+        len(entries),
+    )
+
+    processed_comment_ids: set[str] = set()
 
     for entry in entries:
 
-        changes = entry.get("changes", [])
+        if not isinstance(entry, dict):
+            continue
 
-        for change in changes:
+        events: list[tuple[str, dict]] = []
 
-            field = change.get("field")
+        # ====================================================
+        # FORMAT 1
+        # Instagram API with Instagram Login
+        #
+        # entry.field
+        # entry.value
+        # ====================================================
 
-            if field != "comments":
-                continue
+        direct_field = entry.get("field")
+        direct_value = entry.get("value")
 
-            value = change.get("value") or {}
+        if (
+            direct_field in (
+                "comments",
+                "live_comments",
+            )
+            and isinstance(
+                direct_value,
+                dict,
+            )
+        ):
+            events.append(
+                (
+                    direct_field,
+                    direct_value,
+                )
+            )
 
-            try:
-                await _process_comment(value)
+        # ====================================================
+        # FORMAT 2
+        # Legacy / changes[] payload
+        #
+        # entry.changes[]
+        # ====================================================
 
-            except Exception:
-                logger.exception(
-                    "خطای غیرمنتظره هنگام پردازش "
-                    "Instagram comment webhook"
+        changes = entry.get("changes") or []
+
+        if isinstance(changes, list):
+
+            for change in changes:
+
+                if not isinstance(
+                    change,
+                    dict,
+                ):
+                    continue
+
+                field = change.get(
+                    "field"
                 )
 
+                value = (
+                    change.get("value")
+                    or {}
+                )
+
+                if field not in (
+                    "comments",
+                    "live_comments",
+                ):
+                    continue
+
+                if not isinstance(
+                    value,
+                    dict,
+                ):
+                    continue
+
+                events.append(
+                    (
+                        field,
+                        value,
+                    )
+                )
+
+        # ====================================================
+        # Observability
+        # ====================================================
+
+        if not events:
+
+            logger.info(
+                "Instagram webhook entry ignored "
+                "field=%s keys=%s",
+                direct_field,
+                sorted(entry.keys()),
+            )
+
+            continue
+
+        # ====================================================
+        # Process events
+        # ====================================================
+
+        for field, value in events:
+
+            comment_id = value.get("id")
+
+            # جلوگیری از پردازش دوباره اگر payload
+            # همزمان هر دو format را داشت
+            if comment_id:
+
+                comment_id_str = str(
+                    comment_id
+                )
+
+                if (
+                    comment_id_str
+                    in processed_comment_ids
+                ):
+                    logger.info(
+                        "Duplicate comment inside "
+                        "same webhook ignored "
+                        "comment_id=%s",
+                        comment_id_str,
+                    )
+                    continue
+
+                processed_comment_ids.add(
+                    comment_id_str
+                )
+
+            logger.info(
+                "Instagram webhook event "
+                "field=%s comment_id=%s",
+                field,
+                comment_id or "unknown",
+            )
+
+            try:
+
+                await _process_comment(
+                    value
+                )
+
+            except Exception:
+
+                logger.exception(
+                    "خطای غیرمنتظره هنگام "
+                    "پردازش Instagram "
+                    "comment webhook "
+                    "field=%s "
+                    "comment_id=%s",
+                    field,
+                    comment_id
+                    or "unknown",
+                )
 
 # ============================================================
 # Process one comment

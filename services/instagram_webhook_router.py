@@ -54,6 +54,32 @@ async def receive_instagram_webhook(
 
     try:
         payload = await request.json()
+        entries = payload.get("entry") or []
+
+        entry_shapes = []
+
+        for entry in entries[:5]:
+            if isinstance(entry, dict):
+                entry_shapes.append({
+                    "field": entry.get("field"),
+                    "has_value": (
+                        "value" in entry
+                    ),
+                    "has_changes": (
+                        "changes" in entry
+                    ),
+                    "keys": sorted(
+                        entry.keys()
+                    ),
+                })
+
+        logger.info(
+            "Instagram webhook accepted "
+            "object=%s entries=%s shapes=%s",
+            payload.get("object"),
+            len(entries),
+            entry_shapes,
+        )
     except Exception:
         logger.exception("payload وبهوک اینستاگرام قابل‌خواندن نبود (JSON نامعتبر)")
         # با این حال 200 برمی‌گردانیم چون متا برای هر خطای غیر-2xx شروع به
