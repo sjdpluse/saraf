@@ -28,6 +28,8 @@ BTN_COMPARE = "📊 مقایسه با گذشته"
 BTN_CONVERTER = "🔄 مبدل ارز جهانی"
 BTN_USDT = "🥇 USDT - تتر"
 BTN_ABOUT = "ℹ️ درباره ربات"
+# فقط برای ادمین — نشر دستی پست نرخ‌ها در فیسبوک/اینستاگرام (تست + کنترل دستی)
+BTN_ADMIN_POST = "📢 نشر پست (فیسبوک/اینستاگرام)"
 
 
 def _flag_label(code: str, name: str) -> str:
@@ -35,17 +37,24 @@ def _flag_label(code: str, name: str) -> str:
     return f"{flag} {name}".strip()
 
 
-def main_menu() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        [
-            [BTN_CURRENCY, BTN_GOLD],
-            [BTN_SILVER, BTN_CRYPTO],
-            [BTN_COMPARE, BTN_CONVERTER],
-            [BTN_USDT],
-            [BTN_ABOUT],
-        ],
-        resize_keyboard=True,
-    )
+def main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
+    """
+    is_admin=True فقط برای کاربرانی که chat_id شان در ADMIN_CHAT_IDS است ست
+    می‌شود (نگاه کنید به handlers/start.py) — چون این تابع هر بار برای همان
+    chat مشخص و به‌صورت جداگانه صدا زده می‌شود (نه یک منوی global مشترک)، دکمهٔ
+    اضافه‌شده فقط در کیبورد همان کاربر ادمین ظاهر می‌شود، نه در کیبورد بقیهٔ
+    کاربران.
+    """
+    rows = [
+        [BTN_CURRENCY, BTN_GOLD],
+        [BTN_SILVER, BTN_CRYPTO],
+        [BTN_COMPARE, BTN_CONVERTER],
+        [BTN_USDT],
+        [BTN_ABOUT],
+    ]
+    if is_admin:
+        rows.append([BTN_ADMIN_POST])
+    return ReplyKeyboardMarkup(rows, resize_keyboard=True)
 
 
 # ---------------------------------------------------------------------------

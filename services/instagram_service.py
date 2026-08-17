@@ -179,19 +179,24 @@ async def _post_to_instagram(image_bytes: bytes, caption: str) -> bool:
 
 
 async def check_and_maybe_post(
-    quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None
-) -> None:
+    quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None, force: bool = False
+) -> bool:
     """
     الگوی این تابع دقیقاً مثل facebook_service.check_and_maybe_post است (همان
     منطق تشخیص تغییر محسوس)، فقط با جدول وضعیت و آستانهٔ جداگانهٔ اینستاگرام،
     تا زمان‌بندی/آستانهٔ دو پلتفرم مستقل از هم قابل‌تنظیم باشد.
+
+    force: اگر True باشد، بررسی «تغییر محسوس نرخ» نادیده گرفته می‌شود — برای
+        نشر دستی (دکمهٔ ادمین در ربات) استفاده می‌شود.
+
+    خروجی: True اگر پست واقعاً با موفقیت منتشر شد، در غیر این صورت False.
     """
     if not quotes:
-        return
+        return False
 
     current_state = _build_current_state(quotes, gold_breakdown, silver_breakdown)
     if not current_state:
-        return
+        return False
 
     last_state = db.get_ig_post_state()
 
@@ -207,13 +212,13 @@ async def check_and_maybe_post(
                 return True
         return False
 
-    if not _has_significant_change(current_state, last_state):
-        return
+    if not force and not _has_significant_change(current_state, last_state):
+        return False
 
     usd_quote = quotes.get("usd")
     if not usd_quote or not gold_breakdown:
         logger.warning("نرخ دالر یا اطلاعات طلا در دسترس نیست؛ تولید تصویر پست اینستاگرام ممکن نیست.")
-        return
+        return False
 
     try:
         date_str = get_afghan_datetime_str()
@@ -222,9 +227,11 @@ async def check_and_maybe_post(
         )
     except Exception:
         logger.exception("خطا در تولید تصویر پست اینستاگرام")
-        return
+        return False
 
     caption = _build_caption(quotes, gold_breakdown, silver_breakdown)
 
     if await _post_to_instagram(image_bytes, caption):
         db.set_ig_post_state(current_state)
+        return True
+    return False

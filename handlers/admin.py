@@ -7,9 +7,66 @@ from telegram.ext import ContextTypes
 
 from config import ADMIN_CHAT_IDS, TRACKED_CURRENCIES
 from services import supabase_service as db, spread_service, order_transition_service
+from services import facebook_service, instagram_service
 from services.order_state_machine import InvalidStateTransition
 
 logger = logging.getLogger(__name__)
+
+
+def _is_admin(update: Update) -> bool:
+    return update.effective_user.id in ADMIN_CHAT_IDS
+
+
+async def manual_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    دکمهٔ «📢 نشر پست (فیسبوک/اینستاگرام)» در منوی اصلی — فقط برای ادمین قابل‌مشاهده
+    است (keyboards.main_menu فقط برای chat_id های داخل ADMIN_CHAT_IDS این دکمه را
+    اضافه می‌کند)، ولی برای دفاع در عمق، این تابع هم مستقل بررسی می‌کند.
+
+    برخلاف پست خودکار زمان‌بندی‌شده (jobs.py)، این‌جا force=True پاس داده
+    می‌شود — یعنی صرف‌نظر از این‌که نرخ تغییر محسوس کرده باشد یا نه، همیشه
+    پست منتشر می‌شود؛ دقیقاً همان چیزی که برای تست دستی یا نشر فوری لازم است.
+    """
+    if not _is_admin(update):
+        return
+
+    status_msg = await update.message.reply_text("⏳ در حال آماده‌سازی تصویر و نشر پست در فیسبوک و اینستاگرام...")
+
+    # وارد کردن دیرهنگام (lazy import) برای جلوگیری از حلقهٔ ایمپورت
+    # (jobs.py خودش handlers را ایمپورت نمی‌کند، ولی این الگو امن‌تر و
+    # مستقل از ترتیب بارگذاری ماژول‌هاست).
+    from jobs import get_current_quotes_and_metals
+
+    try:
+        quotes, gold_breakdown, silver_breakdown = await get_current_quotes_and_metals()
+    except Exception:
+        logger.exception("خطا در دریافت نرخ‌های لحظه‌یی برای نشر دستی پست")
+        await status_msg.edit_text("❌ دریافت نرخ‌های لحظه‌یی ناموفق بود؛ پستی نشر نشد.")
+        return
+
+    if not quotes:
+        await status_msg.edit_text("❌ نرخی برای ساخت پست در دسترس نیست؛ پستی نشر نشد.")
+        return
+
+    fb_result, ig_result = await asyncio.gather(
+        facebook_service.check_and_maybe_post(quotes, gold_breakdown, silver_breakdown, force=True),
+        instagram_service.check_and_maybe_post(quotes, gold_breakdown, silver_breakdown, force=True),
+        return_exceptions=True,
+    )
+
+    def _line(platform: str, result) -> str:
+        if isinstance(result, Exception):
+            logger.exception("خطای غیرمنتظره در نشر دستی پست %s", platform, exc_info=result)
+            return f"❌ {platform}: خطای غیرمنتظره (جزئیات در لاگ سرور)"
+        return f"✅ {platform}: با موفقیت منتشر شد" if result else f"❌ {platform}: نشر ناموفق (لاگ سرور را ببینید)"
+
+    summary = "\n".join([
+        "📢 نتیجهٔ نشر دستی پست:",
+        _line("فیسبوک", fb_result),
+        _line("اینستاگرام", ig_result),
+    ])
+    await status_msg.edit_text(summary)
+
 
 async def usdt_pending(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_admin(update):
@@ -67,9 +124,6 @@ async def usdt_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
     except Exception:
         logger.exception("خطا در اطلاع‌رسانی تأیید سفارش به کاربر")
-        
-def _is_admin(update: Update) -> bool:
-    return update.effective_user.id in ADMIN_CHAT_IDS
 
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

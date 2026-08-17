@@ -56,10 +56,11 @@ async def fetch_and_store_local_market(context: ContextTypes.DEFAULT_TYPE) -> No
         logger.exception("خطا در وظیفهٔ زمان‌بندی‌شدهٔ ذخیرهٔ نرخ بازار محلی")
 
 
-async def _get_current_quotes_and_metals():
-    """منطق مشترک بین فیسبوک و اینستاگرام: نرخ‌های لحظه‌یی + تفکیک کامل طلا و نقره.
-    جدا شده تا هر دو پلتفرم دقیقاً از یک منبع دادهٔ لحظه‌یی استفاده کنند (بدون
-    فچ دوبارهٔ جداگانه که ممکن است چند ثانیه اختلاف بین دو پست ایجاد کند)."""
+async def get_current_quotes_and_metals():
+    """منطق مشترک بین فیسبوک، اینستاگرام، و دکمهٔ «نشر پست» دستی ادمین: نرخ‌های
+    لحظه‌یی + تفکیک کامل طلا و نقره. جدا شده تا همه از یک منبع دادهٔ لحظه‌یی
+    استفاده کنند (بدون فچ دوبارهٔ جداگانه که ممکن است چند ثانیه اختلاف بین دو
+    پست ایجاد کند)."""
     quotes = await rate_engine.get_full_quotes(list(TRACKED_CURRENCIES.keys()))
     if not quotes:
         return None, None, None
@@ -86,7 +87,7 @@ async def _get_current_quotes_and_metals():
 
 async def check_and_post_facebook_update(context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        quotes, gold_breakdown, silver_breakdown = await _get_current_quotes_and_metals()
+        quotes, gold_breakdown, silver_breakdown = await get_current_quotes_and_metals()
         if not quotes:
             return
         await facebook_service.check_and_maybe_post(quotes, gold_breakdown, silver_breakdown)
@@ -96,7 +97,7 @@ async def check_and_post_facebook_update(context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def check_and_post_instagram_update(context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        quotes, gold_breakdown, silver_breakdown = await _get_current_quotes_and_metals()
+        quotes, gold_breakdown, silver_breakdown = await get_current_quotes_and_metals()
         if not quotes:
             return
         await instagram_service.check_and_maybe_post(quotes, gold_breakdown, silver_breakdown)

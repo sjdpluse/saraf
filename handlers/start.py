@@ -9,6 +9,7 @@ from config import (
     USDT_IDENTITY_VERIFICATION_THRESHOLD_USD,
     USDT_MAX_AMOUNT,
     USDT_MIN_AMOUNT,
+    ADMIN_CHAT_IDS,
 )
 from keyboards import main_menu, usdt_menu_keyboard
 from services import supabase_service as db
@@ -266,7 +267,7 @@ async def start(
     await update.message.reply_text(
         WELCOME_TEXT.format(name=safe_name),
         parse_mode="Markdown",
-        reply_markup=main_menu(),
+        reply_markup=main_menu(is_admin=user.id in ADMIN_CHAT_IDS),
     )
 
 

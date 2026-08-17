@@ -27,7 +27,7 @@ from config import (
     FACEBOOK_CHECK_INTERVAL_MINUTES,
     INSTAGRAM_CHECK_INTERVAL_MINUTES,
 )
-from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_SILVER, BTN_CRYPTO, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT
+from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_SILVER, BTN_CRYPTO, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT, BTN_ADMIN_POST
 from handlers import start, currency, gold, silver, crypto, compare, admin, converter, usdt, kyc
 from jobs import (
     fetch_and_store_snapshot,
@@ -126,6 +126,8 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await usdt.usdt_menu(update, context)
     elif text == BTN_ABOUT:
         await start.about(update, context)
+    elif text == BTN_ADMIN_POST:
+        await admin.manual_post(update, context)
     else:
         await update.message.reply_text("لطفاً یکی از گزینه‌های منو را انتخاب کنید 👇")
 

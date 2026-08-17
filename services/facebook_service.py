@@ -219,29 +219,37 @@ async def _post_photo_to_page(image_bytes: bytes, caption: str) -> bool:
         return False
 
 
-async def check_and_maybe_post(quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None) -> None:
+async def check_and_maybe_post(
+    quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None, force: bool = False
+) -> bool:
     """
     gold_breakdown: خروجی کامل gold_service.build_gold_breakdown(...) —
     نه فقط یک عدد، چون هم برای طراحی تصویر و هم برای کپشن (تفکیک همهٔ عیارها) لازم است.
     silver_breakdown: خروجی کامل silver_service.build_silver_breakdown(...) — اختیاری؛
         اگر داده نشود، پیل نقرهٔ تصویر خط تیره نمایش می‌دهد و کپشن بخش نقره ندارد.
+    force: اگر True باشد، بررسی «تغییر محسوس نرخ» نادیده گرفته می‌شود و پست
+        همیشه منتشر می‌شود — برای نشر دستی (دکمهٔ ادمین در ربات) استفاده می‌شود.
+
+    خروجی: True اگر پست واقعاً با موفقیت منتشر شد، در غیر این صورت False (چه
+    به‌خاطر نبود تغییر محسوس، چه به‌خاطر خطا) — برای نمایش نتیجه به ادمین در
+    دکمهٔ نشر دستی لازم است.
     """
     if not quotes:
-        return
+        return False
 
     current_state = _build_current_state(quotes, gold_breakdown, silver_breakdown)
     if not current_state:
-        return
+        return False
 
     last_state = db.get_fb_post_state()
 
-    if not _has_significant_change(current_state, last_state):
-        return
+    if not force and not _has_significant_change(current_state, last_state):
+        return False
 
     usd_quote = quotes.get("usd")
     if not usd_quote or not gold_breakdown:
         logger.warning("نرخ دالر یا اطلاعات طلا در دسترس نیست؛ تولید تصویر پست فیسبوک ممکن نیست.")
-        return
+        return False
 
     try:
         date_str = get_afghan_datetime_str()
@@ -250,9 +258,11 @@ async def check_and_maybe_post(quotes: dict, gold_breakdown: Optional[dict], sil
         )
     except Exception:
         logger.exception("خطا در تولید تصویر پست فیسبوک")
-        return
+        return False
 
     caption = _build_caption(quotes, gold_breakdown, silver_breakdown)
 
     if await _post_photo_to_page(image_bytes, caption):
         db.set_fb_post_state(current_state)
+        return True
+    return False
