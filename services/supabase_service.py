@@ -530,6 +530,124 @@ def get_closest_local_market_rate(
         return None
 
 
+# ---------------------------------------------------------------------------
+# تاریخچهٔ نرخ نقره
+# ---------------------------------------------------------------------------
+def insert_silver_snapshot(price_usd_per_oz: float, afn_per_gram: float) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        get_client().table("silver_history").insert(
+            {
+                "price_usd_per_oz": price_usd_per_oz,
+                "afn_per_gram": afn_per_gram,
+                "recorded_at": now,
+            }
+        ).execute()
+    except Exception:
+        logger.exception("خطا در ذخیرهٔ تاریخچهٔ نقره")
+
+
+# ---------------------------------------------------------------------------
+# سری‌های زمانی (برای نمودار روند واقعی در پست فیسبوک/اینستاگرام)
+#
+# نکته: این توابع برخلاف get_closest_* بالا، یک «تک عدد» نمی‌گیرند بلکه چند
+# نقطهٔ نمونه‌برداری‌شده در یک بازهٔ زمانی (مثلاً ۲۴ ساعت گذشته) برمی‌گردانند
+# تا بشود یک نمودار روند واقعی (spark line) رسم کرد و صعودی/نزولی بودن واقعی
+# را (نه یک آرایهٔ ثابت hardcoded) تشخیص داد.
+# ---------------------------------------------------------------------------
+def _downsample_series(values: list[float], max_points: int) -> list[float]:
+    """اگر تعداد رکوردها از max_points بیشتر بود، به‌صورت یکنواخت نمونه‌برداری
+    می‌کند (همیشه اولین و آخرین نقطه را نگه می‌دارد) تا نمودار شلوغ نشود."""
+    if len(values) <= max_points:
+        return values
+    if max_points <= 1:
+        return values[-1:]
+    step = (len(values) - 1) / (max_points - 1)
+    indices = sorted({round(i * step) for i in range(max_points)})
+    return [values[i] for i in indices]
+
+
+def get_currency_rate_series(
+    currency: str, since: datetime, max_points: int = 8
+) -> list[float]:
+    """سری تاریخی نرخ مرجع جهانی یک ارز از since تا اکنون."""
+    try:
+        res = (
+            get_client()
+            .table("currency_history")
+            .select("afn_rate, recorded_at")
+            .eq("currency", currency)
+            .gte("recorded_at", since.isoformat())
+            .order("recorded_at", desc=False)
+            .execute()
+        )
+        values = [float(row["afn_rate"]) for row in (res.data or [])]
+        return _downsample_series(values, max_points)
+    except Exception:
+        logger.exception("خطا در بازیابی سری تاریخی نرخ ارز")
+        return []
+
+
+def get_local_market_rate_series(
+    market: str, currency: str, since: datetime, max_points: int = 8
+) -> list[float]:
+    """سری تاریخی نرخ میانگین (خرید+فروش)/۲ یک ارز در یک بازار محلی."""
+    try:
+        res = (
+            get_client()
+            .table("local_market_history")
+            .select("buy, sell, recorded_at")
+            .eq("market", market)
+            .eq("currency", currency)
+            .gte("recorded_at", since.isoformat())
+            .order("recorded_at", desc=False)
+            .execute()
+        )
+        values = [
+            (float(row["buy"]) + float(row["sell"])) / 2 for row in (res.data or [])
+        ]
+        return _downsample_series(values, max_points)
+    except Exception:
+        logger.exception("خطا در بازیابی سری تاریخی بازار محلی")
+        return []
+
+
+def get_gold_rate_series(since: datetime, max_points: int = 8) -> list[float]:
+    """سری تاریخی قیمت طلای ۲۴ عیار (افغانی به ازای هر گرم)."""
+    try:
+        res = (
+            get_client()
+            .table("gold_history")
+            .select("afn_per_gram_24k, recorded_at")
+            .gte("recorded_at", since.isoformat())
+            .order("recorded_at", desc=False)
+            .execute()
+        )
+        values = [float(row["afn_per_gram_24k"]) for row in (res.data or [])]
+        return _downsample_series(values, max_points)
+    except Exception:
+        logger.exception("خطا در بازیابی سری تاریخی طلا")
+        return []
+
+
+def get_silver_rate_series(since: datetime, max_points: int = 8) -> list[float]:
+    """سری تاریخی قیمت نقرهٔ ۹۹۹ (افغانی به ازای هر گرم)."""
+    try:
+        res = (
+            get_client()
+            .table("silver_history")
+            .select("afn_per_gram, recorded_at")
+            .gte("recorded_at", since.isoformat())
+            .order("recorded_at", desc=False)
+            .execute()
+        )
+        values = [float(row["afn_per_gram"]) for row in (res.data or [])]
+        return _downsample_series(values, max_points)
+    except Exception:
+        logger.exception("خطا در بازیابی سری تاریخی نقره")
+        return []
+
+
 def time_ago(days: int = 0, hours: int = 0) -> datetime:
     return datetime.now(timezone.utc) - timedelta(days=days, hours=hours)
 

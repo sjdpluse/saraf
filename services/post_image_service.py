@@ -18,8 +18,10 @@
     بدون این مرحله، تولید تصویر با خطا مواجه می‌شود.
 """
 import base64
+import json
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +29,7 @@ import httpx
 from playwright.async_api import async_playwright
 
 from config import SARAF_LOGO_URL
+from services import local_market_service, supabase_service as db
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +110,76 @@ def _fmt2(value: float) -> str:
     return f"{value:,.2f}"
 
 
+def _series_json(points: list, live_value: Optional[float] = None) -> Optional[str]:
+    """نقاط تاریخی را (به‌همراه آخرین نرخ لحظه‌یی، اگر داده شده) به رشتهٔ JSON
+    تبدیل می‌کند تا جای __*_SERIES__ در قالب بنشیند. اگر داده کافی (حداقل ۲
+    نقطه) نبود، None برمی‌گرداند تا جاوااسکریپت قالب خودش fallback ثابت را
+    استفاده کند (رفتار graceful degradation قبلی حفظ می‌شود)."""
+    values = [float(v) for v in points]
+    if live_value is not None:
+        # اگر آخرین نقطهٔ تاریخی عملاً همان نرخ لحظه‌یی نیست، آن را هم اضافه کن
+        # تا نمودار همیشه تا لحظهٔ ساخت پست به‌روز باشد.
+        if not values or abs(values[-1] - live_value) > 1e-9:
+            values.append(live_value)
+    if len(values) < 2:
+        return None
+    return json.dumps(values)
+
+
+def _build_24h_series(quote: dict, gold_breakdown: dict, silver_breakdown: Optional[dict]) -> dict:
+    """سری‌های ۲۴ ساعتهٔ واقعی (دالر/محلی/طلا/نقره) را از Supabase می‌خواند.
+    اگر برای موردی داده کافی نبود، آن کلید اصلاً در دیکشنری خروجی نمی‌آید —
+    یعنی placeholder مربوطه در HTML جایگزین نمی‌شود و قالب به fallback ثابت
+    خودش سقوط می‌کند (بدون کرش، هم‌راستا با طراحی اصلی قالب)."""
+    since_24h = datetime.now(timezone.utc) - timedelta(hours=24)
+    series: dict = {}
+
+    try:
+        local = quote.get("local") or {}
+        primary_market = local_market_service.PRIMARY_MARKET
+        local_live = None
+        if local.get("buy") is not None and local.get("sell") is not None:
+            local_live = (local["buy"] + local["sell"]) / 2
+
+        local_hist = db.get_local_market_rate_series(primary_market, "usd", since_24h)
+        local_json = _series_json(local_hist, local_live)
+        if local_json:
+            series["__LOCAL_SERIES__"] = local_json
+            # هیرو (دالر) هم از همین بازار محلی (سرای شهزاده) تغذیه می‌شود چون
+            # SS_BUY/SS_SELL هم از همین منبع می‌آیند؛ اگر محلی در دسترس نبود،
+            # به نرخ مرجع جهانی سقوط می‌کنیم.
+            series["__USD_SERIES__"] = local_json
+        else:
+            ref_live = quote.get("reference_rate")
+            ref_hist = db.get_currency_rate_series("usd", since_24h)
+            ref_json = _series_json(ref_hist, ref_live)
+            if ref_json:
+                series["__USD_SERIES__"] = ref_json
+    except Exception:
+        logger.exception("خطا در ساخت سری ۲۴ ساعتهٔ دالر/محلی برای پست")
+
+    try:
+        gold_live = gold_breakdown["karats"][24]["afn_per_gram"]
+        gold_hist = db.get_gold_rate_series(since_24h)
+        gold_json = _series_json(gold_hist, gold_live)
+        if gold_json:
+            series["__GOLD_SERIES__"] = gold_json
+    except Exception:
+        logger.exception("خطا در ساخت سری ۲۴ ساعتهٔ طلا برای پست")
+
+    if silver_breakdown:
+        try:
+            silver_live = silver_breakdown["afn_per_gram"]
+            silver_hist = db.get_silver_rate_series(since_24h)
+            silver_json = _series_json(silver_hist, silver_live)
+            if silver_json:
+                series["__SILVER_SERIES__"] = silver_json
+        except Exception:
+            logger.exception("خطا در ساخت سری ۲۴ ساعتهٔ نقره برای پست")
+
+    return series
+
+
 def _build_html(quote: dict, gold_breakdown: dict, silver_breakdown: Optional[dict], logo_data_uri: str,
                  date_str: str) -> str:
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -142,6 +215,12 @@ def _build_html(quote: dict, gold_breakdown: dict, silver_breakdown: Optional[di
     else:
         values["__SILVER_AFN__"] = "—"
         values["__SILVER_USD__"] = ""
+
+    # نمودار روند + درصد صعود/نزول واقعی (۲۴ ساعت گذشته). اگر داده کافی
+    # نبود، کلید مربوطه اینجا اضافه نمی‌شود و placeholder در HTML دست‌نخورده
+    # می‌ماند تا جاوااسکریپت قالب به fallback ثابت خودش سقوط کند.
+    values.update(_build_24h_series(quote, gold_breakdown, silver_breakdown))
+
     for key, val in values.items():
         template = template.replace(key, val)
     return template

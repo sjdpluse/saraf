@@ -39,6 +39,17 @@ async def fetch_and_store_snapshot(context: ContextTypes.DEFAULT_TYPE) -> None:
             breakdown = gold_service.build_gold_breakdown(price_usd, afn_per_usd)
             db.insert_gold_snapshot(price_usd, breakdown["afn_per_gram_24k"])
             logger.info("تاریخچهٔ نرخ طلا ذخیره شد.")
+
+            try:
+                price_usd_silver = await silver_service.get_silver_price_usd_per_oz()
+                silver_breakdown = silver_service.build_silver_breakdown(
+                    price_usd_silver, afn_per_usd
+                )
+                db.insert_silver_snapshot(price_usd_silver, silver_breakdown["afn_per_gram"])
+                logger.info("تاریخچهٔ نرخ نقره ذخیره شد.")
+            except Exception:
+                # نبود نرخ نقره نباید ذخیرهٔ ارز/طلا را متوقف کند.
+                logger.exception("خطا در ذخیرهٔ تاریخچهٔ نقره")
     except Exception:
         logger.exception("خطا در وظیفهٔ زمان‌بندی‌شدهٔ ذخیرهٔ نرخ‌ها")
 
