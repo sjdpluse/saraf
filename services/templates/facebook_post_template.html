@@ -350,7 +350,7 @@
   }
 
   .chart-wrap{
-    height:130px;
+    height:150px;
     padding:9px 6px 0;
     display:flex;
     flex-direction:column;
@@ -370,7 +370,7 @@
 
   .spark{
     width:100%;
-    height:104px;
+    height:86px;
     flex:none;
   }
 
@@ -599,6 +599,48 @@
 
   .soc svg{ width:20px; height:20px; }
 
+
+  /* ================================================================
+     HISTORY ROWS — past prices under charts (tiny/light English font)
+  ================================================================= */
+  .hist{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:6px;
+    direction:ltr;
+    margin-top:8px;
+    padding:0 4px;
+    font-family:'SF Pro Text','Helvetica Neue',Helvetica,Arial,sans-serif;
+    font-weight:300;
+  }
+
+  .hist .h-item{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    line-height:1;
+  }
+
+  .hist .h-v{
+    font-size:14px;
+    font-weight:300;
+    letter-spacing:-.2px;
+    color:var(--ink-2);
+  }
+
+  .hist .h-d{
+    font-size:10px;
+    font-weight:300;
+    letter-spacing:.2px;
+    color:var(--ink-3);
+    text-transform:uppercase;
+  }
+
+  .hist.tiny .h-v{ font-size:12px; }
+  .hist.tiny .h-d{ font-size:9px; }
+
 </style>
 </head>
 
@@ -719,7 +761,8 @@
             <span>روند ۷ روز اخیر</span>
             <span>USD / AFN</span>
           </div>
-          <svg class="spark" id="sparkUsd" viewBox="0 0 440 112" preserveAspectRatio="none"></svg>
+          <svg class="spark" id="sparkUsd" viewBox="0 0 440 96" preserveAspectRatio="none"></svg>
+          <div class="hist" id="histUsd"></div>
         </div>
 
       </div>
@@ -785,6 +828,8 @@
           <div class="tile-val">__GOLD_AFN__<span>؋</span></div>
           <svg class="mini" id="sparkGold" viewBox="0 0 190 64" preserveAspectRatio="none"></svg>
         </div>
+
+        <div class="hist tiny" id="histGold"></div>
       </div>
 
       <!-- SILVER -->
@@ -808,6 +853,8 @@
           <div class="tile-val">__SILVER_AFN__<span>؋</span></div>
           <svg class="mini" id="sparkSilver" viewBox="0 0 190 64" preserveAspectRatio="none"></svg>
         </div>
+
+        <div class="hist tiny" id="histSilver"></div>
       </div>
 
     </div>
@@ -979,6 +1026,33 @@ function draw(id,data,opts){
   return ((data[data.length-1]-data[0])/(data[0]||1))*100;
 }
 
+
+/* ---------------------------------------------------------------
+   History rows: past prices are rendered UNDER the chart,
+   never on top of it. English (Latin) digits, light/tiny font.
+   step = 1 -> every day, step = 2 -> every other day.
+---------------------------------------------------------------- */
+function renderHistory(id, data, opts){
+  var el = document.getElementById(id);
+  if(!el) return;
+  opts = opts || {};
+  var step = opts.step || 1;
+  var max  = opts.max || 7;
+  var fmt  = opts.fmt || function(v){ return String(Math.round(v)); };
+
+  var items = [];
+  /* data[last] = today -> start from yesterday and walk backwards */
+  for(var i = data.length - 2; i >= 0 && items.length < max; i -= step){
+    var back = data.length - 1 - i;
+    items.push('<div class="h-item"><div class="h-v">' + fmt(data[i]) +
+               '</div><div class="h-d">' + back + 'd</div></div>');
+  }
+  el.innerHTML = items.reverse().join("");
+}
+
+var fmtRateEn = function(v){ return v.toFixed(1); };
+var fmtIntEn  = function(v){ return String(Math.round(v)); };
+
 var fmtRate = function(v){ return toFa(v.toFixed(1)); };
 var fmtGold = function(v){ return toFa(String(Math.round(v))); };
 
@@ -987,27 +1061,36 @@ var sUsd = parseSeries(RAW.usd,FB.usd);
 var pct = draw(
   "sparkUsd",
   sUsd,
-  {area:true,dot:true,sw:4.2,pad:12,grid:true,labels:true,labelSize:15,fmt:fmtRate}
+  {area:true,dot:true,sw:4.2,pad:12,grid:true,labels:false}
 );
+
+var sGold = parseSeries(RAW.gold,FB.gold);
+var sSilver = parseSeries(RAW.silver,FB.silver);
 
 draw(
   "sparkGold",
-  parseSeries(RAW.gold,FB.gold),
-  {area:true,sw:3,pad:8,dot:true,grid:true,labels:true,labelSize:10,fmt:fmtGold}
+  sGold,
+  {area:true,sw:3,pad:8,dot:true,grid:true,labels:false}
 );
 
 draw(
   "sparkSilver",
-  parseSeries(RAW.silver,FB.silver),
-  {area:true,sw:3,pad:8,dot:true,grid:true,labels:true,labelSize:10,fmt:fmtRate}
+  sSilver,
+  {area:true,sw:3,pad:8,dot:true,grid:true,labels:false}
 );
 
 draw(
   "sparkLocal",
   parseSeries(RAW.local,FB.local),
-  {area:true,sw:3,pad:8,dot:true,grid:true,labels:true,labelSize:12,fmt:fmtRate}
+  {area:true,sw:3,pad:8,dot:true,grid:true,labels:false}
 );
 
+/* USD: last 7 days, every day, under the chart.
+   Gold & silver: every other day (1d, 3d, 5d, ...).
+   Local exchanges: no history at all, on or under the chart. */
+renderHistory("histUsd",    sUsd,    {step:1, max:7, fmt:fmtRateEn});
+renderHistory("histGold",   sGold,   {step:2, max:4, fmt:fmtIntEn});
+renderHistory("histSilver", sSilver, {step:2, max:4, fmt:fmtRateEn});
 
 var box = document.getElementById("usdDelta");
 var val = document.getElementById("usdDeltaVal");
