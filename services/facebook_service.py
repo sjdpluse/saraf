@@ -199,10 +199,29 @@ def _build_caption(quotes: dict, gold_breakdown: Optional[dict], silver_breakdow
     return "\n".join(lines)
 
 
-async def _post_photo_to_page(image_bytes: bytes, caption: str) -> bool:
+def _extract_graph_error(resp: httpx.Response) -> str:
+    """پیام خطای واقعی Meta Graph API را از پاسخ استخراج می‌کند (مثلاً کمبود
+    permission، توکن نامعتبر/منقضی، یا page_id اشتباه) تا به‌جای یک «ناموفق»ِ
+    مبهم، دلیل دقیق در پیام ادمین (دکمهٔ نشر دستی) و در لاگ دیده شود."""
+    try:
+        err = resp.json().get("error", {})
+        parts = [err.get("message") or resp.text[:300]]
+        if err.get("type"):
+            parts.append(f"type={err['type']}")
+        if err.get("code") is not None:
+            parts.append(f"code={err['code']}")
+        if err.get("error_subcode") is not None:
+            parts.append(f"subcode={err['error_subcode']}")
+        return " | ".join(str(p) for p in parts)
+    except Exception:
+        return (resp.text or "پاسخ نامشخص از Graph API")[:300]
+
+
+async def _post_photo_to_page(image_bytes: bytes, caption: str) -> tuple[bool, str]:
     if not FACEBOOK_PAGE_ID or not FACEBOOK_PAGE_ACCESS_TOKEN:
-        logger.warning("FACEBOOK_PAGE_ID یا FACEBOOK_PAGE_ACCESS_TOKEN تنظیم نشده؛ پست انجام نشد.")
-        return False
+        msg = "FACEBOOK_PAGE_ID یا FACEBOOK_PAGE_ACCESS_TOKEN تنظیم نشده"
+        logger.warning(msg)
+        return False, msg
 
     url = PHOTO_API_URL.format(page_id=FACEBOOK_PAGE_ID)
     data = {"caption": caption, "access_token": FACEBOOK_PAGE_ACCESS_TOKEN}
@@ -211,17 +230,20 @@ async def _post_photo_to_page(image_bytes: bytes, caption: str) -> bool:
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.post(url, data=data, files=files)
-            resp.raise_for_status()
+        if resp.status_code >= 400:
+            detail = _extract_graph_error(resp)
+            logger.error("خطای Graph API هنگام پست فیسبوک (HTTP %s): %s", resp.status_code, detail)
+            return False, detail
         logger.info("پست تصویری فیسبوک با موفقیت ارسال شد.")
-        return True
-    except Exception:
+        return True, "ok"
+    except Exception as exc:
         logger.exception("خطا در ارسال پست تصویری به فیسبوک")
-        return False
+        return False, f"خطای شبکه/غیرمنتظره: {exc}"
 
 
 async def check_and_maybe_post(
     quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None, force: bool = False
-) -> bool:
+) -> tuple[bool, str]:
     """
     gold_breakdown: خروجی کامل gold_service.build_gold_breakdown(...) —
     نه فقط یک عدد، چون هم برای طراحی تصویر و هم برای کپشن (تفکیک همهٔ عیارها) لازم است.
@@ -230,39 +252,41 @@ async def check_and_maybe_post(
     force: اگر True باشد، بررسی «تغییر محسوس نرخ» نادیده گرفته می‌شود و پست
         همیشه منتشر می‌شود — برای نشر دستی (دکمهٔ ادمین در ربات) استفاده می‌شود.
 
-    خروجی: True اگر پست واقعاً با موفقیت منتشر شد، در غیر این صورت False (چه
-    به‌خاطر نبود تغییر محسوس، چه به‌خاطر خطا) — برای نمایش نتیجه به ادمین در
-    دکمهٔ نشر دستی لازم است.
+    خروجی: (True, "ok") اگر پست واقعاً با موفقیت منتشر شد؛ در غیر این صورت
+    (False, دلیل‌به‌فارسی) — این دلیل مستقیماً در پیام نتیجهٔ دکمهٔ نشر دستی به
+    ادمین نشان داده می‌شود تا بدون نیاز به لاگ سرور بفهمد دقیقاً کجا خطا شد
+    (کمبود permission، توکن نامعتبر، page_id اشتباه و...).
     """
     if not quotes:
-        return False
+        return False, "نرخی در دسترس نیست"
 
     current_state = _build_current_state(quotes, gold_breakdown, silver_breakdown)
     if not current_state:
-        return False
+        return False, "نرخی در دسترس نیست"
 
     last_state = db.get_fb_post_state()
 
     if not force and not _has_significant_change(current_state, last_state):
-        return False
+        return False, "تغییر محسوس نرخ رخ نداده (پست لازم نبود)"
 
     usd_quote = quotes.get("usd")
     if not usd_quote or not gold_breakdown:
-        logger.warning("نرخ دالر یا اطلاعات طلا در دسترس نیست؛ تولید تصویر پست فیسبوک ممکن نیست.")
-        return False
+        msg = "نرخ دالر یا اطلاعات طلا در دسترس نیست"
+        logger.warning(msg)
+        return False, msg
 
     try:
         date_str = get_afghan_datetime_str()
         image_bytes = await post_image_service.generate_facebook_post_image(
             usd_quote, gold_breakdown, date_str, silver_breakdown=silver_breakdown
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("خطا در تولید تصویر پست فیسبوک")
-        return False
+        return False, f"خطا در تولید تصویر: {exc}"
 
     caption = _build_caption(quotes, gold_breakdown, silver_breakdown)
 
-    if await _post_photo_to_page(image_bytes, caption):
+    ok, detail = await _post_photo_to_page(image_bytes, caption)
+    if ok:
         db.set_fb_post_state(current_state)
-        return True
-    return False
+    return ok, detail

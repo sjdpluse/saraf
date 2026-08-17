@@ -57,8 +57,9 @@ async def manual_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     def _line(platform: str, result) -> str:
         if isinstance(result, Exception):
             logger.exception("خطای غیرمنتظره در نشر دستی پست %s", platform, exc_info=result)
-            return f"❌ {platform}: خطای غیرمنتظره (جزئیات در لاگ سرور)"
-        return f"✅ {platform}: با موفقیت منتشر شد" if result else f"❌ {platform}: نشر ناموفق (لاگ سرور را ببینید)"
+            return f"❌ {platform}: خطای غیرمنتظره ({result})"
+        ok, detail = result
+        return f"✅ {platform}: با موفقیت منتشر شد" if ok else f"❌ {platform}: {detail}"
 
     summary = "\n".join([
         "📢 نتیجهٔ نشر دستی پست:",

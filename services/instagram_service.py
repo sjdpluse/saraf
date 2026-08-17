@@ -106,81 +106,113 @@ async def _upload_image_get_public_url(image_bytes: bytes) -> Optional[str]:
     return await asyncio.to_thread(db.upload_public_file, SOCIAL_POSTS_BUCKET, image_bytes, filename, "image/png")
 
 
-async def _create_media_container(image_url: str, caption: str) -> Optional[str]:
+def _extract_graph_error(resp: httpx.Response) -> str:
+    """پیام خطای واقعی Meta Graph API را از پاسخ استخراج می‌کند (همان کمکی که
+    facebook_service دارد) — تا دلیل دقیق شکست (کمبود permission، توکن نامعتبر،
+    شناسهٔ اکانت اشتباه و...) در پیام نتیجهٔ دکمهٔ نشر دستی دیده شود."""
+    try:
+        err = resp.json().get("error", {})
+        parts = [err.get("message") or resp.text[:300]]
+        if err.get("type"):
+            parts.append(f"type={err['type']}")
+        if err.get("code") is not None:
+            parts.append(f"code={err['code']}")
+        if err.get("error_subcode") is not None:
+            parts.append(f"subcode={err['error_subcode']}")
+        return " | ".join(str(p) for p in parts)
+    except Exception:
+        return (resp.text or "پاسخ نامشخص از Graph API")[:300]
+
+
+async def _create_media_container(image_url: str, caption: str) -> tuple[Optional[str], str]:
     url = f"{GRAPH_BASE}/{INSTAGRAM_BUSINESS_ACCOUNT_ID}/media"
     params = {"image_url": image_url, "caption": caption, "access_token": FACEBOOK_PAGE_ACCESS_TOKEN}
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.post(url, params=params)
-            resp.raise_for_status()
-        return resp.json().get("id")
-    except Exception:
+        if resp.status_code >= 400:
+            detail = _extract_graph_error(resp)
+            logger.error("خطای Graph API هنگام ساخت کانتینر رسانهٔ اینستاگرام (HTTP %s): %s", resp.status_code, detail)
+            return None, detail
+        return resp.json().get("id"), "ok"
+    except Exception as exc:
         logger.exception("خطا در ساخت کانتینر رسانهٔ اینستاگرام (media container)")
-        return None
+        return None, f"خطای شبکه/غیرمنتظره: {exc}"
 
 
-async def _wait_until_ready(creation_id: str) -> bool:
+async def _wait_until_ready(creation_id: str) -> tuple[bool, str]:
     """اینستاگرام گاهی چند ثانیه طول می‌دهد تا image_url را دانلود/پردازش کند؛
     قبل از media_publish، وضعیت را چک می‌کنیم تا خطای «رسانه آماده نیست» نگیریم."""
     url = f"{GRAPH_BASE}/{creation_id}"
     params = {"fields": "status_code", "access_token": FACEBOOK_PAGE_ACCESS_TOKEN}
+    last_detail = "ok"
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         for _ in range(_PUBLISH_POLL_ATTEMPTS):
             try:
                 resp = await client.get(url, params=params)
-                resp.raise_for_status()
-                status = resp.json().get("status_code")
-                if status == "FINISHED":
-                    return True
-                if status == "ERROR":
-                    logger.error("پردازش رسانهٔ اینستاگرام با خطا مواجه شد (status_code=ERROR).")
-                    return False
-            except Exception:
+                if resp.status_code >= 400:
+                    last_detail = _extract_graph_error(resp)
+                else:
+                    status = resp.json().get("status_code")
+                    if status == "FINISHED":
+                        return True, "ok"
+                    if status == "ERROR":
+                        last_detail = "پردازش رسانه در سمت اینستاگرام با خطا مواجه شد (status_code=ERROR) — معمولاً یعنی image_url در دسترس نبود یا فرمت تصویر پذیرفته نشد."
+                        logger.error(last_detail)
+                        return False, last_detail
+            except Exception as exc:
+                last_detail = f"خطای شبکه/غیرمنتظره: {exc}"
                 logger.exception("خطا در بررسی وضعیت کانتینر رسانهٔ اینستاگرام")
             await asyncio.sleep(_PUBLISH_POLL_DELAY_SECONDS)
     # اگر بعد از همهٔ تلاش‌ها هنوز FINISHED نشد، بازهم یک تلاش نهایی برای publish
     # می‌کنیم (در عمل معمولاً تا این مرحله آماده است؛ عدم قطعیت شبکه را نباید به
     # معنای شکست قطعی گرفت).
-    return True
+    return True, last_detail
 
 
-async def _publish_container(creation_id: str) -> bool:
+async def _publish_container(creation_id: str) -> tuple[bool, str]:
     url = f"{GRAPH_BASE}/{INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish"
     params = {"creation_id": creation_id, "access_token": FACEBOOK_PAGE_ACCESS_TOKEN}
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.post(url, params=params)
-            resp.raise_for_status()
+        if resp.status_code >= 400:
+            detail = _extract_graph_error(resp)
+            logger.error("خطای Graph API هنگام انتشار نهایی پست اینستاگرام (HTTP %s): %s", resp.status_code, detail)
+            return False, detail
         logger.info("پست اینستاگرام با موفقیت منتشر شد.")
-        return True
-    except Exception:
+        return True, "ok"
+    except Exception as exc:
         logger.exception("خطا در انتشار نهایی پست اینستاگرام (media_publish)")
-        return False
+        return False, f"خطای شبکه/غیرمنتظره: {exc}"
 
 
-async def _post_to_instagram(image_bytes: bytes, caption: str) -> bool:
+async def _post_to_instagram(image_bytes: bytes, caption: str) -> tuple[bool, str]:
     if not INSTAGRAM_BUSINESS_ACCOUNT_ID or not FACEBOOK_PAGE_ACCESS_TOKEN:
-        logger.warning("INSTAGRAM_BUSINESS_ACCOUNT_ID یا FACEBOOK_PAGE_ACCESS_TOKEN تنظیم نشده؛ پست انجام نشد.")
-        return False
+        msg = "INSTAGRAM_BUSINESS_ACCOUNT_ID یا FACEBOOK_PAGE_ACCESS_TOKEN تنظیم نشده"
+        logger.warning(msg)
+        return False, msg
 
     image_url = await _upload_image_get_public_url(image_bytes)
     if not image_url:
-        logger.error("آپلود تصویر پست به باکت عمومی Supabase ناموفق بود؛ اینستاگرام پست نشد.")
-        return False
+        msg = "آپلود تصویر پست به باکت عمومی Supabase ناموفق بود (بررسی کنید باکت social-posts وجود دارد و public است)"
+        logger.error(msg)
+        return False, msg
 
-    creation_id = await _create_media_container(image_url, caption)
+    creation_id, detail = await _create_media_container(image_url, caption)
     if not creation_id:
-        return False
+        return False, detail
 
-    if not await _wait_until_ready(creation_id):
-        return False
+    ready, detail = await _wait_until_ready(creation_id)
+    if not ready:
+        return False, detail
 
     return await _publish_container(creation_id)
 
 
 async def check_and_maybe_post(
     quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None, force: bool = False
-) -> bool:
+) -> tuple[bool, str]:
     """
     الگوی این تابع دقیقاً مثل facebook_service.check_and_maybe_post است (همان
     منطق تشخیص تغییر محسوس)، فقط با جدول وضعیت و آستانهٔ جداگانهٔ اینستاگرام،
@@ -189,14 +221,16 @@ async def check_and_maybe_post(
     force: اگر True باشد، بررسی «تغییر محسوس نرخ» نادیده گرفته می‌شود — برای
         نشر دستی (دکمهٔ ادمین در ربات) استفاده می‌شود.
 
-    خروجی: True اگر پست واقعاً با موفقیت منتشر شد، در غیر این صورت False.
+    خروجی: (True, "ok") اگر پست واقعاً با موفقیت منتشر شد؛ در غیر این صورت
+    (False, دلیل‌به‌فارسی) — دقیقاً مثل facebook_service، برای نمایش مستقیم به
+    ادمین در پیام نتیجهٔ دکمهٔ نشر دستی.
     """
     if not quotes:
-        return False
+        return False, "نرخی در دسترس نیست"
 
     current_state = _build_current_state(quotes, gold_breakdown, silver_breakdown)
     if not current_state:
-        return False
+        return False, "نرخی در دسترس نیست"
 
     last_state = db.get_ig_post_state()
 
@@ -213,25 +247,26 @@ async def check_and_maybe_post(
         return False
 
     if not force and not _has_significant_change(current_state, last_state):
-        return False
+        return False, "تغییر محسوس نرخ رخ نداده (پست لازم نبود)"
 
     usd_quote = quotes.get("usd")
     if not usd_quote or not gold_breakdown:
-        logger.warning("نرخ دالر یا اطلاعات طلا در دسترس نیست؛ تولید تصویر پست اینستاگرام ممکن نیست.")
-        return False
+        msg = "نرخ دالر یا اطلاعات طلا در دسترس نیست"
+        logger.warning(msg)
+        return False, msg
 
     try:
         date_str = get_afghan_datetime_str()
         image_bytes = await post_image_service.generate_facebook_post_image(
             usd_quote, gold_breakdown, date_str, silver_breakdown=silver_breakdown
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("خطا در تولید تصویر پست اینستاگرام")
-        return False
+        return False, f"خطا در تولید تصویر: {exc}"
 
     caption = _build_caption(quotes, gold_breakdown, silver_breakdown)
 
-    if await _post_to_instagram(image_bytes, caption):
+    ok, detail = await _post_to_instagram(image_bytes, caption)
+    if ok:
         db.set_ig_post_state(current_state)
-        return True
-    return False
+    return ok, detail
