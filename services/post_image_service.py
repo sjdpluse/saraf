@@ -126,12 +126,13 @@ def _series_json(points: list, live_value: Optional[float] = None) -> Optional[s
     return json.dumps(values)
 
 
-def _build_24h_series(quote: dict, gold_breakdown: dict, silver_breakdown: Optional[dict]) -> dict:
-    """سری‌های ۲۴ ساعتهٔ واقعی (دالر/محلی/طلا/نقره) را از Supabase می‌خواند.
-    اگر برای موردی داده کافی نبود، آن کلید اصلاً در دیکشنری خروجی نمی‌آید —
-    یعنی placeholder مربوطه در HTML جایگزین نمی‌شود و قالب به fallback ثابت
-    خودش سقوط می‌کند (بدون کرش، هم‌راستا با طراحی اصلی قالب)."""
-    since_24h = datetime.now(timezone.utc) - timedelta(hours=24)
+def _build_weekly_series(quote: dict, gold_breakdown: dict, silver_breakdown: Optional[dict]) -> dict:
+    """سری‌های هفتگی واقعی (دالر/محلی/طلا/نقره) را از Supabase می‌خواند — یک
+    نقطه به ازای هر روز از ۷ روز گذشته (نرخ بستهٔ همان روز). اگر برای موردی
+    داده کافی نبود، آن کلید اصلاً در دیکشنری خروجی نمی‌آید — یعنی placeholder
+    مربوطه در HTML جایگزین نمی‌شود و قالب به fallback ثابت خودش سقوط می‌کند
+    (بدون کرش، هم‌راستا با طراحی اصلی قالب)."""
+    since_7d = datetime.now(timezone.utc) - timedelta(days=7)
     series: dict = {}
 
     try:
@@ -141,7 +142,7 @@ def _build_24h_series(quote: dict, gold_breakdown: dict, silver_breakdown: Optio
         if local.get("buy") is not None and local.get("sell") is not None:
             local_live = (local["buy"] + local["sell"]) / 2
 
-        local_hist = db.get_local_market_rate_series(primary_market, "usd", since_24h)
+        local_hist = db.get_local_market_rate_series(primary_market, "usd", since_7d)
         local_json = _series_json(local_hist, local_live)
         if local_json:
             series["__LOCAL_SERIES__"] = local_json
@@ -151,31 +152,31 @@ def _build_24h_series(quote: dict, gold_breakdown: dict, silver_breakdown: Optio
             series["__USD_SERIES__"] = local_json
         else:
             ref_live = quote.get("reference_rate")
-            ref_hist = db.get_currency_rate_series("usd", since_24h)
+            ref_hist = db.get_currency_rate_series("usd", since_7d)
             ref_json = _series_json(ref_hist, ref_live)
             if ref_json:
                 series["__USD_SERIES__"] = ref_json
     except Exception:
-        logger.exception("خطا در ساخت سری ۲۴ ساعتهٔ دالر/محلی برای پست")
+        logger.exception("خطا در ساخت سری ۷ روزهٔ دالر/محلی برای پست")
 
     try:
         gold_live = gold_breakdown["karats"][24]["afn_per_gram"]
-        gold_hist = db.get_gold_rate_series(since_24h)
+        gold_hist = db.get_gold_rate_series(since_7d)
         gold_json = _series_json(gold_hist, gold_live)
         if gold_json:
             series["__GOLD_SERIES__"] = gold_json
     except Exception:
-        logger.exception("خطا در ساخت سری ۲۴ ساعتهٔ طلا برای پست")
+        logger.exception("خطا در ساخت سری ۷ روزهٔ طلا برای پست")
 
     if silver_breakdown:
         try:
             silver_live = silver_breakdown["afn_per_gram"]
-            silver_hist = db.get_silver_rate_series(since_24h)
+            silver_hist = db.get_silver_rate_series(since_7d)
             silver_json = _series_json(silver_hist, silver_live)
             if silver_json:
                 series["__SILVER_SERIES__"] = silver_json
         except Exception:
-            logger.exception("خطا در ساخت سری ۲۴ ساعتهٔ نقره برای پست")
+            logger.exception("خطا در ساخت سری ۷ روزهٔ نقره برای پست")
 
     return series
 
@@ -216,10 +217,10 @@ def _build_html(quote: dict, gold_breakdown: dict, silver_breakdown: Optional[di
         values["__SILVER_AFN__"] = "—"
         values["__SILVER_USD__"] = ""
 
-    # نمودار روند + درصد صعود/نزول واقعی (۲۴ ساعت گذشته). اگر داده کافی
+    # نمودار روند + درصد صعود/نزول واقعی (۷ روز گذشته). اگر داده کافی
     # نبود، کلید مربوطه اینجا اضافه نمی‌شود و placeholder در HTML دست‌نخورده
     # می‌ماند تا جاوااسکریپت قالب به fallback ثابت خودش سقوط کند.
-    values.update(_build_24h_series(quote, gold_breakdown, silver_breakdown))
+    values.update(_build_weekly_series(quote, gold_breakdown, silver_breakdown))
 
     for key, val in values.items():
         template = template.replace(key, val)

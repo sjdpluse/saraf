@@ -716,7 +716,7 @@
 
         <div class="chart-wrap">
           <div class="chart-meta">
-            <span>روند اخیر</span>
+            <span>روند ۷ روز اخیر</span>
             <span>USD / AFN</span>
           </div>
           <svg class="spark" id="sparkUsd" viewBox="0 0 440 112" preserveAspectRatio="none"></svg>
@@ -896,6 +896,11 @@ function draw(id,data,opts){
   var vb = svg.getAttribute("viewBox").split(" ").map(Number);
   var W = vb[2], H = vb[3];
   var pad = opts.pad || 8;
+  var labelSize = opts.labelSize || 13;
+  /* وقتی برچسب قیمت روشن است، فضای بالای نمودار را بیشتر رزرو می‌کنیم تا
+     برچسب بالاترین نقطه هرگز از لبهٔ svg بیرون نزند. */
+  var vPad = opts.labels ? (pad + labelSize + 6) : pad;
+
   var min = Math.min.apply(null,data);
   var max = Math.max.apply(null,data);
   var span = (max-min) || 1;
@@ -904,7 +909,7 @@ function draw(id,data,opts){
 
   var pts = data.map(function(v,i){
     var x = (W-pad*2)*(i/(data.length-1))+pad;
-    var y = H-pad-((v-min)/span)*(H-pad*2);
+    var y = H-vPad-((v-min)/span)*(H-vPad*2);
     return [x,y];
   });
 
@@ -938,6 +943,21 @@ function draw(id,data,opts){
     ? '<path d="'+d+' L'+(W-pad)+' '+H+' L'+pad+' '+H+' Z" fill="url(#'+gid+')"/>'
     : '';
 
+  var dots = "";
+  var labels = "";
+  if(opts.labels){
+    var fmt = opts.fmt || function(v){ return toFa(String(Math.round(v))); };
+    pts.forEach(function(p,i){
+      /* یک نقطهٔ کوچک زیر هر برچسب، به‌علاوهٔ خودِ برچسب قیمت آن روز. */
+      dots += '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+
+              '" r="'+(opts.sw>4?4.5:3.2)+'" fill="'+color+'" stroke="#fff" stroke-width="2"/>';
+      labels += '<text x="'+p[0].toFixed(1)+'" y="'+(p[1]-10).toFixed(1)+
+                 '" font-size="'+labelSize+'" font-weight="800" fill="'+color+
+                 '" text-anchor="middle" font-family="Peyda,-apple-system,sans-serif">'+
+                 fmt(data[i])+'</text>';
+    });
+  }
+
   svg.innerHTML =
     '<defs>'+
       '<linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1">'+
@@ -949,6 +969,8 @@ function draw(id,data,opts){
     area+
     '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+(opts.sw||3)+
       '" stroke-linecap="round" stroke-linejoin="round"/>'+
+    dots+
+    labels+
     (opts.dot
       ? '<circle cx="'+pts[pts.length-1][0].toFixed(1)+'" cy="'+pts[pts.length-1][1].toFixed(1)+
         '" r="'+(opts.sw>4?6:4.5)+'" fill="'+color+'" stroke="#fff" stroke-width="3"/>'
@@ -957,31 +979,35 @@ function draw(id,data,opts){
   return ((data[data.length-1]-data[0])/(data[0]||1))*100;
 }
 
+var fmtRate = function(v){ return toFa(v.toFixed(1)); };
+var fmtGold = function(v){ return toFa(String(Math.round(v))); };
+
 var sUsd = parseSeries(RAW.usd,FB.usd);
 
 var pct = draw(
   "sparkUsd",
   sUsd,
-  {area:true,dot:true,sw:4.2,pad:12,grid:true}
+  {area:true,dot:true,sw:4.2,pad:12,grid:true,labels:true,labelSize:15,fmt:fmtRate}
 );
 
 draw(
   "sparkGold",
   parseSeries(RAW.gold,FB.gold),
-  {area:true,sw:3,pad:8,dot:true,grid:true}
+  {area:true,sw:3,pad:8,dot:true,grid:true,labels:true,labelSize:10,fmt:fmtGold}
 );
 
 draw(
   "sparkSilver",
   parseSeries(RAW.silver,FB.silver),
-  {area:true,sw:3,pad:8,dot:true,grid:true}
+  {area:true,sw:3,pad:8,dot:true,grid:true,labels:true,labelSize:10,fmt:fmtRate}
 );
 
 draw(
   "sparkLocal",
   parseSeries(RAW.local,FB.local),
-  {area:true,sw:3,pad:8,dot:true,grid:true}
+  {area:true,sw:3,pad:8,dot:true,grid:true,labels:true,labelSize:12,fmt:fmtRate}
 );
+
 
 var box = document.getElementById("usdDelta");
 var val = document.getElementById("usdDeltaVal");

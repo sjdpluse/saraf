@@ -551,12 +551,13 @@ def insert_silver_snapshot(price_usd_per_oz: float, afn_per_gram: float) -> None
 # سری‌های زمانی (برای نمودار روند واقعی در پست فیسبوک/اینستاگرام)
 #
 # نکته: این توابع برخلاف get_closest_* بالا، یک «تک عدد» نمی‌گیرند بلکه چند
-# نقطهٔ نمونه‌برداری‌شده در یک بازهٔ زمانی (مثلاً ۲۴ ساعت گذشته) برمی‌گردانند
-# تا بشود یک نمودار روند واقعی (spark line) رسم کرد و صعودی/نزولی بودن واقعی
-# را (نه یک آرایهٔ ثابت hardcoded) تشخیص داد.
+# نقطهٔ نمونه‌برداری‌شده در یک بازهٔ زمانی (مثلاً ۷ روز گذشته) برمی‌گردانند تا
+# بشود یک نمودار روند واقعی (spark line) رسم کرد. نمونه‌برداری به‌صورت
+# «روزانه» است (آخرین نرخ ثبت‌شدهٔ هر روز = نرخ بستهٔ آن روز) تا خروجی حداکثر
+# یک نقطه به ازای هر روز باشد و نمودار/برچسب‌های قیمت شلوغ نشوند.
 # ---------------------------------------------------------------------------
 def _downsample_series(values: list[float], max_points: int) -> list[float]:
-    """اگر تعداد رکوردها از max_points بیشتر بود، به‌صورت یکنواخت نمونه‌برداری
+    """اگر تعداد نقاط از max_points بیشتر بود، به‌صورت یکنواخت نمونه‌برداری
     می‌کند (همیشه اولین و آخرین نقطه را نگه می‌دارد) تا نمودار شلوغ نشود."""
     if len(values) <= max_points:
         return values
@@ -567,10 +568,26 @@ def _downsample_series(values: list[float], max_points: int) -> list[float]:
     return [values[i] for i in indices]
 
 
+def _bucket_daily(rows: list[dict], value_fn, max_points: int = 7) -> list[float]:
+    """رکوردهای مرتب‌شدهٔ صعودی بر اساس recorded_at را بر اساس روز تقویمی
+    (UTC) دسته‌بندی می‌کند و برای هر روز، آخرین مقدار ثبت‌شده («نرخ بستهٔ
+    روز») را نگه می‌دارد. خروجی: یک مقدار برای هر روزی که واقعاً داده در آن
+    ثبت شده (ممکن است کمتر از ۷ روز باشد اگر تاریخچه به‌تازگی شروع شده)."""
+    daily: dict = {}
+    for row in rows:
+        raw_ts = row["recorded_at"]
+        ts = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+        day_key = ts.astimezone(timezone.utc).date()
+        daily[day_key] = value_fn(row)  # صعودی مرتب شده -> آخرین نوشته = آخرین مقدار همان روز
+    ordered_days = sorted(daily.keys())
+    values = [daily[d] for d in ordered_days]
+    return _downsample_series(values, max_points)
+
+
 def get_currency_rate_series(
-    currency: str, since: datetime, max_points: int = 8
+    currency: str, since: datetime, max_points: int = 7
 ) -> list[float]:
-    """سری تاریخی نرخ مرجع جهانی یک ارز از since تا اکنون."""
+    """سری روزانهٔ نرخ مرجع جهانی یک ارز از since تا اکنون (یک نقطه به ازای هر روز)."""
     try:
         res = (
             get_client()
@@ -581,17 +598,16 @@ def get_currency_rate_series(
             .order("recorded_at", desc=False)
             .execute()
         )
-        values = [float(row["afn_rate"]) for row in (res.data or [])]
-        return _downsample_series(values, max_points)
+        return _bucket_daily(res.data or [], lambda r: float(r["afn_rate"]), max_points)
     except Exception:
         logger.exception("خطا در بازیابی سری تاریخی نرخ ارز")
         return []
 
 
 def get_local_market_rate_series(
-    market: str, currency: str, since: datetime, max_points: int = 8
+    market: str, currency: str, since: datetime, max_points: int = 7
 ) -> list[float]:
-    """سری تاریخی نرخ میانگین (خرید+فروش)/۲ یک ارز در یک بازار محلی."""
+    """سری روزانهٔ نرخ میانگین (خرید+فروش)/۲ یک ارز در یک بازار محلی."""
     try:
         res = (
             get_client()
@@ -603,17 +619,18 @@ def get_local_market_rate_series(
             .order("recorded_at", desc=False)
             .execute()
         )
-        values = [
-            (float(row["buy"]) + float(row["sell"])) / 2 for row in (res.data or [])
-        ]
-        return _downsample_series(values, max_points)
+        return _bucket_daily(
+            res.data or [],
+            lambda r: (float(r["buy"]) + float(r["sell"])) / 2,
+            max_points,
+        )
     except Exception:
         logger.exception("خطا در بازیابی سری تاریخی بازار محلی")
         return []
 
 
-def get_gold_rate_series(since: datetime, max_points: int = 8) -> list[float]:
-    """سری تاریخی قیمت طلای ۲۴ عیار (افغانی به ازای هر گرم)."""
+def get_gold_rate_series(since: datetime, max_points: int = 7) -> list[float]:
+    """سری روزانهٔ قیمت طلای ۲۴ عیار (افغانی به ازای هر گرم)."""
     try:
         res = (
             get_client()
@@ -623,15 +640,16 @@ def get_gold_rate_series(since: datetime, max_points: int = 8) -> list[float]:
             .order("recorded_at", desc=False)
             .execute()
         )
-        values = [float(row["afn_per_gram_24k"]) for row in (res.data or [])]
-        return _downsample_series(values, max_points)
+        return _bucket_daily(
+            res.data or [], lambda r: float(r["afn_per_gram_24k"]), max_points
+        )
     except Exception:
         logger.exception("خطا در بازیابی سری تاریخی طلا")
         return []
 
 
-def get_silver_rate_series(since: datetime, max_points: int = 8) -> list[float]:
-    """سری تاریخی قیمت نقرهٔ ۹۹۹ (افغانی به ازای هر گرم)."""
+def get_silver_rate_series(since: datetime, max_points: int = 7) -> list[float]:
+    """سری روزانهٔ قیمت نقرهٔ ۹۹۹ (افغانی به ازای هر گرم)."""
     try:
         res = (
             get_client()
@@ -641,8 +659,7 @@ def get_silver_rate_series(since: datetime, max_points: int = 8) -> list[float]:
             .order("recorded_at", desc=False)
             .execute()
         )
-        values = [float(row["afn_per_gram"]) for row in (res.data or [])]
-        return _downsample_series(values, max_points)
+        return _bucket_daily(res.data or [], lambda r: float(r["afn_per_gram"]), max_points)
     except Exception:
         logger.exception("خطا در بازیابی سری تاریخی نقره")
         return []
