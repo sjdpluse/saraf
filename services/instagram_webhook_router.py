@@ -36,7 +36,14 @@ async def verify_instagram_webhook(request: Request):
     if mode == "subscribe" and token and INSTAGRAM_WEBHOOK_VERIFY_TOKEN and token == INSTAGRAM_WEBHOOK_VERIFY_TOKEN:
         return PlainTextResponse(challenge or "")
 
-    logger.warning("درخواست تایید وبهوک اینستاگرام رد شد (verify_token نامعتبر یا mode اشتباه).")
+    logger.warning(
+        "درخواست تایید وبهوک اینستاگرام رد شد. mode=%s | token_received_len=%s | "
+        "token_configured_len=%s | tokens_equal_after_strip=%s",
+        mode,
+        len(token or ""),
+        len(INSTAGRAM_WEBHOOK_VERIFY_TOKEN or ""),
+        (token or "").strip() == (INSTAGRAM_WEBHOOK_VERIFY_TOKEN or "").strip(),
+    )
     raise HTTPException(status_code=403, detail="verify token mismatch")
 
 

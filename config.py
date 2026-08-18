@@ -138,10 +138,10 @@ SOCIAL_POSTS_BUCKET = os.getenv("SOCIAL_POSTS_BUCKET", "social-posts")
 # App Secret همان اپ Meta که برای گرفتن FACEBOOK_PAGE_ACCESS_TOKEN ساختید (از
 # Settings → Basic) — برای تایید امضای وبهوک (X-Hub-Signature-256) لازم است تا
 # کسی نتواند با جعل درخواست، پیام دلخواه به‌جای وبهوک واقعی متا بفرستد.
-INSTAGRAM_APP_SECRET = os.getenv("INSTAGRAM_APP_SECRET", "")
+INSTAGRAM_APP_SECRET = os.getenv("INSTAGRAM_APP_SECRET", "").strip()
 # یک رشتهٔ دلخواه (خودتان می‌سازید) — همین مقدار را هنگام تنظیم Webhook در
 # داشبورد Meta هم وارد می‌کنید؛ متا موقع تایید (GET) همین را پس می‌فرستد.
-INSTAGRAM_WEBHOOK_VERIFY_TOKEN = os.getenv("INSTAGRAM_WEBHOOK_VERIFY_TOKEN", "")
+INSTAGRAM_WEBHOOK_VERIFY_TOKEN = os.getenv("INSTAGRAM_WEBHOOK_VERIFY_TOKEN", "").strip()
 # کلمات کلیدی‌یی که وقتی در کامنت دیده شوند، همان لحظه یک دایرکت (private reply)
 # حاوی لینک ربات فرستاده می‌شود — بدون هیچ شرط فالو (طبق تصمیم شما)، مستقیم.
 INSTAGRAM_COMMENT_KEYWORDS = [
