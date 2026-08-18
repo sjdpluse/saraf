@@ -53,6 +53,7 @@ from services import (
     api_errors,
 )
 from services import supabase_service as db
+from services.instagram_webhook_router import router as instagram_webhook_router
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -77,6 +78,10 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# وبهوک اینستاگرام (کامنت جدید → دایرکت خودکار کلمهٔ کلیدی + پاسخ AI عمومی) —
+# services/instagram_webhook_router.py را ببینید. مسیرش /webhooks/instagram است.
+app.include_router(instagram_webhook_router)
 
 
 @app.middleware("http")
