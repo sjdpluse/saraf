@@ -499,7 +499,100 @@ def get_closest_gold_rate(when: datetime) -> Optional[float]:
         logger.exception("خطا در بازیابی نرخ تاریخی طلا")
         return None
 
+def _bucket_daily_last(rows: list[dict], value_key: str, time_key: str = "recorded_at") -> list[float]:
+    """ردیف‌ها (صعودی بر اساس recorded_at) را بر اساس روز تقویمی UTC گروه‌بندی
+    می‌کند و آخرین مقدار هر روز را نگه می‌دارد (نرخ بستهٔ همان روز)."""
+    daily: dict[str, float] = {}
+    for row in rows:
+        ts = row.get(time_key)
+        value = row.get(value_key)
+        if not ts or value is None:
+            continue
+        daily[ts[:10]] = float(value)
+    return [daily[day] for day in sorted(daily.keys())]
 
+
+def get_currency_rate_series(currency: str, since: datetime) -> list[float]:
+    try:
+        res = (
+            get_client().table("currency_history")
+            .select("afn_rate, recorded_at")
+            .eq("currency", currency)
+            .gte("recorded_at", since.isoformat())
+            .order("recorded_at")
+            .execute()
+        )
+        return _bucket_daily_last(res.data or [], "afn_rate")
+    except Exception:
+        logger.exception("خطا در بازیابی سری تاریخی نرخ ارز")
+        return []
+
+
+def get_gold_rate_series(since: datetime) -> list[float]:
+    try:
+        res = (
+            get_client().table("gold_history")
+            .select("afn_per_gram_24k, recorded_at")
+            .gte("recorded_at", since.isoformat())
+            .order("recorded_at")
+            .execute()
+        )
+        return _bucket_daily_last(res.data or [], "afn_per_gram_24k")
+    except Exception:
+        logger.exception("خطا در بازیابی سری تاریخی طلا")
+        return []
+
+
+def get_local_market_rate_series(market: str, currency: str, since: datetime) -> list[float]:
+    try:
+        res = (
+            get_client().table("local_market_history")
+            .select("buy, sell, recorded_at")
+            .eq("market", market)
+            .eq("currency", currency)
+            .gte("recorded_at", since.isoformat())
+            .order("recorded_at")
+            .execute()
+        )
+        daily: dict[str, float] = {}
+        for row in res.data or []:
+            ts = row.get("recorded_at")
+            if not ts or row.get("buy") is None or row.get("sell") is None:
+                continue
+            daily[ts[:10]] = (float(row["buy"]) + float(row["sell"])) / 2
+        return [daily[day] for day in sorted(daily.keys())]
+    except Exception:
+        logger.exception("خطا در بازیابی سری تاریخی بازار محلی")
+        return []
+
+
+# --- تاریخچهٔ نقره (کاملاً جدید) ---
+def insert_silver_snapshot(price_usd_per_oz: float, afn_per_gram: float) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        get_client().table("silver_history").insert({
+            "price_usd_per_oz": price_usd_per_oz,
+            "afn_per_gram": afn_per_gram,
+            "recorded_at": now,
+        }).execute()
+    except Exception:
+        logger.exception("خطا در ذخیرهٔ تاریخچهٔ نقره")
+
+
+def get_silver_rate_series(since: datetime) -> list[float]:
+    try:
+        res = (
+            get_client().table("silver_history")
+            .select("afn_per_gram, recorded_at")
+            .gte("recorded_at", since.isoformat())
+            .order("recorded_at")
+            .execute()
+        )
+        return _bucket_daily_last(res.data or [], "afn_per_gram")
+    except Exception:
+        logger.exception("خطا در بازیابی سری تاریخی نقره")
+        return []
+    
 # ---------------------------------------------------------------------------
 # تنظیمات حاشیهٔ سود صراف (spread) — به ازای هر ارز
 # ---------------------------------------------------------------------------
