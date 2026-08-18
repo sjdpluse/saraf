@@ -351,29 +351,160 @@ def set_ig_post_state(state: dict) -> None:
 # comment_id با خطای unique constraint شکست می‌خورد که یعنی «قبلاً پردازش شده،
 # نادیده بگیر».
 # ---------------------------------------------------------------------------
-def try_claim_ig_comment_event(comment_id: str, media_id: Optional[str], username: Optional[str], text: str) -> bool:
-    """اگر این comment_id برای اولین‌بار است، یک ردیف می‌سازد و True برمی‌گرداند
-    (یعنی «برو پردازشش کن»). اگر قبلاً وجود داشت (تلاش دوم وبهوک)، False
-    برمی‌گرداند (یعنی «نادیده بگیر، قبلاً پردازش شده»)."""
-    try:
-        get_client().table("ig_comment_events").insert(
-            {
-                "comment_id": comment_id,
-                "media_id": media_id,
-                "commenter_username": username,
-                "comment_text": text,
-                "dm_sent": False,
-                "ai_replied": False,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            }
-        ).execute()
-        return True
-    except Exception:
-        # پرشدن unique constroint (comment_id تکراری) هم از همین مسیر می‌گذرد؛
-        # چون معنایش «قبلاً claim شده» است، به‌جای فقط لاگ‌کردن، فرض می‌کنیم
-        # همین دلیل بوده (شایع‌ترین علت) و به آرامی False برمی‌گردانیم.
-        return False
+def _is_unique_violation(
+    exc: Exception,
+) -> bool:
+    code = getattr(
+        exc,
+        "code",
+        None,
+    )
 
+    if str(code) == "23505":
+        return True
+
+    text = str(
+        exc
+    ).lower()
+
+    return (
+        "23505" in text
+        or "duplicate key" in text
+        or "unique constraint" in text
+    )
+
+
+def try_claim_ig_comment_event(
+    comment_id: str,
+    media_id: Optional[str],
+    username: Optional[str],
+    text: str,
+) -> bool:
+    """
+    comment_id فقط یک بار قابل claim است.
+
+    duplicate:
+        False
+
+    Database failure واقعی:
+        Exception
+    """
+
+    try:
+        (
+            get_client()
+            .table(
+                "ig_comment_events"
+            )
+            .insert(
+                {
+                    "comment_id": (
+                        str(comment_id)
+                    ),
+                    "media_id": (
+                        str(media_id)
+                        if media_id
+                        else None
+                    ),
+                    "commenter_username": (
+                        username
+                        or None
+                    ),
+                    "comment_text": (
+                        text
+                        or ""
+                    ),
+                    "dm_sent": False,
+                    "ai_replied": False,
+                    "created_at": (
+                        datetime.now(
+                            timezone.utc
+                        ).isoformat()
+                    ),
+                }
+            )
+            .execute()
+        )
+
+        logger.info(
+            "Instagram comment event "
+            "claimed comment_id=%s",
+            comment_id,
+        )
+
+        return True
+
+    except Exception as exc:
+        if _is_unique_violation(
+            exc
+        ):
+            logger.info(
+                "Duplicate Instagram "
+                "comment ignored "
+                "comment_id=%s",
+                comment_id,
+            )
+
+            return False
+
+        logger.exception(
+            "خطای واقعی Supabase هنگام "
+            "ثبت Instagram comment "
+            "comment_id=%s",
+            comment_id,
+        )
+
+        raise
+
+
+def mark_ig_comment_event(
+    comment_id: str,
+    *,
+    dm_sent: Optional[bool] = None,
+    ai_replied: Optional[bool] = None,
+) -> None:
+    updates = {}
+
+    if dm_sent is not None:
+        updates[
+            "dm_sent"
+        ] = bool(
+            dm_sent
+        )
+
+    if ai_replied is not None:
+        updates[
+            "ai_replied"
+        ] = bool(
+            ai_replied
+        )
+
+    if not updates:
+        return
+
+    try:
+        (
+            get_client()
+            .table(
+                "ig_comment_events"
+            )
+            .update(
+                updates
+            )
+            .eq(
+                "comment_id",
+                str(comment_id),
+            )
+            .execute()
+        )
+
+    except Exception:
+        logger.exception(
+            "خطا در به‌روزرسانی "
+            "Instagram comment event "
+            "comment_id=%s",
+            comment_id,
+        )
 
 def mark_ig_comment_event(comment_id: str, *, dm_sent: Optional[bool] = None, ai_replied: Optional[bool] = None) -> None:
     updates = {}
@@ -467,37 +598,266 @@ def get_closest_currency_rate(currency: str, when: datetime) -> Optional[float]:
 # ---------------------------------------------------------------------------
 # تاریخچهٔ طلا
 # ---------------------------------------------------------------------------
-def insert_gold_snapshot(price_usd_per_oz: float, afn_per_gram_24k: float) -> None:
-    now = datetime.now(timezone.utc).isoformat()
+
+def insert_gold_snapshot(
+    price_usd_per_oz: float,
+    afn_per_gram_24k: float,
+) -> None:
+    now = (
+        datetime.now(
+            timezone.utc
+        ).isoformat()
+    )
+
     try:
-        get_client().table("gold_history").insert(
-            {
-                "price_usd_per_oz": price_usd_per_oz,
-                "afn_per_gram_24k": afn_per_gram_24k,
-                "recorded_at": now,
-            }
-        ).execute()
+        (
+            get_client()
+            .table(
+                "gold_history"
+            )
+            .insert(
+                {
+                    "price_usd_per_oz": (
+                        price_usd_per_oz
+                    ),
+                    "afn_per_gram_24k": (
+                        afn_per_gram_24k
+                    ),
+                    "recorded_at": now,
+                }
+            )
+            .execute()
+        )
+
     except Exception:
-        logger.exception("خطا در ذخیرهٔ تاریخچهٔ طلا")
+        logger.exception(
+            "خطا در ذخیرهٔ تاریخچهٔ طلا"
+        )
 
 
-def get_closest_gold_rate(when: datetime) -> Optional[float]:
+def get_closest_gold_rate(
+    when: datetime,
+) -> Optional[float]:
     try:
         res = (
             get_client()
-            .table("gold_history")
-            .select("afn_per_gram_24k, recorded_at")
-            .lte("recorded_at", when.isoformat())
-            .order("recorded_at", desc=True)
+            .table(
+                "gold_history"
+            )
+            .select(
+                "afn_per_gram_24k, "
+                "recorded_at"
+            )
+            .lte(
+                "recorded_at",
+                when.isoformat(),
+            )
+            .order(
+                "recorded_at",
+                desc=True,
+            )
             .limit(1)
             .execute()
         )
+
         if res.data:
-            return float(res.data[0]["afn_per_gram_24k"])
+            return float(
+                res.data[0][
+                    "afn_per_gram_24k"
+                ]
+            )
+
         return None
+
     except Exception:
-        logger.exception("خطا در بازیابی نرخ تاریخی طلا")
+        logger.exception(
+            "خطا در بازیابی "
+            "نرخ تاریخی طلا"
+        )
+
         return None
+
+
+# ---------------------------------------------------------------------------
+# تاریخچهٔ نقره
+# ---------------------------------------------------------------------------
+
+def insert_silver_snapshot(
+    price_usd_per_oz: float,
+    afn_per_gram: float,
+) -> None:
+    """
+    نرخ جهانی نقره و قیمت هر گرم به AFN را
+    در silver_history ذخیره می‌کند.
+
+    jobs.fetch_and_store_snapshot این تابع را
+    مستقیماً فراخوانی می‌کند.
+    """
+
+    now = (
+        datetime.now(
+            timezone.utc
+        ).isoformat()
+    )
+
+    try:
+        (
+            get_client()
+            .table(
+                "silver_history"
+            )
+            .insert(
+                {
+                    "price_usd_per_oz": (
+                        price_usd_per_oz
+                    ),
+                    "afn_per_gram": (
+                        afn_per_gram
+                    ),
+                    "recorded_at": now,
+                }
+            )
+            .execute()
+        )
+
+        logger.info(
+            "تاریخچهٔ نقره "
+            "در Supabase ذخیره شد."
+        )
+
+    except Exception:
+        logger.exception(
+            "خطا در ذخیرهٔ "
+            "تاریخچهٔ نقره"
+        )
+
+
+def get_closest_silver_rate(
+    when: datetime,
+) -> Optional[float]:
+    """
+    نزدیک‌ترین نرخ نقره در قبل از زمان مشخص.
+    """
+
+    try:
+        res = (
+            get_client()
+            .table(
+                "silver_history"
+            )
+            .select(
+                "afn_per_gram, "
+                "recorded_at"
+            )
+            .lte(
+                "recorded_at",
+                when.isoformat(),
+            )
+            .order(
+                "recorded_at",
+                desc=True,
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if res.data:
+            return float(
+                res.data[0][
+                    "afn_per_gram"
+                ]
+            )
+
+        return None
+
+    except Exception:
+        logger.exception(
+            "خطا در بازیابی "
+            "نرخ تاریخی نقره"
+        )
+
+        return None
+
+
+def get_silver_rate_series(
+    since: datetime,
+) -> list[float]:
+    """
+    سری روزانه نرخ نقره برای نمودار/آمار.
+
+    از آخرین مقدار هر روز UTC استفاده می‌کند.
+    """
+
+    try:
+        res = (
+            get_client()
+            .table(
+                "silver_history"
+            )
+            .select(
+                "afn_per_gram, "
+                "recorded_at"
+            )
+            .gte(
+                "recorded_at",
+                since.isoformat(),
+            )
+            .order(
+                "recorded_at"
+            )
+            .execute()
+        )
+
+        daily: dict[
+            str,
+            float,
+        ] = {}
+
+        for row in (
+            res.data
+            or []
+        ):
+            timestamp = (
+                row.get(
+                    "recorded_at"
+                )
+            )
+
+            value = (
+                row.get(
+                    "afn_per_gram"
+                )
+            )
+
+            if (
+                not timestamp
+                or value is None
+            ):
+                continue
+
+            day = (
+                timestamp[:10]
+            )
+
+            daily[day] = float(
+                value
+            )
+
+        return [
+            daily[day]
+            for day
+            in sorted(
+                daily.keys()
+            )
+        ]
+
+    except Exception:
+        logger.exception(
+            "خطا در بازیابی "
+            "سری تاریخی نقره"
+        )
+
+        return []
 
 
 # ---------------------------------------------------------------------------
