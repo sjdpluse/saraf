@@ -506,18 +506,6 @@ def mark_ig_comment_event(
             comment_id,
         )
 
-def mark_ig_comment_event(comment_id: str, *, dm_sent: Optional[bool] = None, ai_replied: Optional[bool] = None) -> None:
-    updates = {}
-    if dm_sent is not None:
-        updates["dm_sent"] = dm_sent
-    if ai_replied is not None:
-        updates["ai_replied"] = ai_replied
-    if not updates:
-        return
-    try:
-        get_client().table("ig_comment_events").update(updates).eq("comment_id", comment_id).execute()
-    except Exception:
-        logger.exception("خطا در به‌روزرسانی وضعیت رویداد کامنت اینستاگرام %s", comment_id)
 
 
 def deactivate_user(chat_id: int) -> None:
