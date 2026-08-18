@@ -2,18 +2,17 @@
 Instagram Comment Automation for Saraf
 ======================================
 
-این سرویس برای:
-Instagram API with Instagram Login
+این سرویس processor مشترک Instagram Comment Automation است.
 
-طراحی شده است.
+ورودی می‌تواند از دو مسیر باشد:
+
+1. Webhook رسمی Meta
+2. Polling رسمی Instagram Graph API
 
 رفتار:
-1. هر کامنت جدید از Webhook دریافت می‌شود.
-2. اگر متن کامنت شامل Keyword باشد:
-   -> Private Reply در دایرکت ارسال می‌شود.
-3. اگر AI Reply فعال باشد:
-   -> پاسخ عمومی AI زیر همان کامنت ارسال می‌شود.
-4. هر comment_id فقط یک بار پردازش می‌شود.
+- Keyword -> Private Reply / DM
+- AI Enabled -> Public Reply
+- هر comment_id فقط یک بار پردازش می‌شود.
 
 Authentication:
 - Instagram User Access Token
@@ -40,7 +39,7 @@ from config import (
     TELEGRAM_BOT_LINK,
 )
 
-from services import supabase_service as db
+from services import instagram_comment_store
 
 
 logger = logging.getLogger(__name__)
@@ -50,46 +49,33 @@ logger = logging.getLogger(__name__)
 # Instagram API with Instagram Login
 # ============================================================
 
-# Token ساخته‌شده از:
-# Meta Developer
-# → Instagram API
-# → API setup with Instagram login
-# → Generate token
 INSTAGRAM_USER_ACCESS_TOKEN = os.getenv(
     "INSTAGRAM_USER_ACCESS_TOKEN",
     "",
 ).strip()
 
 
-# ID اکانت Instagram Professional
-#
-# توصیه:
-# INSTAGRAM_USER_ID را در Railway صریحاً تنظیم کنید.
-#
-# اگر تنظیم نشده باشد برای backward compatibility از
-# INSTAGRAM_BUSINESS_ACCOUNT_ID استفاده می‌کنیم.
 INSTAGRAM_USER_ID = os.getenv(
     "INSTAGRAM_USER_ID",
     INSTAGRAM_BUSINESS_ACCOUNT_ID,
 ).strip()
 
 
-# username خود اکانت Saraf
-# برای جلوگیری از loop پاسخ‌های خود سیستم
 INSTAGRAM_BUSINESS_USERNAME = os.getenv(
     "INSTAGRAM_BUSINESS_USERNAME",
     "",
 ).strip().lstrip("@").lower()
 
 
-# نسخه Graph API
 INSTAGRAM_GRAPH_API_VERSION = os.getenv(
     "INSTAGRAM_GRAPH_API_VERSION",
     "v24.0",
 ).strip()
 
 if not INSTAGRAM_GRAPH_API_VERSION.startswith("v"):
-    INSTAGRAM_GRAPH_API_VERSION = f"v{INSTAGRAM_GRAPH_API_VERSION}"
+    INSTAGRAM_GRAPH_API_VERSION = (
+        f"v{INSTAGRAM_GRAPH_API_VERSION}"
+    )
 
 
 GRAPH_BASE = (
@@ -102,11 +88,12 @@ GRAPH_BASE = (
 # OpenRouter
 # ============================================================
 
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_URL = (
+    "https://openrouter.ai/api/v1/chat/completions"
+)
 
 _TIMEOUT = 20.0
 
-# حداکثر طول پاسخ عمومی AI
 _AI_REPLY_MAX_CHARS = 400
 
 
@@ -121,7 +108,8 @@ def verify_webhook_signature(
     """
     تایید X-Hub-Signature-256.
 
-    درخواست Webhook باید واقعاً از Meta آمده باشد.
+    فقط مسیر Webhook از این تابع استفاده می‌کند.
+    Polling نیازی به Webhook signature ندارد.
     """
 
     if not INSTAGRAM_APP_SECRET:
@@ -137,19 +125,26 @@ def verify_webhook_signature(
         )
         return False
 
-    if not signature_header.startswith("sha256="):
+    if not signature_header.startswith(
+        "sha256="
+    ):
         logger.warning(
             "فرمت X-Hub-Signature-256 نامعتبر است."
         )
         return False
 
     expected = hmac.new(
-        INSTAGRAM_APP_SECRET.encode("utf-8"),
+        INSTAGRAM_APP_SECRET.encode(
+            "utf-8"
+        ),
         raw_body,
         hashlib.sha256,
     ).hexdigest()
 
-    provided = signature_header.split("=", 1)[1]
+    provided = signature_header.split(
+        "=",
+        1,
+    )[1]
 
     valid = hmac.compare_digest(
         expected,
@@ -174,15 +169,15 @@ async def handle_webhook_payload(
     """
     پردازش Instagram Webhook.
 
-    هر دو ساختار را پشتیبانی می‌کند:
+    پشتیبانی از:
 
-    1. Instagram API with Instagram Login:
-       entry.field
-       entry.value
+    FORMAT 1:
+        entry.field
+        entry.value
 
-    2. ساختار قدیمی / برخی webhook payloadها:
-       entry.changes[].field
-       entry.changes[].value
+    FORMAT 2:
+        entry.changes[].field
+        entry.changes[].value
     """
 
     if payload.get("object") != "instagram":
@@ -192,42 +187,56 @@ async def handle_webhook_payload(
         )
         return
 
-    entries = payload.get("entry") or []
+    entries = (
+        payload.get("entry")
+        or []
+    )
 
-    if not isinstance(entries, list):
+    if not isinstance(
+        entries,
+        list,
+    ):
         logger.warning(
-            "Instagram webhook invalid entry type=%s",
+            "Instagram webhook invalid "
+            "entry type=%s",
             type(entries).__name__,
         )
         return
 
     logger.info(
-        "Instagram webhook payload received entries=%s",
+        "Instagram webhook payload received "
+        "entries=%s",
         len(entries),
     )
 
     processed_comment_ids: set[str] = set()
 
     for entry in entries:
-
-        if not isinstance(entry, dict):
+        if not isinstance(
+            entry,
+            dict,
+        ):
             continue
 
-        events: list[tuple[str, dict]] = []
+        events: list[
+            tuple[str, dict]
+        ] = []
 
-        # ====================================================
+        # ----------------------------------------------------
         # FORMAT 1
-        # Instagram API with Instagram Login
-        #
-        # entry.field
-        # entry.value
-        # ====================================================
+        # ----------------------------------------------------
 
-        direct_field = entry.get("field")
-        direct_value = entry.get("value")
+        direct_field = entry.get(
+            "field"
+        )
+
+        direct_value = entry.get(
+            "value"
+        )
 
         if (
-            direct_field in (
+            direct_field
+            in (
                 "comments",
                 "live_comments",
             )
@@ -243,19 +252,20 @@ async def handle_webhook_payload(
                 )
             )
 
-        # ====================================================
+        # ----------------------------------------------------
         # FORMAT 2
-        # Legacy / changes[] payload
-        #
-        # entry.changes[]
-        # ====================================================
+        # ----------------------------------------------------
 
-        changes = entry.get("changes") or []
+        changes = (
+            entry.get("changes")
+            or []
+        )
 
-        if isinstance(changes, list):
-
+        if isinstance(
+            changes,
+            list,
+        ):
             for change in changes:
-
                 if not isinstance(
                     change,
                     dict,
@@ -290,33 +300,23 @@ async def handle_webhook_payload(
                     )
                 )
 
-        # ====================================================
-        # Observability
-        # ====================================================
-
         if not events:
-
             logger.info(
                 "Instagram webhook entry ignored "
                 "field=%s keys=%s",
                 direct_field,
-                sorted(entry.keys()),
+                sorted(
+                    entry.keys()
+                ),
             )
-
             continue
 
-        # ====================================================
-        # Process events
-        # ====================================================
-
         for field, value in events:
+            comment_id = value.get(
+                "id"
+            )
 
-            comment_id = value.get("id")
-
-            # جلوگیری از پردازش دوباره اگر payload
-            # همزمان هر دو format را داشت
             if comment_id:
-
                 comment_id_str = str(
                     comment_id
                 )
@@ -345,81 +345,113 @@ async def handle_webhook_payload(
             )
 
             try:
-
-                await _process_comment(
-                    value
+                await process_comment(
+                    value,
+                    source="webhook",
                 )
 
             except Exception:
-
                 logger.exception(
                     "خطای غیرمنتظره هنگام "
-                    "پردازش Instagram "
-                    "comment webhook "
-                    "field=%s "
-                    "comment_id=%s",
+                    "پردازش Instagram comment "
+                    "field=%s comment_id=%s",
                     field,
-                    comment_id
-                    or "unknown",
+                    comment_id or "unknown",
                 )
+
 
 # ============================================================
 # Process one comment
 # ============================================================
 
-async def _process_comment(
+async def process_comment(
     value: dict,
+    *,
+    source: str = "webhook",
 ) -> None:
+    """
+    Processor مشترک بین Webhook و Polling.
+    """
 
-    comment_id = value.get("id")
+    comment_id = value.get(
+        "id"
+    )
 
     if not comment_id:
         logger.warning(
-            "Webhook کامنت بدون comment_id دریافت شد."
+            "Instagram comment بدون "
+            "comment_id دریافت شد."
         )
         return
 
+    comment_id = str(
+        comment_id
+    )
 
     text = (
         value.get("text")
         or ""
     ).strip()
 
-
     from_user = (
         value.get("from")
         or {}
     )
 
+    if not isinstance(
+        from_user,
+        dict,
+    ):
+        from_user = {}
 
-    from_id = from_user.get("id")
+    from_id = (
+        from_user.get("id")
+        or value.get("from_id")
+    )
 
     username = (
         from_user.get("username")
+        or value.get("username")
         or ""
-    ).strip()
+    )
 
+    username = str(
+        username
+    ).strip()
 
     media = (
         value.get("media")
         or {}
     )
 
-    media_id = media.get("id")
+    if not isinstance(
+        media,
+        dict,
+    ):
+        media = {}
 
+    media_id = (
+        media.get("id")
+        or value.get("media_id")
+    )
+
+    comment_timestamp = value.get(
+        "timestamp"
+    )
 
     logger.info(
         "Instagram comment received "
-        "comment_id=%s media_id=%s username=%s",
+        "source=%s comment_id=%s "
+        "media_id=%s username=%s",
+        source,
         comment_id,
-        media_id,
+        media_id or "unknown",
         username or "unknown",
     )
 
-
-    # --------------------------------------------------------
-    # جلوگیری از loop
-    # --------------------------------------------------------
+    # ========================================================
+    # Prevent loop
+    # ========================================================
 
     own_ids = {
         str(x)
@@ -430,16 +462,16 @@ async def _process_comment(
         if x
     }
 
-
     if (
         from_id
-        and str(from_id) in own_ids
+        and str(from_id)
+        in own_ids
     ):
         logger.info(
-            "کامنت خود اکانت Saraf نادیده گرفته شد."
+            "کامنت خود اکانت Saraf "
+            "نادیده گرفته شد."
         )
         return
-
 
     if (
         INSTAGRAM_BUSINESS_USERNAME
@@ -448,67 +480,81 @@ async def _process_comment(
         == INSTAGRAM_BUSINESS_USERNAME
     ):
         logger.info(
-            "کامنت username خود Saraf نادیده گرفته شد."
+            "کامنت username خود Saraf "
+            "نادیده گرفته شد."
         )
         return
 
-
-    # --------------------------------------------------------
+    # ========================================================
     # Idempotency
-    # --------------------------------------------------------
+    # ========================================================
 
-    claimed = db.try_claim_ig_comment_event(
-        comment_id,
-        media_id,
-        username or None,
-        text,
+    claimed = (
+        instagram_comment_store
+        .claim_comment(
+            comment_id,
+            media_id=(
+                str(media_id)
+                if media_id
+                else None
+            ),
+            commenter_id=(
+                str(from_id)
+                if from_id
+                else None
+            ),
+            username=(
+                username
+                or None
+            ),
+            text=text,
+            comment_timestamp=(
+                str(comment_timestamp)
+                if comment_timestamp
+                else None
+            ),
+            source=source,
+        )
     )
 
-
     if not claimed:
-        logger.info(
-            "comment_id=%s قبلاً پردازش شده "
-            "یا ثبت event ناموفق بوده است.",
-            comment_id,
-        )
         return
 
-
-    # --------------------------------------------------------
-    # Keyword → Private Reply
-    # --------------------------------------------------------
+    # ========================================================
+    # Keyword -> Private Reply
+    # ========================================================
 
     dm_sent = False
 
-
-    if _matches_keyword(text):
-
+    if _matches_keyword(
+        text
+    ):
         logger.info(
-            "Keyword detected for comment_id=%s",
+            "Keyword detected "
+            "comment_id=%s",
             comment_id,
         )
 
-
         try:
-
             dm_text = (
-                INSTAGRAM_DM_LINK_MESSAGE.format(
-                    bot_link=TELEGRAM_BOT_LINK
+                INSTAGRAM_DM_LINK_MESSAGE
+                .format(
+                    bot_link=(
+                        TELEGRAM_BOT_LINK
+                    )
                 )
             )
 
-
-            ok, detail = await _send_private_reply(
-                comment_id=comment_id,
-                text=dm_text,
+            ok, detail = (
+                await _send_private_reply(
+                    comment_id=comment_id,
+                    text=dm_text,
+                )
             )
-
 
             dm_sent = ok
 
-
             if ok:
-
                 logger.info(
                     "Private Reply ارسال شد "
                     "comment_id=%s",
@@ -516,7 +562,6 @@ async def _process_comment(
                 )
 
             else:
-
                 logger.warning(
                     "Private Reply ناموفق بود "
                     "comment_id=%s reason=%s",
@@ -524,38 +569,35 @@ async def _process_comment(
                     detail,
                 )
 
-
         except Exception:
-
             logger.exception(
                 "خطا در مسیر Private Reply "
                 "comment_id=%s",
                 comment_id,
             )
 
-
-    # --------------------------------------------------------
-    # AI → Public Reply
-    # --------------------------------------------------------
+    # ========================================================
+    # AI -> Public Reply
+    # ========================================================
 
     ai_replied = False
-
 
     if (
         INSTAGRAM_AI_REPLY_ENABLED
         and text
     ):
-
         try:
-
-            ai_text = await _generate_ai_reply(
-                comment_text=text,
-                username=username or None,
+            ai_text = (
+                await _generate_ai_reply(
+                    comment_text=text,
+                    username=(
+                        username
+                        or None
+                    ),
+                )
             )
 
-
             if ai_text:
-
                 ok, detail = (
                     await _reply_to_comment_publicly(
                         comment_id=comment_id,
@@ -563,12 +605,9 @@ async def _process_comment(
                     )
                 )
 
-
                 ai_replied = ok
 
-
                 if ok:
-
                     logger.info(
                         "AI public reply ارسال شد "
                         "comment_id=%s",
@@ -576,7 +615,6 @@ async def _process_comment(
                     )
 
                 else:
-
                     logger.warning(
                         "AI public reply ناموفق بود "
                         "comment_id=%s reason=%s",
@@ -584,30 +622,25 @@ async def _process_comment(
                         detail,
                     )
 
-
             else:
-
                 logger.warning(
                     "OpenRouter پاسخی تولید نکرد "
                     "comment_id=%s",
                     comment_id,
                 )
 
-
         except Exception:
-
             logger.exception(
                 "خطا در مسیر AI Reply "
                 "comment_id=%s",
                 comment_id,
             )
 
+    # ========================================================
+    # Store result
+    # ========================================================
 
-    # --------------------------------------------------------
-    # Update DB state
-    # --------------------------------------------------------
-
-    db.mark_ig_comment_event(
+    instagram_comment_store.mark_comment(
         comment_id,
         dm_sent=dm_sent,
         ai_replied=ai_replied,
@@ -621,60 +654,56 @@ async def _process_comment(
 def _matches_keyword(
     text: str,
 ) -> bool:
-
     if not text:
         return False
-
 
     if not INSTAGRAM_COMMENT_KEYWORDS:
         return False
 
-
     lowered = text.lower()
 
-
     return any(
-        keyword.lower() in lowered
+        keyword.lower()
+        in lowered
         for keyword
         in INSTAGRAM_COMMENT_KEYWORDS
     )
 
 
 # ============================================================
-# Instagram Graph API Helpers
+# Instagram Graph helpers
 # ============================================================
 
 def _instagram_headers() -> dict[str, str]:
-
     return {
         "Authorization": (
             f"Bearer "
             f"{INSTAGRAM_USER_ACCESS_TOKEN}"
         ),
-        "Content-Type": "application/json",
+        "Content-Type": (
+            "application/json"
+        ),
     }
 
 
 def _extract_graph_error(
     response: httpx.Response,
 ) -> str:
-
     try:
+        payload = (
+            response.json()
+        )
 
-        payload = response.json()
-
-
-        if isinstance(payload, dict):
-
+        if isinstance(
+            payload,
+            dict,
+        ):
             error = (
                 payload.get("error")
                 or {}
             )
-
         else:
-
             error = {}
-
 
         message = (
             error.get("message")
@@ -682,24 +711,27 @@ def _extract_graph_error(
             or "Instagram API error"
         )
 
-
-        parts = [message]
-
+        parts = [
+            message
+        ]
 
         if error.get("type"):
             parts.append(
                 f"type={error['type']}"
             )
 
-
-        if error.get("code") is not None:
+        if (
+            error.get("code")
+            is not None
+        ):
             parts.append(
                 f"code={error['code']}"
             )
 
-
         if (
-            error.get("error_subcode")
+            error.get(
+                "error_subcode"
+            )
             is not None
         ):
             parts.append(
@@ -707,15 +739,12 @@ def _extract_graph_error(
                 f"{error['error_subcode']}"
             )
 
-
         return " | ".join(
             str(part)
             for part in parts
         )
 
-
     except Exception:
-
         return (
             response.text
             or "پاسخ نامشخص Instagram API"
@@ -731,84 +760,74 @@ async def _send_private_reply(
     text: str,
 ) -> tuple[bool, str]:
     """
-    ارسال Private Reply به کسی که کامنت گذاشته.
+    Private Reply به commenter.
 
-    Endpoint:
     POST
-    https://graph.instagram.com/v24.0/{IG_USER_ID}/messages
+    /{IG_USER_ID}/messages
     """
 
     if not INSTAGRAM_USER_ACCESS_TOKEN:
-
         return (
             False,
-            "INSTAGRAM_USER_ACCESS_TOKEN تنظیم نشده",
+            "INSTAGRAM_USER_ACCESS_TOKEN "
+            "تنظیم نشده",
         )
-
 
     if not INSTAGRAM_USER_ID:
-
         return (
             False,
-            "INSTAGRAM_USER_ID تنظیم نشده",
+            "INSTAGRAM_USER_ID "
+            "تنظیم نشده",
         )
-
 
     url = (
         f"{GRAPH_BASE}/"
         f"{INSTAGRAM_USER_ID}/messages"
     )
 
-
     body = {
-
         "recipient": {
-            "comment_id": comment_id,
+            "comment_id": (
+                comment_id
+            ),
         },
-
         "message": {
             "text": text,
         },
-
     }
 
-
     try:
-
         async with httpx.AsyncClient(
             timeout=_TIMEOUT
         ) as client:
-
             response = await client.post(
                 url,
-                headers=_instagram_headers(),
+                headers=(
+                    _instagram_headers()
+                ),
                 json=body,
             )
 
-
         if response.status_code >= 400:
-
             return (
                 False,
-                _extract_graph_error(response),
+                _extract_graph_error(
+                    response
+                ),
             )
-
 
         try:
             data = response.json()
         except Exception:
             data = {}
 
-
         message_id = data.get(
             "message_id"
         )
 
-
         recipient_id = data.get(
             "recipient_id"
         )
-
 
         logger.info(
             "Instagram Private Reply success "
@@ -817,12 +836,9 @@ async def _send_private_reply(
             message_id,
         )
 
-
         return True, "ok"
 
-
     except httpx.TimeoutException:
-
         logger.exception(
             "Timeout هنگام ارسال "
             "Instagram Private Reply"
@@ -833,9 +849,7 @@ async def _send_private_reply(
             "Instagram API timeout",
         )
 
-
     except Exception as exc:
-
         logger.exception(
             "خطای شبکه هنگام ارسال "
             "Instagram Private Reply"
@@ -848,7 +862,7 @@ async def _send_private_reply(
 
 
 # ============================================================
-# Public comment reply
+# Public Reply
 # ============================================================
 
 async def _reply_to_comment_publicly(
@@ -856,63 +870,57 @@ async def _reply_to_comment_publicly(
     text: str,
 ) -> tuple[bool, str]:
     """
-    پاسخ عمومی زیر کامنت.
+    پاسخ عمومی زیر comment.
 
-    Endpoint:
     POST
-    https://graph.instagram.com/v24.0/{COMMENT_ID}/replies
+    /{COMMENT_ID}/replies
     """
 
     if not INSTAGRAM_USER_ACCESS_TOKEN:
-
         return (
             False,
-            "INSTAGRAM_USER_ACCESS_TOKEN تنظیم نشده",
+            "INSTAGRAM_USER_ACCESS_TOKEN "
+            "تنظیم نشده",
         )
-
 
     url = (
         f"{GRAPH_BASE}/"
         f"{comment_id}/replies"
     )
 
-
     body = {
         "message": text,
     }
 
-
     try:
-
         async with httpx.AsyncClient(
             timeout=_TIMEOUT
         ) as client:
-
             response = await client.post(
                 url,
-                headers=_instagram_headers(),
+                headers=(
+                    _instagram_headers()
+                ),
                 json=body,
             )
 
-
         if response.status_code >= 400:
-
             return (
                 False,
-                _extract_graph_error(response),
+                _extract_graph_error(
+                    response
+                ),
             )
 
-
         try:
-
             data = response.json()
 
-            reply_id = data.get("id")
+            reply_id = data.get(
+                "id"
+            )
 
         except Exception:
-
             reply_id = None
-
 
         logger.info(
             "Instagram public reply success "
@@ -920,12 +928,9 @@ async def _reply_to_comment_publicly(
             reply_id,
         )
 
-
         return True, "ok"
 
-
     except httpx.TimeoutException:
-
         logger.exception(
             "Timeout هنگام ارسال "
             "Instagram public reply"
@@ -936,9 +941,7 @@ async def _reply_to_comment_publicly(
             "Instagram API timeout",
         )
 
-
     except Exception as exc:
-
         logger.exception(
             "خطای شبکه هنگام ارسال "
             "Instagram public reply"
@@ -958,9 +961,7 @@ async def _generate_ai_reply(
     comment_text: str,
     username: Optional[str],
 ) -> Optional[str]:
-
     if not OPENROUTER_API_KEY:
-
         logger.warning(
             "OPENROUTER_API_KEY تنظیم نشده؛ "
             "AI Reply غیرفعال است."
@@ -968,9 +969,7 @@ async def _generate_ai_reply(
 
         return None
 
-
     if username:
-
         user_message = (
             f"@{username} این کامنت را "
             f"در صفحه Saraf گذاشته است:\n"
@@ -978,71 +977,59 @@ async def _generate_ai_reply(
         )
 
     else:
-
-        user_message = comment_text
-
+        user_message = (
+            comment_text
+        )
 
     headers = {
-
         "Authorization": (
-            f"Bearer {OPENROUTER_API_KEY}"
+            f"Bearer "
+            f"{OPENROUTER_API_KEY}"
         ),
-
         "Content-Type": (
             "application/json"
         ),
-
         "HTTP-Referer": (
             "https://saraf.example.com"
         ),
-
         "X-Title": (
             "Saraf Instagram Auto Reply"
         ),
     }
 
-
     body = {
-
-        "model": OPENROUTER_MODEL,
-
+        "model": (
+            OPENROUTER_MODEL
+        ),
         "messages": [
-
             {
                 "role": "system",
                 "content": (
                     OPENROUTER_SYSTEM_PROMPT
                 ),
             },
-
             {
                 "role": "user",
-                "content": user_message,
+                "content": (
+                    user_message
+                ),
             },
-
         ],
-
         "max_tokens": 150,
-
         "temperature": 0.7,
     }
 
-
     try:
-
         async with httpx.AsyncClient(
             timeout=_TIMEOUT
         ) as client:
-
             response = await client.post(
                 OPENROUTER_URL,
                 headers=headers,
                 json=body,
             )
 
-
         if response.status_code >= 400:
-
             logger.error(
                 "OpenRouter error HTTP %s: %s",
                 response.status_code,
@@ -1051,24 +1038,19 @@ async def _generate_ai_reply(
 
             return None
 
-
         data = response.json()
-
 
         choices = data.get(
             "choices",
             [],
         )
 
-
         if not choices:
-
             logger.warning(
                 "OpenRouter choices خالی است."
             )
 
             return None
-
 
         message = (
             choices[0]
@@ -1076,38 +1058,35 @@ async def _generate_ai_reply(
             .get("content", "")
         )
 
-
-        reply = message.strip()
-
+        reply = (
+            message.strip()
+        )
 
         if not reply:
             return None
 
-
-        if len(reply) > _AI_REPLY_MAX_CHARS:
-
+        if (
+            len(reply)
+            > _AI_REPLY_MAX_CHARS
+        ):
             reply = (
                 reply[
-                    : _AI_REPLY_MAX_CHARS - 1
+                    : _AI_REPLY_MAX_CHARS
+                    - 1
                 ].rstrip()
                 + "…"
             )
 
-
         return reply
 
-
     except httpx.TimeoutException:
-
         logger.exception(
             "OpenRouter timeout"
         )
 
         return None
 
-
     except Exception:
-
         logger.exception(
             "خطا در فراخوانی OpenRouter"
         )
