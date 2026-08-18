@@ -34,6 +34,7 @@ async def verify_instagram_webhook(request: Request):
     challenge = params.get("hub.challenge")
 
     if mode == "subscribe" and token and INSTAGRAM_WEBHOOK_VERIFY_TOKEN and token == INSTAGRAM_WEBHOOK_VERIFY_TOKEN:
+        logger.info("تایید اولیهٔ وبهوک اینستاگرام موفق بود (GET handshake) — Meta این آدرس را به‌عنوان Callback URL پذیرفت.")
         return PlainTextResponse(challenge or "")
 
     logger.warning(
