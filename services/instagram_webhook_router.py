@@ -17,11 +17,23 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from config import INSTAGRAM_WEBHOOK_VERIFY_TOKEN
-from services import facebook_webhook_router, instagram_automation_v2
+from services import (
+    facebook_comment_automation,
+    facebook_webhook_router,
+    instagram_automation_v2,
+    social_ai_adapters,
+    social_ai_service,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 router.include_router(facebook_webhook_router.router)
+
+# Swap only the AI/live-data layer. Existing Meta webhook, deduplication,
+# conversation-memory, and reply transport logic remain unchanged.
+instagram_automation_v2._generate_ai_reply = social_ai_adapters.instagram_generate_reply
+instagram_automation_v2._build_trusted_live_data = social_ai_service.build_trusted_live_data
+facebook_comment_automation._generate_ai_reply = social_ai_adapters.facebook_generate_reply
 
 
 @router.get("/webhooks/instagram")
