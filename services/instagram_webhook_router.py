@@ -1,28 +1,22 @@
 """
-روتر وبهوک اینستاگرام — در api.py سوار می‌شود (همان پردازهٔ web که روی Railway
-اجرا می‌شود، جدا از worker ربات تلگرام).
+Instagram webhook router for Saraf Automation V2.
 
-دو endpoint طبق قرارداد استاندارد وبهوک متا:
-  GET  /webhooks/instagram  → handshake اولیه (متا این را فقط یک‌بار موقع ثبت
-       Callback URL در داشبورد صدا می‌زند)
-  POST /webhooks/instagram  → رویدادهای واقعی (کامنت جدید و...)
+GET  /webhooks/instagram -> Meta verification handshake
+POST /webhooks/instagram -> comments + direct-message events
 
-نکتهٔ مهم دربارهٔ زمان پاسخ: متا انتظار دارد POST خیلی سریع (چند ثانیه) با
-200 OK پاسخ داده شود، وگرنه وبهوک را retry یا در نهایت غیرفعال می‌کند. برای
-همین پردازش واقعی (که شامل فراخوانی OpenRouter + چند Graph API call است) در
-BackgroundTasks انجام می‌شود — پاسخ 200 فوراً برمی‌گردد و پردازش در پس‌زمینه
-ادامه می‌یابد.
+The POST endpoint returns 200 quickly and performs API/AI work in FastAPI
+BackgroundTasks so Meta does not consider the webhook slow.
 """
+
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from config import INSTAGRAM_WEBHOOK_VERIFY_TOKEN
-from services import instagram_automation_service
+from services import instagram_automation_v2
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter()
 
 
@@ -33,10 +27,15 @@ async def verify_instagram_webhook(request: Request):
     token = params.get("hub.verify_token")
     challenge = params.get("hub.challenge")
 
-    if mode == "subscribe" and token and INSTAGRAM_WEBHOOK_VERIFY_TOKEN and token == INSTAGRAM_WEBHOOK_VERIFY_TOKEN:
+    if (
+        mode == "subscribe"
+        and token
+        and INSTAGRAM_WEBHOOK_VERIFY_TOKEN
+        and token == INSTAGRAM_WEBHOOK_VERIFY_TOKEN
+    ):
         return PlainTextResponse(challenge or "")
 
-    logger.warning("درخواست تایید وبهوک اینستاگرام رد شد (verify_token نامعتبر یا mode اشتباه).")
+    logger.warning("Instagram webhook verification rejected.")
     raise HTTPException(status_code=403, detail="verify token mismatch")
 
 
@@ -48,19 +47,21 @@ async def receive_instagram_webhook(
 ):
     raw_body = await request.body()
 
-    if not instagram_automation_service.verify_webhook_signature(raw_body, x_hub_signature_256):
-        logger.warning("امضای وبهوک اینستاگرام نامعتبر بود — درخواست رد شد.")
+    if not instagram_automation_v2.verify_webhook_signature(
+        raw_body,
+        x_hub_signature_256,
+    ):
+        logger.warning("Instagram webhook signature invalid; request rejected.")
         raise HTTPException(status_code=403, detail="invalid signature")
 
     try:
         payload = await request.json()
     except Exception:
-        logger.exception("payload وبهوک اینستاگرام قابل‌خواندن نبود (JSON نامعتبر)")
-        # با این حال 200 برمی‌گردانیم چون متا برای هر خطای غیر-2xx شروع به
-        # retry تهاجمی می‌کند؛ یک payload خراب را فقط لاگ می‌کنیم و رد می‌شویم.
+        logger.exception("Instagram webhook JSON invalid.")
         return JSONResponse({"status": "ignored"})
 
-    # پردازش واقعی در پس‌زمینه — پاسخ فوری 200 برمی‌گردد تا متا این وبهوک را
-    # کند/ناموفق تلقی نکند.
-    background_tasks.add_task(instagram_automation_service.handle_webhook_payload, payload)
+    background_tasks.add_task(
+        instagram_automation_v2.handle_webhook_payload,
+        payload,
+    )
     return JSONResponse({"status": "received"})
