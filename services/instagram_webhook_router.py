@@ -6,6 +6,9 @@ POST /webhooks/instagram -> comments + direct-message events
 
 The POST endpoint returns 200 quickly and performs API/AI work in FastAPI
 BackgroundTasks so Meta does not consider the webhook slow.
+
+The Facebook Page webhook router is included here as a sibling router so api.py
+can keep a single social-webhook include point.
 """
 
 import logging
@@ -14,10 +17,11 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from config import INSTAGRAM_WEBHOOK_VERIFY_TOKEN
-from services import instagram_automation_v2
+from services import facebook_webhook_router, instagram_automation_v2
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+router.include_router(facebook_webhook_router.router)
 
 
 @router.get("/webhooks/instagram")
