@@ -30,6 +30,8 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(null);
+  const [paymentInfo, setPaymentInfo] = useState(null);
+  const [loadingPaymentInfo, setLoadingPaymentInfo] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [exchange, setExchange] = useState(null);
@@ -109,9 +111,24 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
     }
   }
 
-  function choosePayment(method) {
+  async function choosePayment(method) {
     setPaymentMethod(method);
-    setStepIdx(method === "online" ? 3 : 4); // آنلاین -> رسید | حضوری -> مستقیم صرافی
+
+    if (method === "online") {
+      setLoadingPaymentInfo(true);
+      try {
+        const info = await api.getPaymentInfo();
+        setPaymentInfo(info);
+        setStepIdx(3); // -> receipt
+      } catch (err) {
+        showError(err instanceof ApiError ? err.message : "دریافت اطلاعات حساب بانکی ناموفق بود.");
+      } finally {
+        setLoadingPaymentInfo(false);
+      }
+      return;
+    }
+
+    setStepIdx(4); // حضوری -> مستقیم صرافی
   }
 
   async function handleReceiptFile(e) {
@@ -263,11 +280,11 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
         <div className="card animate-in">
           <label className="field-label">روش پرداخت خود را انتخاب کنید</label>
           <div className="choice-row" style={{ marginTop: 4 }}>
-            <button className="choice-btn" onClick={() => choosePayment("in_person")}>
+            <button className="choice-btn" onClick={() => choosePayment("in_person")} disabled={loadingPaymentInfo}>
               <Buildings size={16} /> حضوری
             </button>
-            <button className="choice-btn" onClick={() => choosePayment("online")}>
-              <Bank size={16} /> آنلاین (بانکی)
+            <button className="choice-btn" onClick={() => choosePayment("online")} disabled={loadingPaymentInfo}>
+              {loadingPaymentInfo ? <span className="spinner" /> : <Bank size={16} />} آنلاین (بانکی)
             </button>
           </div>
         </div>
