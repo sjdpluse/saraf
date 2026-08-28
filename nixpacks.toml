@@ -1,5 +1,6 @@
 [phases.setup]
 nixPkgs = [
+    "nodejs_20",
     "chromium",
     "nss",
     "nspr",
@@ -29,7 +30,8 @@ nixPkgs = [
 
 [phases.install]
 cmds = [
-    "pip install -r requirements.txt"
+    "pip install -r requirements.txt",
+    "cd webapp && npm ci && npm run build"
 ]
 
 [variables]
