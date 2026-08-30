@@ -53,6 +53,12 @@ function retryKey(action, quoteId) {
   return orderRetryKeys.get(key);
 }
 
+function onlineProviderLabel(method) {
+  if (method === "online_hesabpay") return "حساب‌پی";
+  if (method === "online_azizi") return "عزیزی بانک";
+  return null;
+}
+
 export const api = {
   getQuote: async (action, amount) => {
     const quote = await request("/usdt/quote", { method: "POST", body: { action, amount } });
@@ -78,18 +84,38 @@ export const api = {
 
   createBuyOrder: async (payload) => {
     const q = quoteFor("buy", payload.amount);
+    const provider = onlineProviderLabel(payload.payment_method);
+    const exchangeName = provider
+      ? `${payload.exchange_name || "-"} | پرداخت: ${provider} | رسید: ${payload.receipt_url || "-"}`
+      : payload.exchange_name;
+
     return request("/usdt/orders/buy", {
       method: "POST",
-      body: { ...payload, quote_id: q.quote_id },
+      body: {
+        ...payload,
+        payment_method: provider ? "online" : payload.payment_method,
+        exchange_name: exchangeName,
+        quote_id: q.quote_id,
+      },
       headers: { "Idempotency-Key": retryKey("buy", q.quote_id) },
     });
   },
 
   createSellOrder: async (payload) => {
     const q = quoteFor("sell", payload.amount);
+    const provider = onlineProviderLabel(payload.receive_method);
+    const bankInfo = provider
+      ? `${provider} — ${payload.bank_info || ""}`.trim()
+      : payload.bank_info;
+
     return request("/usdt/orders/sell", {
       method: "POST",
-      body: { ...payload, quote_id: q.quote_id },
+      body: {
+        ...payload,
+        receive_method: provider ? "online" : payload.receive_method,
+        bank_info: bankInfo,
+        quote_id: q.quote_id,
+      },
       headers: { "Idempotency-Key": retryKey("sell", q.quote_id) },
     });
   },

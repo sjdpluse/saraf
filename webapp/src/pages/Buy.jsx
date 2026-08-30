@@ -21,7 +21,20 @@ import NetworkIcon from "../components/NetworkIcon";
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const NETWORKS = ["TRC20", "ERC20", "BEP20"];
 
+const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
+const HESABPAY_LOGO_URL = "https://i.postimg.cc/63khhqcm/hesab.png";
+const HESABPAY_QR_URL = "https://i.postimg.cc/D058wYSQ/Hesab.jpg";
+const HESABPAY_PHONE = "0775146747";
+
 const STEPS = ["amount", "quote", "payment", "receipt", "exchange", "network", "wallet", "done"];
+
+const providerLogoStyle = {
+  width: 34,
+  height: 34,
+  objectFit: "contain",
+  borderRadius: 8,
+  background: "#fff",
+};
 
 export default function Buy({ navigate, showError, resumeState, onResumeConsumed, onNeedProfile, onNeedVerification }) {
   const [stepIdx, setStepIdx] = useState(0);
@@ -30,6 +43,7 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(null);
+  const [showOnlineProviders, setShowOnlineProviders] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState(null);
   const [loadingPaymentInfo, setLoadingPaymentInfo] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState(null);
@@ -44,10 +58,6 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
 
   const step = STEPS[stepIdx];
 
-  // اگر کاربر برای تکمیل پروفایل یا احراز هویت از این صفحه بیرون فرستاده شده
-  // بود، با برگشت، دقیقاً همان مبلغ/نرخ بازیابی می‌شود و gate دوباره چک می‌شود
-  // (ممکن است هنوز یک مرحله باقی مانده باشد، مثلاً پروفایل پایه کامل شد ولی
-  // برای مبلغ بزرگ هنوز احراز هویت لازم است).
   useEffect(() => {
     if (resumeState?.amount && resumeState?.quote) {
       setAmount(String(resumeState.amount));
@@ -76,7 +86,7 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
     try {
       const q = await api.getQuote("buy", amt);
       setQuote(q);
-      setStepIdx(1); // -> quote
+      setStepIdx(1);
     } catch (e) {
       showError(e instanceof ApiError ? e.message : "خطا در دریافت نرخ.");
     } finally {
@@ -84,12 +94,6 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
     }
   }
 
-  /**
-   * دکمهٔ «درخواست تتر»: قبل از رفتن به مرحلهٔ پرداخت، وضعیت پروفایل کاربر چک
-   * می‌شود. اگر پروفایل پایه ناقص است -> onNeedProfile؛ اگر مبلغ از آستانه
-   * بیشتر است و احراز هویت انجام نشده -> onNeedVerification. در غیر این
-   * صورت مستقیم به انتخاب روش پرداخت می‌رود.
-   */
   async function checkGateAndProceed(amt, q) {
     setCheckingProfile(true);
     try {
@@ -103,7 +107,7 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
         onNeedVerification?.({ amount: amt, quote: q }, threshold);
         return;
       }
-      setStepIdx(2); // -> payment
+      setStepIdx(2);
     } catch (e) {
       showError(e instanceof ApiError ? e.message : "خطا در بررسی وضعیت پروفایل.");
     } finally {
@@ -111,24 +115,42 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
     }
   }
 
-  async function choosePayment(method) {
-    setPaymentMethod(method);
-
+  function choosePayment(method) {
     if (method === "online") {
-      setLoadingPaymentInfo(true);
-      try {
-        const info = await api.getPaymentInfo();
-        setPaymentInfo(info);
-        setStepIdx(3); // -> receipt
-      } catch (err) {
-        showError(err instanceof ApiError ? err.message : "دریافت اطلاعات حساب بانکی ناموفق بود.");
-      } finally {
-        setLoadingPaymentInfo(false);
-      }
+      setPaymentMethod(null);
+      setShowOnlineProviders(true);
       return;
     }
 
-    setStepIdx(4); // حضوری -> مستقیم صرافی
+    setShowOnlineProviders(false);
+    setPaymentMethod(method);
+    setPaymentInfo(null);
+    setReceiptUrl(null);
+    setStepIdx(4);
+  }
+
+  async function chooseOnlineProvider(provider) {
+    setReceiptUrl(null);
+
+    if (provider === "hesabpay") {
+      setPaymentMethod("online_hesabpay");
+      setPaymentInfo(null);
+      setStepIdx(3);
+      return;
+    }
+
+    setPaymentMethod("online_azizi");
+    setLoadingPaymentInfo(true);
+    try {
+      const info = await api.getPaymentInfo();
+      setPaymentInfo(info);
+      setStepIdx(3);
+    } catch (err) {
+      setPaymentMethod(null);
+      showError(err instanceof ApiError ? err.message : "دریافت اطلاعات حساب عزیزی بانک ناموفق بود.");
+    } finally {
+      setLoadingPaymentInfo(false);
+    }
   }
 
   async function handleReceiptFile(e) {
@@ -174,7 +196,7 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
         receipt_url: receiptUrl,
       });
       setOrderCode(res.order_code);
-      setStepIdx(7); // -> done
+      setStepIdx(7);
       hapticSuccess();
     } catch (err) {
       hapticError();
@@ -187,6 +209,8 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
       setSubmitting(false);
     }
   }
+
+  const isHesabPay = paymentMethod === "online_hesabpay";
 
   return (
     <div className="app-shell">
@@ -283,27 +307,70 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
             <button className="choice-btn" onClick={() => choosePayment("in_person")} disabled={loadingPaymentInfo}>
               <Buildings size={16} /> حضوری
             </button>
-            <button className="choice-btn" onClick={() => choosePayment("online")} disabled={loadingPaymentInfo}>
-              {loadingPaymentInfo ? <span className="spinner" /> : <Bank size={16} />} آنلاین (بانکی)
+            <button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => choosePayment("online")} disabled={loadingPaymentInfo}>
+              <Bank size={16} /> آنلاین (بانکی)
             </button>
           </div>
+
+          {showOnlineProviders && (
+            <div style={{ marginTop: 16 }}>
+              <label className="field-label">روش پرداخت آنلاین را انتخاب کنید</label>
+              <div className="choice-row" style={{ marginTop: 6 }}>
+                <button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")} disabled={loadingPaymentInfo}>
+                  {loadingPaymentInfo ? <span className="spinner" /> : <img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} />}
+                  عزیزی بانک
+                </button>
+                <button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")} disabled={loadingPaymentInfo}>
+                  <img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} />
+                  حساب‌پی
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {step === "receipt" && (
         <div className="card animate-in">
-          <div className="info-box" style={{ marginBottom: 16 }}>
-            {paymentInfo ? (
-              <>
-                <CopyRow label="بانک" value={paymentInfo.bank_name} />
-                <CopyRow label="صاحب حساب" value={paymentInfo.bank_account_holder} />
-                <CopyRow label="شماره حساب" value={paymentInfo.bank_account_number} />
-              </>
-            ) : (
-              <div className="skeleton skeleton-order-card" style={{ height: 76 }} />
-            )}
-          </div>
-          <label className="field-label">پس از واریز، عکس رسید بانکی را بارگذاری کنید</label>
+          {isHesabPay ? (
+            <>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+                <img src={HESABPAY_LOGO_URL} alt="HesabPay" style={{ ...providerLogoStyle, width: 54, height: 54 }} />
+              </div>
+              <div className="info-box" style={{ marginBottom: 14, textAlign: "center" }}>
+                <img
+                  src={HESABPAY_QR_URL}
+                  alt="QR حساب‌پی"
+                  style={{ width: "min(100%, 260px)", borderRadius: 14, display: "block", margin: "0 auto 14px" }}
+                />
+                <CopyRow label="شماره حساب‌پی" value={HESABPAY_PHONE} />
+              </div>
+              <div className="notice" style={{ marginBottom: 16 }}>
+                مبلغ سفارش را از طریق QR یا شمارهٔ بالا در حساب‌پی پرداخت کنید، سپس تصویر رسید را بارگذاری نمایید.
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+                <img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={{ ...providerLogoStyle, width: 54, height: 54 }} />
+              </div>
+              <div className="info-box" style={{ marginBottom: 16 }}>
+                {paymentInfo ? (
+                  <>
+                    <CopyRow label="بانک" value={paymentInfo.bank_name} />
+                    <CopyRow label="صاحب حساب" value={paymentInfo.bank_account_holder} />
+                    <CopyRow label="شماره حساب" value={paymentInfo.bank_account_number} />
+                  </>
+                ) : (
+                  <div className="skeleton skeleton-order-card" style={{ height: 76 }} />
+                )}
+              </div>
+            </>
+          )}
+
+          <label className="field-label">
+            پس از پرداخت، عکس رسید {isHesabPay ? "حساب‌پی" : "عزیزی بانک"} را بارگذاری کنید
+          </label>
           <label className={`upload-box ${receiptUrl ? "has-file" : ""}`}>
             <input type="file" accept="image/*" onChange={handleReceiptFile} />
             {receiptUploading ? (
