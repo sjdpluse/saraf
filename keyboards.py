@@ -1,6 +1,8 @@
 """
 منوهای ربات (Reply Keyboard و Inline Keyboard) — همه به زبان دری.
 """
+from urllib.parse import urlencode
+
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -26,7 +28,7 @@ BTN_SILVER = "🥈 نرخ نقره"
 BTN_CRYPTO = "🪙 نرخ رمزارزها"
 BTN_COMPARE = "📊 مقایسه با گذشته"
 BTN_CONVERTER = "🔄 مبدل ارز جهانی"
-BTN_USDT = "🟢 خرید و فروش تتر"
+BTN_USDT = "🟢 خرید و فروش تتر - USDT"
 BTN_ABOUT = "ℹ️ درباره ربات"
 # فقط برای ادمین — نشر دستی پست نرخ‌ها در فیسبوک/اینستاگرام (تست + کنترل دستی)
 BTN_ADMIN_POST = "📢 نشر پست (فیسبوک/اینستاگرام)"
@@ -35,6 +37,11 @@ BTN_ADMIN_POST = "📢 نشر پست (فیسبوک/اینستاگرام)"
 def _flag_label(code: str, name: str) -> str:
     flag = CURRENCY_FLAGS.get(code, "")
     return f"{flag} {name}".strip()
+
+
+def _support_chat_url(text: str) -> str:
+    """لینک مستقیم پشتیبانی با متن پیش‌نویس داخل کادر پیام تلگرام."""
+    return f"{SUPPORT_CHAT_URL}?{urlencode({'text': text})}"
 
 
 def main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
@@ -254,10 +261,15 @@ def usdt_menu_keyboard() -> InlineKeyboardMarkup:
 
 def usdt_continue_keyboard(action: str) -> InlineKeyboardMarkup:
     verb = "خرید" if action == "buy" else "فروش"
+    info_url = _support_chat_url("سلام، در مورد خرید و فروش تتر در Saraf معلومات بیشتر می‌خواهم.")
+    support_url = _support_chat_url("سلام، برای خرید و فروش تتر در Saraf به پشتیبانی نیاز دارم.")
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton(f"✅ درخواست {verb} تتر", callback_data=f"usdt_continue:{action}")],
-            [InlineKeyboardButton("💬 اطلاعات بیشتر", url=SUPPORT_CHAT_URL)],
+            [
+                InlineKeyboardButton("💬 اطلاعات بیشتر", url=info_url),
+                InlineKeyboardButton("🎧 پشتیبانی", url=support_url),
+            ],
         ]
     )
 

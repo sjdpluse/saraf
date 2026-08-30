@@ -10,6 +10,7 @@ import {
   ClipboardText,
   House,
   ChatCircleDots,
+  Headset,
   ArrowRight,
 } from "@phosphor-icons/react";
 import { api, ApiError } from "../lib/api";
@@ -280,7 +281,13 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
               <span className="value num">{quote.base_afn.toLocaleString()} افغانی</span>
             </div>
             <div className="quote-row">
-              <span>کارمزد ({quote.fee_percent}٪)</span>
+              <span>
+                کارمزد تخفیفی (
+                <span style={{ textDecoration: "line-through", opacity: 0.55 }}>
+                  {quote.original_fee_percent ?? Number(quote.fee_percent) + 0.5}٪
+                </span>
+                <span style={{ marginInlineStart: 5, fontWeight: 800 }}>{quote.fee_percent}٪</span>)
+              </span>
               <span className="value num">{quote.fee_afn.toLocaleString()} افغانی</span>
             </div>
             <div className="quote-total buy">
@@ -293,9 +300,20 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
             <button className="btn btn-buy" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>
               {checkingProfile ? <span className="spinner" /> : <>درخواست خرید <ArrowRight size={16} weight="bold" /></>}
             </button>
-            <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS")}>
-              <ChatCircleDots size={17} /> اطلاعات بیشتر
-            </button>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => openTelegramChat("SJDPLUS", "سلام، در مورد خرید و فروش تتر در Saraf معلومات بیشتر می‌خواهم.")}
+              >
+                <ChatCircleDots size={17} /> اطلاعات بیشتر
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => openTelegramChat("SJDPLUS", "سلام، برای خرید و فروش تتر در Saraf به پشتیبانی نیاز دارم.")}
+              >
+                <Headset size={17} /> پشتیبانی
+              </button>
+            </div>
           </div>
         </div>
       )}

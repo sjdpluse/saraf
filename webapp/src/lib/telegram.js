@@ -64,9 +64,11 @@ export function closeApp() {
   getWebApp()?.close?.();
 }
 
-export function openTelegramChat(username) {
+export function openTelegramChat(username, draftText = "") {
   const wa = getWebApp();
-  const url = `https://t.me/${username}`;
+  const cleanUsername = String(username || "").replace(/^@/, "");
+  const query = draftText ? `?text=${encodeURIComponent(draftText)}` : "";
+  const url = `https://t.me/${cleanUsername}${query}`;
   if (wa?.openTelegramLink) {
     wa.openTelegramLink(url);
   } else {
