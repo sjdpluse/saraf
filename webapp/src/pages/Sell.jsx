@@ -22,7 +22,18 @@ const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const NETWORKS = ["TRC20", "ERC20", "BEP20"];
 const DEPOSIT_WALLETS = { BEP20: "0x4c49Ff39798C564A01F5fdEcB7E335a178f781BA" };
 
+const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
+const HESABPAY_LOGO_URL = "https://i.postimg.cc/63khhqcm/hesab.png";
+
 const STEPS = ["amount", "quote", "exchange", "network", "deposit", "txproof", "receive", "bank", "done"];
+
+const providerLogoStyle = {
+  width: 34,
+  height: 34,
+  objectFit: "contain",
+  borderRadius: 8,
+  background: "#fff",
+};
 
 export default function Sell({ navigate, showError, resumeState, onResumeConsumed, onNeedProfile, onNeedVerification }) {
   const [stepIdx, setStepIdx] = useState(0);
@@ -38,6 +49,7 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
   const [txProofUploading, setTxProofUploading] = useState(false);
   const [txProofUrl, setTxProofUrl] = useState(null);
   const [receiveMethod, setReceiveMethod] = useState(null);
+  const [showOnlineProviders, setShowOnlineProviders] = useState(false);
   const [bankInfo, setBankInfo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [orderCode, setOrderCode] = useState(null);
@@ -75,7 +87,7 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
     try {
       const q = await api.getQuote("sell", amt);
       setQuote(q);
-      setStepIdx(1); // -> quote
+      setStepIdx(1);
     } catch (e) {
       showError(e instanceof ApiError ? e.message : "خطا در دریافت نرخ.");
     } finally {
@@ -96,7 +108,7 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
         onNeedVerification?.({ amount: amt, quote: q }, threshold);
         return;
       }
-      setStepIdx(2); // -> exchange
+      setStepIdx(2);
     } catch (e) {
       showError(e instanceof ApiError ? e.message : "خطا در بررسی وضعیت پروفایل.");
     } finally {
@@ -134,12 +146,21 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
   }
 
   function chooseReceive(method) {
-    setReceiveMethod(method);
     if (method === "online") {
-      setStepIdx(7); // بانک
-    } else {
-      submitOrder(method);
+      setReceiveMethod(null);
+      setShowOnlineProviders(true);
+      return;
     }
+
+    setShowOnlineProviders(false);
+    setReceiveMethod(method);
+    submitOrder(method);
+  }
+
+  function chooseOnlineProvider(provider) {
+    setBankInfo("");
+    setReceiveMethod(provider === "hesabpay" ? "online_hesabpay" : "online_azizi");
+    setStepIdx(7);
   }
 
   async function submitOrder(methodOverride) {
@@ -149,8 +170,8 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
       showError("لطفاً کد تراکنش (TxID) یا رسید تراکنش را وارد کنید.");
       return;
     }
-    if (method === "online" && !bankInfo.trim()) {
-      showError("لطفاً اطلاعات بانکی خود را وارد کنید.");
+    if (method?.startsWith("online_") && !bankInfo.trim()) {
+      showError(method === "online_hesabpay" ? "لطفاً شماره حساب‌پی خود را وارد کنید." : "لطفاً اطلاعات حساب عزیزی بانک خود را وارد کنید.");
       return;
     }
 
@@ -162,10 +183,10 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
         network: finalNetwork,
         tx_proof: proof,
         receive_method: method,
-        bank_info: method === "online" ? bankInfo.trim() : null,
+        bank_info: method?.startsWith("online_") ? bankInfo.trim() : null,
       });
       setOrderCode(res.order_code);
-      setStepIdx(8); // -> done
+      setStepIdx(8);
       hapticSuccess();
     } catch (err) {
       hapticError();
@@ -178,6 +199,8 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
       setSubmitting(false);
     }
   }
+
+  const isHesabPay = receiveMethod === "online_hesabpay";
 
   return (
     <div className="app-shell">
@@ -217,9 +240,7 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
-              <span className="amount-badge">
-                <img src={TETHER_LOGO_URL} alt="USDT" />
-              </span>
+              <span className="amount-badge"><img src={TETHER_LOGO_URL} alt="USDT" /></span>
             </div>
           </div>
           <button className="btn btn-sell" onClick={fetchQuote} disabled={loadingQuote}>
@@ -238,23 +259,14 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
                 {Number(amount).toLocaleString()} USDT
               </span>
             </div>
-            <div className="quote-row">
-              <span>نرخ دالر (صرافی محلی)</span>
-              <span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span>
-            </div>
-            <div className="quote-total sell">
-              <span className="label">مبلغ قابل دریافت</span>
-              <span className="amount num">{quote.total_afn.toLocaleString()} ؋</span>
-            </div>
+            <div className="quote-row"><span>نرخ دالر (صرافی محلی)</span><span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span></div>
+            <div className="quote-total sell"><span className="label">مبلغ قابل دریافت</span><span className="amount num">{quote.total_afn.toLocaleString()} ؋</span></div>
           </div>
-
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
             <button className="btn btn-sell" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>
               {checkingProfile ? <span className="spinner" /> : <>درخواست تتر <ArrowRight size={16} weight="bold" /></>}
             </button>
-            <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS")}>
-              <ChatCircleDots size={17} /> اطلاعات بیشتر
-            </button>
+            <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS")}><ChatCircleDots size={17} /> اطلاعات بیشتر</button>
           </div>
         </div>
       )}
@@ -263,34 +275,10 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
         <div className="card animate-in">
           <label className="field-label">معاملهٔ خود را از کدام صرافی انجام می‌دهید؟</label>
           <div className="choice-row" style={{ marginTop: 4 }}>
-            {EXCHANGES.map((ex) => (
-              <button
-                key={ex}
-                className={`choice-btn ${exchange === ex ? "selected" : ""}`}
-                onClick={() => chooseExchange(ex)}
-              >
-                {ex}
-              </button>
-            ))}
+            {EXCHANGES.map((ex) => <button key={ex} className={`choice-btn ${exchange === ex ? "selected" : ""}`} onClick={() => chooseExchange(ex)}>{ex}</button>)}
           </div>
-          <div style={{ marginTop: 10 }}>
-            <button
-              className={`choice-btn ${exchange === "other" ? "selected" : ""}`}
-              style={{ width: "100%" }}
-              onClick={() => chooseExchange("other")}
-            >
-              صرافی دیگر
-            </button>
-          </div>
-          {exchange === "other" && (
-            <input
-              className="input"
-              style={{ marginTop: 12 }}
-              placeholder="نام صرافی"
-              value={exchangeCustom}
-              onChange={(e) => setExchangeCustom(e.target.value)}
-            />
-          )}
+          <div style={{ marginTop: 10 }}><button className={`choice-btn ${exchange === "other" ? "selected" : ""}`} style={{ width: "100%" }} onClick={() => chooseExchange("other")}>صرافی دیگر</button></div>
+          {exchange === "other" && <input className="input" style={{ marginTop: 12 }} placeholder="نام صرافی" value={exchangeCustom} onChange={(e) => setExchangeCustom(e.target.value)} />}
         </div>
       )}
 
@@ -298,87 +286,32 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
         <div className="card animate-in">
           <label className="field-label">شبکهٔ مورد نظر برای ارسال تتر را انتخاب کنید</label>
           <div className="choice-row cols-3" style={{ marginTop: 4 }}>
-            {NETWORKS.map((n) => (
-              <button
-                key={n}
-                className={`choice-btn ${network === n ? "selected" : ""}`}
-                onClick={() => chooseNetwork(n)}
-              >
-                <NetworkIcon network={n} size={18} />
-                {n}
-              </button>
-            ))}
+            {NETWORKS.map((n) => <button key={n} className={`choice-btn ${network === n ? "selected" : ""}`} onClick={() => chooseNetwork(n)}><NetworkIcon network={n} size={18} />{n}</button>)}
           </div>
-          <div style={{ marginTop: 10 }}>
-            <button
-              className={`choice-btn ${network === "other" ? "selected" : ""}`}
-              style={{ width: "100%" }}
-              onClick={() => chooseNetwork("other")}
-            >
-              شبکهٔ دیگر
-            </button>
-          </div>
-          {network === "other" && (
-            <input
-              className="input"
-              style={{ marginTop: 12 }}
-              placeholder="نام شبکه"
-              value={networkCustom}
-              onChange={(e) => setNetworkCustom(e.target.value)}
-            />
-          )}
+          <div style={{ marginTop: 10 }}><button className={`choice-btn ${network === "other" ? "selected" : ""}`} style={{ width: "100%" }} onClick={() => chooseNetwork("other")}>شبکهٔ دیگر</button></div>
+          {network === "other" && <input className="input" style={{ marginTop: 12 }} placeholder="نام شبکه" value={networkCustom} onChange={(e) => setNetworkCustom(e.target.value)} />}
         </div>
       )}
 
       {step === "deposit" && (
         <div className="card animate-in">
-          <div className="notice" style={{ marginBottom: 14 }}>
-            لطفاً مقدار <b className="num">{amount} USDT</b> را به آدرس زیر در شبکهٔ{" "}
-            <b>{finalNetwork}</b> ارسال کنید:
-          </div>
-          <div className="info-box" style={{ marginBottom: 14 }}>
-            <CopyRow value={walletForNetwork} />
-          </div>
-          <div className="notice warn" style={{ marginBottom: 16 }}>
-            <Warning size={16} className="notice-icon" weight="fill" />
-            پیش از ارسال، آدرس و شبکه را با دقت بررسی کنید؛ ارسال در شبکهٔ اشتباه ممکن
-            است باعث از دست رفتن دارایی شود.
-          </div>
-          <button className="btn btn-sell" onClick={() => setStepIdx(5)}>
-            تتر را ارسال کردم، ادامه
-          </button>
+          <div className="notice" style={{ marginBottom: 14 }}>لطفاً مقدار <b className="num">{amount} USDT</b> را به آدرس زیر در شبکهٔ <b>{finalNetwork}</b> ارسال کنید:</div>
+          <div className="info-box" style={{ marginBottom: 14 }}><CopyRow value={walletForNetwork} /></div>
+          <div className="notice warn" style={{ marginBottom: 16 }}><Warning size={16} className="notice-icon" weight="fill" />پیش از ارسال، آدرس و شبکه را با دقت بررسی کنید؛ ارسال در شبکهٔ اشتباه ممکن است باعث از دست رفتن دارایی شود.</div>
+          <button className="btn btn-sell" onClick={() => setStepIdx(5)}>تتر را ارسال کردم، ادامه</button>
         </div>
       )}
 
       {step === "txproof" && (
         <div className="card animate-in">
           <label className="field-label">کد تراکنش (TxID) را وارد کنید یا عکس رسید را بارگذاری کنید</label>
-          <input
-            className="input num"
-            placeholder="TxID (اختیاری اگر عکس رسید بارگذاری می‌کنید)"
-            value={txProof}
-            onChange={(e) => setTxProof(e.target.value)}
-            style={{ marginBottom: 12 }}
-          />
+          <input className="input num" placeholder="TxID (اختیاری اگر عکس رسید بارگذاری می‌کنید)" value={txProof} onChange={(e) => setTxProof(e.target.value)} style={{ marginBottom: 12 }} />
           <label className={`upload-box ${txProofUrl ? "has-file" : ""}`}>
             <input type="file" accept="image/*" onChange={handleProofFile} />
-            {txProofUploading ? (
-              <span className="spinner" style={{ borderTopColor: "var(--color-buy)" }} />
-            ) : txProofUrl ? (
-              <CheckCircle size={22} weight="fill" />
-            ) : (
-              <UploadSimple size={22} />
-            )}
+            {txProofUploading ? <span className="spinner" style={{ borderTopColor: "var(--color-buy)" }} /> : txProofUrl ? <CheckCircle size={22} weight="fill" /> : <UploadSimple size={22} />}
             <span>{txProofUploading ? "در حال آپلود..." : txProofUrl ? "رسید بارگذاری شد" : "یا انتخاب تصویر رسید"}</span>
           </label>
-          <button
-            className="btn btn-sell"
-            style={{ marginTop: 16 }}
-            disabled={!txProof.trim() && !txProofUrl}
-            onClick={() => setStepIdx(6)}
-          >
-            ادامه
-          </button>
+          <button className="btn btn-sell" style={{ marginTop: 16 }} disabled={!txProof.trim() && !txProofUrl} onClick={() => setStepIdx(6)}>ادامه</button>
         </div>
       )}
 
@@ -386,29 +319,44 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
         <div className="card animate-in">
           <label className="field-label">می‌خواهید مبلغ فروش را چگونه دریافت کنید؟</label>
           <div className="choice-row" style={{ marginTop: 4 }}>
-            <button className="choice-btn" onClick={() => chooseReceive("in_person")} disabled={submitting}>
-              {submitting && receiveMethod === "in_person" ? <span className="spinner" /> : <Buildings size={16} />} حضوری
-            </button>
-            <button className="choice-btn" onClick={() => chooseReceive("online")} disabled={submitting}>
-              <Bank size={16} /> آنلاین (بانکی)
-            </button>
+            <button className="choice-btn" onClick={() => chooseReceive("in_person")} disabled={submitting}>{submitting && receiveMethod === "in_person" ? <span className="spinner" /> : <Buildings size={16} />} حضوری</button>
+            <button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => chooseReceive("online")} disabled={submitting}><Bank size={16} /> آنلاین (بانکی)</button>
           </div>
+
+          {showOnlineProviders && (
+            <div style={{ marginTop: 16 }}>
+              <label className="field-label">روش دریافت آنلاین را انتخاب کنید</label>
+              <div className="choice-row" style={{ marginTop: 6 }}>
+                <button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")}>
+                  <img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} />
+                  عزیزی بانک
+                </button>
+                <button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")}>
+                  <img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} />
+                  حساب‌پی
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {step === "bank" && (
         <div className="card animate-in">
-          <div className="field">
-            <label className="field-label">نام صاحب حساب و شمارهٔ حساب بانکی خود را وارد کنید</label>
-            <textarea
-              className="input"
-              rows={3}
-              placeholder="احمد احمدی — 0123456789 — بانک ..."
-              value={bankInfo}
-              onChange={(e) => setBankInfo(e.target.value)}
-            />
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+            <img src={isHesabPay ? HESABPAY_LOGO_URL : AZIZI_LOGO_URL} alt={isHesabPay ? "HesabPay" : "Azizi Bank"} style={{ ...providerLogoStyle, width: 54, height: 54 }} />
           </div>
-          <button className="btn btn-sell" onClick={() => submitOrder("online")} disabled={!bankInfo.trim() || submitting}>
+          <div className="field">
+            <label className="field-label">
+              {isHesabPay ? "شماره حساب‌پی خود را وارد کنید" : "نام صاحب حساب و شمارهٔ حساب عزیزی بانک خود را وارد کنید"}
+            </label>
+            {isHesabPay ? (
+              <input className="input num" inputMode="tel" placeholder="مثال: 0775123456" value={bankInfo} onChange={(e) => setBankInfo(e.target.value)} />
+            ) : (
+              <textarea className="input" rows={3} placeholder="نام صاحب حساب — شماره حساب" value={bankInfo} onChange={(e) => setBankInfo(e.target.value)} />
+            )}
+          </div>
+          <button className="btn btn-sell" onClick={() => submitOrder(receiveMethod)} disabled={!bankInfo.trim() || submitting}>
             {submitting ? <span className="spinner" /> : "ثبت نهایی سفارش"}
           </button>
         </div>
@@ -416,22 +364,12 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
 
       {step === "done" && (
         <div className="card success-screen animate-in">
-          <div className="success-icon">
-            <CheckCircle size={36} weight="fill" />
-          </div>
+          <div className="success-icon"><CheckCircle size={36} weight="fill" /></div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>سفارش فروش شما ثبت شد</div>
           <div className="code num">{orderCode}</div>
-          <div className="notice" style={{ textAlign: "right" }}>
-            پس از تأیید تراکنش توسط تیم ما، مبلغ ظرف کمتر از ۱ ساعت پرداخت خواهد شد.
-            <br />
-            پشتیبانی: @SJDPLUS
-          </div>
-          <button className="btn btn-secondary" onClick={() => navigate("orders")}>
-            <ClipboardText size={17} /> مشاهدهٔ سفارش‌های من
-          </button>
-          <button className="btn btn-outline" onClick={() => navigate("home")}>
-            <House size={17} /> بازگشت به منوی اصلی
-          </button>
+          <div className="notice" style={{ textAlign: "right" }}>پس از تأیید تراکنش توسط تیم ما، مبلغ ظرف کمتر از ۱ ساعت پرداخت خواهد شد.<br />پشتیبانی: @SJDPLUS</div>
+          <button className="btn btn-secondary" onClick={() => navigate("orders")}><ClipboardText size={17} /> مشاهدهٔ سفارش‌های من</button>
+          <button className="btn btn-outline" onClick={() => navigate("home")}><House size={17} /> بازگشت به منوی اصلی</button>
         </div>
       )}
     </div>
