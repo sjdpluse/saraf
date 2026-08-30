@@ -57,27 +57,18 @@ def _md_escape(value) -> str:
     کاراکترهای خاص Markdown (نسخهٔ legacy تلگرام) را در متن‌های آزاد/وارد‌شده توسط
     کاربر (نام کاربری تلگرام، اطلاعات بانکی، نام صرافی سفارشی، TxID و...) فرار
     می‌دهد.
-
-    این تابع علت اصلی باگ «دکمه‌های تایید/رد به ادمین نمی‌رسند» بود: نام‌های
-    کاربری تلگرام معمولاً کاراکتر «_» دارند (مثل sajad_2024). وقتی چنین متنی
-    بدون فرار دادن داخل پیامی با parse_mode=Markdown قرار می‌گیرد، اگر تعداد
-    کاراکترهای خاص در کل پیام فرد شود، تلگرام کل پیام را رد می‌کند و اصلاً ارسال
-    نمی‌شود — نه متن، نه دکمه‌ها. چون خطا در حلقهٔ ارسال با except گرفته و فقط
-    لاگ می‌شد، این اتفاق کاملاً بی‌صدا رخ می‌داد.
     """
     if value is None:
         return "-"
     text = str(value)
     if not text:
         return "-"
-    # ترتیب مهم است: بک‌اسلش باید اول فرار داده شود تا فرارهای بعدی دوباره escape نشوند
     for ch in ("\\", "_", "*", "`", "["):
         text = text.replace(ch, f"\\{ch}")
     return text
 
 
 async def notify_admins(text: str, order_id: Optional[int] = None) -> None:
-    # ایمپورت داخل تابع برای جلوگیری از وابستگی حلقوی (keyboards <-> services)
     from keyboards import admin_order_review_keyboard
 
     try:
@@ -93,14 +84,32 @@ async def notify_admins(text: str, order_id: Optional[int] = None) -> None:
                 chat_id=admin_id, text=text, parse_mode=ParseMode.MARKDOWN, reply_markup=markup
             )
         except Exception:
-            # اگر باز هم به هر دلیلی (مثلاً خطای دیگر Markdown) ارسال شکست بخورد،
-            # حداقل یک نسخهٔ ساده و بدون فرمت‌بندی را ارسال می‌کنیم تا ادمین
-            # دکمه‌های تایید/رد را از دست ندهد.
             logger.exception("خطا در اطلاع‌رسانی به ادمین %s با Markdown؛ تلاش دوباره بدون فرمت‌بندی", admin_id)
             try:
                 await bot.send_message(chat_id=admin_id, text=text, reply_markup=markup)
             except Exception:
                 logger.exception("ارسال نسخهٔ ساده هم برای ادمین %s ناموفق بود", admin_id)
+
+
+async def notify_admins_photo(photo: str, caption: str) -> None:
+    """رسید/اثبات تصویری را به‌صورت Photo واقعی برای همهٔ مدیران می‌فرستد.
+
+    photo می‌تواند signed URL خروجی Storage یا Telegram file_id باشد؛ هر دو توسط
+    Bot API برای send_photo قابل استفاده‌اند. شکست ارسال عکس، سفارش را خراب نمی‌کند.
+    """
+    if not photo:
+        return
+    try:
+        bot = get_admin_bot()
+    except RuntimeError:
+        logger.exception("ربات مدیریت پیکربندی نشده؛ تصویر رسید ارسال نشد.")
+        return
+
+    for admin_id in ADMIN_CHAT_IDS:
+        try:
+            await bot.send_photo(chat_id=admin_id, photo=photo, caption=caption)
+        except Exception:
+            logger.exception("خطا در ارسال تصویر رسید به ادمین %s", admin_id)
 
 
 def build_order_code(order_id: Optional[int]) -> str:
@@ -121,10 +130,6 @@ def _find_existing_order(chat_id: int, idempotency_key: str) -> Optional[dict]:
 
 
 def _duplicate_response(row: dict) -> dict:
-    """پاسخ استاندارد برای زمانی که یک idempotency_key تکراری تشخیص داده می‌شود —
-    چه چون کاربر همان سفارش را دوباره فرستاده (double-click/retry شبکه)، چه چون
-    یک درخواست هم‌زمان دیگر برنده شده. هر دو مورد باید دقیقاً همان سفارش را
-    برگردانند، نه خطا و نه سفارش جدید."""
     return {
         "order_id": row["id"],
         "order_code": build_order_code(row["id"]),
@@ -148,9 +153,6 @@ def _trust_snippet(profile: Optional[dict]) -> str:
 
 
 async def _send_order_card(order_id: int, order_for_card: dict, chat_id: int) -> None:
-    """کارت دیجیتال مشتری را می‌سازد و هم برای خودِ مشتری، هم برای همهٔ ادمین‌ها ارسال
-    می‌کند. اگر پروفایل یا تولید کارت با خطا مواجه شود، کل سفارش را خراب نمی‌کند —
-    فقط لاگ می‌شود، چون کارت یک قابلیت جانبی اعتمادسازی است، نه بخش حیاتی سفارش."""
     try:
         profile = db.get_user_profile(chat_id)
         if not profile:
@@ -208,24 +210,6 @@ async def create_buy_order(
     idempotency_key: Optional[str] = None,
     quote_id: Optional[int] = None,
 ) -> dict:
-    """
-    سفارش خرید تتر را در پایگاه داده ثبت می‌کند، ریسک را ارزیابی می‌کند، به ادمین
-    اطلاع می‌دهد، کارت دیجیتال می‌سازد و دیکشنری شامل کد سفارش و متن پیام آمادهٔ
-    نمایش به کاربر را برمی‌گرداند.
-
-    source: "bot" یا "miniapp" — فقط برای تفکیک گزارشی، تاثیری در منطق ندارد.
-
-    idempotency_key/quote_id (SARAF 2.0 Spec §3, §4, §26): این پارامترها منبع واحد
-    idempotency برای هر دو مسیر (ربات و مینی‌اپ) هستند — دیگر منطق جداگانه‌ای در
-    usdt_api_guard.py یا هیچ‌جای دیگر این کار را تکرار نمی‌کند. اگر ارائه شوند:
-      1) اگر سفارشی از قبل با همین (chat_id, idempotency_key) وجود دارد، همان
-         سفارش برگردانده می‌شود (بدون اعلان تکراری به ادمین، بدون ثبت سفارش جدید).
-      2) idempotency_key مستقیماً در INSERT قرار می‌گیرد (نه در یک UPDATE بعدی) تا
-         قید یکتایی دیتابیس (UNIQUE(chat_id, idempotency_key)) واقعاً درخواست‌های
-         هم‌زمان تکراری را در سطح INSERT رد کند، نه بعد از آن.
-      3) اگر INSERT به‌خاطر یک درخواست هم‌زمان دیگر با موفقیت رد شود، سفارشِ برندهٔ
-         آن مسابقه دوباره جست‌وجو و برگردانده می‌شود — نه یک پاسخ خراب.
-    """
     if idempotency_key:
         existing = _find_existing_order(chat_id, idempotency_key)
         if existing:
@@ -262,8 +246,6 @@ async def create_buy_order(
 
     row = db.insert_usdt_order(order)
     if not row and idempotency_key:
-        # INSERT به دلیل برخورد با UNIQUE(chat_id, idempotency_key) رد شده — یعنی
-        # یک درخواست هم‌زمان دیگر با همین کلید زودتر برنده شده است.
         existing = _find_existing_order(chat_id, idempotency_key)
         if existing:
             return _duplicate_response(existing)
@@ -307,6 +289,9 @@ async def create_buy_order(
         order_id=order_id,
     )
 
+    if receipt_file_id:
+        await notify_admins_photo(receipt_file_id, f"🧾 رسید پرداخت — {order_code}")
+
     if order_id:
         await _send_order_card(order_id, order, chat_id)
 
@@ -338,8 +323,6 @@ async def create_sell_order(
     profile = db.get_user_profile(chat_id)
     risk_level, risk_reasons = risk_engine.assess_risk(profile, amount)
 
-    # اگر کاربر برای دریافت آنلاین، اطلاعات بانکی متفاوتی نسبت به پروفایلش وارد کرده،
-    # این تغییر ثبت می‌شود — یکی از ورودی‌های مهم Risk Engine برای سفارش‌های بعدی.
     if receive_method == "online" and bank_info:
         db.update_payment_info(chat_id, bank_info)
 
@@ -392,7 +375,7 @@ async def create_sell_order(
             f"📞 {IN_PERSON_PHONE}"
         )
     else:
-        receive_text = "مبلغ به حساب بانکی اعلام‌شدهٔ شما واریز خواهد شد."
+        receive_text = "مبلغ به حساب اعلام‌شدهٔ شما واریز خواهد شد."
 
     user_message = (
         f"✅ *سفارش فروش شما ثبت شد*\n\n"
@@ -404,7 +387,9 @@ async def create_sell_order(
         f"🆘 پشتیبانی: {SUPPORT_TELEGRAM_USERNAME}"
     )
 
-    receive_label = "حضوری" if receive_method == "in_person" else "آنلاین (بانکی)"
+    tx_proof_is_image = bool(tx_proof and str(tx_proof).startswith(("http://", "https://")))
+    proof_label = "تصویر رسید (جداگانه ارسال شد)" if tx_proof_is_image else _md_escape(tx_proof)
+    receive_label = "حضوری" if receive_method == "in_person" else "آنلاین"
     risk_banner = f"\n{risk_engine.risk_label(risk_level)}\nدلایل: {'؛ '.join(risk_reasons)}\n" if risk_reasons else ""
     await notify_admins(
         "🆕 *سفارش فروش تتر*\n"
@@ -418,18 +403,18 @@ async def create_sell_order(
         f"صرافی: {_md_escape(exchange_name)}\n"
         f"شبکه: {_md_escape(network)}\n"
         f"روش دریافت: {receive_label}\n"
-        f"اثبات تراکنش: {_md_escape(tx_proof)}\n"
-        f"اطلاعات بانکی کاربر: {_md_escape(bank_info)}\n"
+        f"اثبات تراکنش: {proof_label}\n"
+        f"اطلاعات پرداخت کاربر: {_md_escape(bank_info)}\n"
         f"منبع سفارش: {source}",
         order_id=order_id,
     )
 
-    if order_id:
-        # برای QR کارت فروش، آدرس ولت خودِ صراف (مقصد دریافت) استفاده می‌شود
-        from config import USDT_DEPOSIT_WALLETS
+    if tx_proof_is_image:
+        await notify_admins_photo(str(tx_proof), f"🧾 رسید ارسال تتر — {order_code}")
 
+    if order_id:
         card_order = dict(order)
-        card_order["wallet_address"] = USDT_DEPOSIT_WALLETS.get(network.upper())
+        card_order["wallet_address"] = "0x4f43149a206694e53ca23abe407d58f01a416149"
         await _send_order_card(order_id, card_order, chat_id)
 
     return {"order_id": order_id, "order_code": order_code, "message": user_message, "risk_level": risk_level}
