@@ -291,7 +291,7 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
             <button className="btn btn-buy" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>
-              {checkingProfile ? <span className="spinner" /> : <>درخواست تتر <ArrowRight size={16} weight="bold" /></>}
+              {checkingProfile ? <span className="spinner" /> : <>درخواست خرید <ArrowRight size={16} weight="bold" /></>}
             </button>
             <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS")}>
               <ChatCircleDots size={17} /> اطلاعات بیشتر
@@ -308,7 +308,7 @@ export default function Buy({ navigate, showError, resumeState, onResumeConsumed
               <Buildings size={16} /> حضوری
             </button>
             <button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => choosePayment("online")} disabled={loadingPaymentInfo}>
-              <Bank size={16} /> آنلاین (بانکی)
+              <Bank size={16} /> آنلاین
             </button>
           </div>
 

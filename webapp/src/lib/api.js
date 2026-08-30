@@ -86,7 +86,7 @@ export const api = {
     const q = quoteFor("buy", payload.amount);
     const provider = onlineProviderLabel(payload.payment_method);
     const exchangeName = provider
-      ? `${payload.exchange_name || "-"} | پرداخت: ${provider} | رسید: ${payload.receipt_url || "-"}`
+      ? `${payload.exchange_name || "-"} | پرداخت: ${provider}`
       : payload.exchange_name;
 
     return request("/usdt/orders/buy", {

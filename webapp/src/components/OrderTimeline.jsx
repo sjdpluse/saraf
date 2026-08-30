@@ -3,11 +3,12 @@ import { CheckCircle, Circle, Clock, Package, XCircle } from "@phosphor-icons/re
 function formatTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
-  return d.toLocaleString("fa-IR-u-nu-latn", {
-    month: "short",
+  return d.toLocaleString("fa-AF-u-ca-persian-nu-latn", {
+    month: "long",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Kabul",
   });
 }
 

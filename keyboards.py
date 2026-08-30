@@ -26,7 +26,7 @@ BTN_SILVER = "🥈 نرخ نقره"
 BTN_CRYPTO = "🪙 نرخ رمزارزها"
 BTN_COMPARE = "📊 مقایسه با گذشته"
 BTN_CONVERTER = "🔄 مبدل ارز جهانی"
-BTN_USDT = "🥇 USDT - تتر"
+BTN_USDT = "🟢 خرید و فروش تتر"
 BTN_ABOUT = "ℹ️ درباره ربات"
 # فقط برای ادمین — نشر دستی پست نرخ‌ها در فیسبوک/اینستاگرام (تست + کنترل دستی)
 BTN_ADMIN_POST = "📢 نشر پست (فیسبوک/اینستاگرام)"
@@ -267,7 +267,7 @@ def usdt_payment_method_keyboard(action: str) -> InlineKeyboardMarkup:
         [
             [
                 InlineKeyboardButton("🏢 حضوری", callback_data=f"usdt_pay:{action}:in_person"),
-                InlineKeyboardButton("🏦 آنلاین (بانکی)", callback_data=f"usdt_pay:{action}:online"),
+                InlineKeyboardButton("🏦 آنلاین", callback_data=f"usdt_pay:{action}:online"),
             ]
         ]
     )
