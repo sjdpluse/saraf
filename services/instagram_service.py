@@ -1,27 +1,7 @@
 """
 سرویس ارسال خودکار پست به اینستاگرام (اکانت کسب‌وکاری/سازنده که به صفحهٔ فیسبوک
 بالا وصل است) — همان تصویر برندشدهٔ ۱۰۸۰×۱۰۸۰ فیسبوک (نرخ دالر + طلا + نقره) را
-با یک کپشن مخصوص اینستاگرام (کوتاه‌تر، با هشتگ‌های اینستاگرامی) منتشر می‌کند.
-
-تفاوت کلیدی با فیسبوک: Instagram Graph API آپلود مستقیم فایل باینری را قبول
-نمی‌کند — فقط یک image_url عمومی می‌پذیرد. برای همین، تصویر ابتدا در یک باکت
-**عمومی** Supabase Storage آپلود می‌شود (services/supabase_service.upload_public_file)
-و لینک عمومی همان به Instagram داده می‌شود.
-
-جریان انتشار طبق Instagram Content Publishing API (Graph API):
-  ۱) POST /{ig-user-id}/media  با image_url و caption  → creation_id (کانتینر رسانه)
-  ۲) (اختیاری ولی توصیه‌شده) چند بار GET /{creation_id}?fields=status_code
-     تا وضعیت FINISHED شود (اینستاگرام گاهی چند ثانیه طول می‌دهد تا تصویر را
-     دانلود/پردازش کند)
-  ۳) POST /{ig-user-id}/media_publish با creation_id  → پست نهایی منتشر می‌شود
-
-نیازمند: INSTAGRAM_BUSINESS_ACCOUNT_ID و همان FACEBOOK_PAGE_ACCESS_TOKEN (چون
-اکانت اینستاگرام کسب‌وکاری زیرمجموعهٔ همان صفحهٔ فیسبوک است و توکن صفحه برای
-هر دو کار می‌کند) — راهنمای کامل ساخت/اتصال در README.
-
-فقط زمانی پست جدید ارسال می‌شود که تغییر محسوس نرخ (بیشتر یا مساوی
-INSTAGRAM_CHANGE_THRESHOLD_PERCENT) نسبت به آخرین پست اینستاگرام رخ داده باشد؛
-این وضعیت جدا از فیسبوک، در جدول Supabase (`ig_post_state`) نگهداری می‌شود.
+با یک کپشن مخصوص اینستاگرام منتشر می‌کند.
 """
 import asyncio
 import logging
@@ -35,14 +15,12 @@ from config import (
     FACEBOOK_PAGE_ACCESS_TOKEN,
     INSTAGRAM_CHANGE_THRESHOLD_PERCENT,
     INSTAGRAM_HASHTAGS,
-    FACEBOOK_POST_SITE_URL,
-    TELEGRAM_BOT_LINK,
     SOCIAL_POSTS_BUCKET,
 )
 from persian_date import get_afghan_datetime_str
 from services import post_image_service
 from services import supabase_service as db
-from services.facebook_service import _build_current_state  # همان منطق تشخیص تغییر نرخ فیسبوک
+from services.facebook_service import _build_current_state
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +31,6 @@ _PUBLISH_POLL_DELAY_SECONDS = 2.5
 
 
 def _build_caption(quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict]) -> str:
-    """
-    کپشن اینستاگرام عمداً کوتاه‌تر و متفاوت از کپشن فیسبوک است: اینستاگرام برخلاف
-    فیسبوک، کپشن‌های طولانیِ جدول‌مانند را به‌خوبی نمایش نمی‌دهد (بعد از چند خط
-    "...more" می‌شود) و فرهنگ هشتگ‌گذاری‌اش هم متفاوت است — این‌جا فقط نرخ‌های
-    کلیدی (دالر، طلا، نقره) + دعوت به ربات + هشتگ‌ها آورده می‌شود، نه تفکیک کامل
-    همهٔ ارزها و همهٔ عیارهای طلا (که در خودِ تصویر پست هم به‌طور خلاصه دیده می‌شود).
-    """
     usd_quote = quotes.get("usd")
     date_str = get_afghan_datetime_str()
 
@@ -84,18 +55,13 @@ def _build_caption(quotes: dict, gold_breakdown: Optional[dict], silver_breakdow
         lines.append(f"🥈 نقرهٔ خالص (۹۹۹) — {silver_breakdown['afn_per_gram']:,.0f} افغانی هر گرم")
 
     lines.append("")
-    lines.append("🚀 نرخ همهٔ ارزها، مبدل جهانی و ماشین‌حساب طلا/نقره، رایگان و لحظه‌یی:")
-    lines.append(TELEGRAM_BOT_LINK)
-    if FACEBOOK_POST_SITE_URL:
-        lines.append(FACEBOOK_POST_SITE_URL)
+    lines.append('🚀 برای استفاده از تمامی خدمات صراف به‌صورت رایگان، کلمه "صراف" را کامنت کنید.')
 
     if INSTAGRAM_HASHTAGS:
         lines.append("")
         lines.append(INSTAGRAM_HASHTAGS)
 
     caption = "\n".join(lines)
-    # سقف کپشن اینستاگرام ۲۲۰۰ کاراکتر است — به‌عنوان محافظ نهایی کوتاه می‌شود
-    # (در عمل با این ساختار خلاصه تقریباً هرگز به این سقف نمی‌رسد).
     if len(caption) > 2200:
         caption = caption[:2190].rstrip() + "…"
     return caption
@@ -107,9 +73,6 @@ async def _upload_image_get_public_url(image_bytes: bytes) -> Optional[str]:
 
 
 def _extract_graph_error(resp: httpx.Response) -> str:
-    """پیام خطای واقعی Meta Graph API را از پاسخ استخراج می‌کند (همان کمکی که
-    facebook_service دارد) — تا دلیل دقیق شکست (کمبود permission، توکن نامعتبر،
-    شناسهٔ اکانت اشتباه و...) در پیام نتیجهٔ دکمهٔ نشر دستی دیده شود."""
     try:
         err = resp.json().get("error", {})
         parts = [err.get("message") or resp.text[:300]]
@@ -141,8 +104,6 @@ async def _create_media_container(image_url: str, caption: str) -> tuple[Optiona
 
 
 async def _wait_until_ready(creation_id: str) -> tuple[bool, str]:
-    """اینستاگرام گاهی چند ثانیه طول می‌دهد تا image_url را دانلود/پردازش کند؛
-    قبل از media_publish، وضعیت را چک می‌کنیم تا خطای «رسانه آماده نیست» نگیریم."""
     url = f"{GRAPH_BASE}/{creation_id}"
     params = {"fields": "status_code", "access_token": FACEBOOK_PAGE_ACCESS_TOKEN}
     last_detail = "ok"
@@ -164,9 +125,6 @@ async def _wait_until_ready(creation_id: str) -> tuple[bool, str]:
                 last_detail = f"خطای شبکه/غیرمنتظره: {exc}"
                 logger.exception("خطا در بررسی وضعیت کانتینر رسانهٔ اینستاگرام")
             await asyncio.sleep(_PUBLISH_POLL_DELAY_SECONDS)
-    # اگر بعد از همهٔ تلاش‌ها هنوز FINISHED نشد، بازهم یک تلاش نهایی برای publish
-    # می‌کنیم (در عمل معمولاً تا این مرحله آماده است؛ عدم قطعیت شبکه را نباید به
-    # معنای شکست قطعی گرفت).
     return True, last_detail
 
 
@@ -213,18 +171,6 @@ async def _post_to_instagram(image_bytes: bytes, caption: str) -> tuple[bool, st
 async def check_and_maybe_post(
     quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None, force: bool = False
 ) -> tuple[bool, str]:
-    """
-    الگوی این تابع دقیقاً مثل facebook_service.check_and_maybe_post است (همان
-    منطق تشخیص تغییر محسوس)، فقط با جدول وضعیت و آستانهٔ جداگانهٔ اینستاگرام،
-    تا زمان‌بندی/آستانهٔ دو پلتفرم مستقل از هم قابل‌تنظیم باشد.
-
-    force: اگر True باشد، بررسی «تغییر محسوس نرخ» نادیده گرفته می‌شود — برای
-        نشر دستی (دکمهٔ ادمین در ربات) استفاده می‌شود.
-
-    خروجی: (True, "ok") اگر پست واقعاً با موفقیت منتشر شد؛ در غیر این صورت
-    (False, دلیل‌به‌فارسی) — دقیقاً مثل facebook_service، برای نمایش مستقیم به
-    ادمین در پیام نتیجهٔ دکمهٔ نشر دستی.
-    """
     if not quotes:
         return False, "نرخی در دسترس نیست"
 
