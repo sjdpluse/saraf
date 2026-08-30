@@ -26,7 +26,7 @@ function OrderDetail({ order, onBack, onRated, showError }) {
       setRated(true);
       onRated?.(order.id, stars);
     } catch (e) {
-      showError(e instanceof ApiError ? e.message : "ثبت امتیاز ناموفق بود.");
+      showError(e instanceof ApiError ? e.message : "ثبت امتیاز موفق نشد.");
     } finally {
       setSubmittingRate(false);
     }
@@ -38,7 +38,7 @@ function OrderDetail({ order, onBack, onRated, showError }) {
         <button className="back-btn" onClick={onBack} aria-label="بازگشت">
           <CaretRight size={18} weight="bold" />
         </button>
-        <h1>جزئیات سفارش</h1>
+        <h1>جزییات سفارش</h1>
         <div className="header-spacer" />
       </div>
 
@@ -74,12 +74,12 @@ function OrderDetail({ order, onBack, onRated, showError }) {
       {order.status === "completed" && (
         <div className="card animate-in" style={{ animationDelay: "0.08s", textAlign: "center" }}>
           <div className="section-title" style={{ justifyContent: "center" }}>
-            {rated ? "امتیاز شما" : "تجربهٔ شما چطور بود؟"}
+            {rated ? "امتیاز شما" : "تجربهٔ شما چگونه بود؟"}
           </div>
           <RatingStars value={rating} onChange={submitRating} readOnly={rated || submittingRate} size={30} />
           {rated && (
             <div className="notice" style={{ justifyContent: "center", marginTop: 10 }}>
-              متشکریم از بازخورد شما 🙏
+              از نظر شما سپاس 🙏
             </div>
           )}
         </div>
@@ -101,7 +101,7 @@ export default function Orders({ navigate, showError }) {
         if (mounted) setOrders(data);
       })
       .catch((e) => {
-        showError(e instanceof ApiError ? e.message : "خطا در دریافت سفارش‌ها.");
+        showError(e instanceof ApiError ? e.message : "دریافت سفارش‌ها موفق نشد.");
         if (mounted) setOrders([]);
       })
       .finally(() => mounted && setLoading(false));

@@ -1,15 +1,41 @@
 import { CheckCircle, Circle, Clock, Package, XCircle } from "@phosphor-icons/react";
 
+const AFGHAN_SOLAR_MONTHS = [
+  "حمل",
+  "ثور",
+  "جوزا",
+  "سرطان",
+  "اسد",
+  "سنبله",
+  "میزان",
+  "عقرب",
+  "قوس",
+  "جدی",
+  "دلو",
+  "حوت",
+];
+
 function formatTime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
-  return d.toLocaleString("fa-AF-u-ca-persian-nu-latn", {
-    month: "long",
+
+  const dateParts = new Intl.DateTimeFormat("en-US-u-ca-persian-nu-latn", {
+    month: "numeric",
     day: "numeric",
+    timeZone: "Asia/Kabul",
+  }).formatToParts(d);
+  const month = Number(dateParts.find((p) => p.type === "month")?.value);
+  const day = Number(dateParts.find((p) => p.type === "day")?.value);
+
+  const time = new Intl.DateTimeFormat("fa-AF-u-nu-latn", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
     timeZone: "Asia/Kabul",
-  });
+  }).format(d);
+
+  const monthName = AFGHAN_SOLAR_MONTHS[month - 1] || "";
+  return `${day} ${monthName}، ${time}`.trim();
 }
 
 export default function OrderTimeline({ order }) {

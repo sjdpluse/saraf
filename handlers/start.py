@@ -5,7 +5,6 @@ from telegram.ext import ContextTypes
 
 from config import (
     SUPPORT_TELEGRAM_USERNAME,
-    TRACKED_CURRENCIES,
     USDT_IDENTITY_VERIFICATION_THRESHOLD_USD,
     USDT_MAX_AMOUNT,
     USDT_MIN_AMOUNT,
@@ -27,153 +26,102 @@ def _escape_markdown_legacy(value: str) -> str:
 
 WELCOME_TEXT = (
     "سلام {name} 👋\n\n"
-    "به *Saraf | صراف* خوش آمدید.\n"
-    "پلتفرم نرخ بازار، ابزارهای مالی و خدمات ارزی افغانستان.\n\n"
+    "به *صراف* خوش آمدید.\n"
+    "پلتفرم هوشمند بازار و خدمات مالی افغانستان.\n\n"
     "💵 نرخ ارزها  |  🥇 طلا  |  🥈 نقره  |  🪙 رمزارزها\n"
-    "📊 مقایسه تاریخی  |  🔄 مبدل ارز  |  🪙 خرید و فروش USDT\n\n"
-    "از منوی زیر سرویس مورد نظر خود را انتخاب کنید. 👇"
+    "📊 مقایسه با گذشته  |  🔄 مبدل ارز  |  🪙 خرید و فروش USDT\n\n"
+    "از منوی زیر گزینهٔ مورد نظر خود را انتخاب کنید. 👇"
 )
 
 ABOUT_HOME_TEXT = (
-    "🏦 *SARAF | صراف*\n\n"
-    "*پلتفرم هوشمند نرخ بازار و خدمات ارزی افغانستان*\n\n"
-    "Saraf نرخ‌های بازار افغانستان و منابع بین‌المللی را با ابزارهای محاسبه، "
-    "مقایسه تاریخی و خدمات خرید و فروش USDT در یک سیستم واحد ارائه می‌کند.\n\n"
-    "هدف Saraf این است که کاربر بتواند نرخ را بررسی کند، ارزش معامله را محاسبه کند، "
-    "تغییرات گذشته را ببیند و در بخش USDT درخواست معامله را به‌صورت قابل پیگیری ثبت کند.\n\n"
-    "*نرخ را ببین. محاسبه کن. با اطمینان معامله کن.*\n\n"
-    "برای مشاهده جزئیات هر بخش، یکی از گزینه‌های زیر را انتخاب کنید. 👇"
+    "🏦 *صراف*\n\n"
+    "*یک تجربهٔ مالی هوشمند، ساده و ساخته‌شده برای افغانستان*\n\n"
+    "صراف برای این ساخته شده است که دسترسی به معلومات بازار، ابزارهای محاسبه و خدمات "
+    "خرید و فروش تتر را برای کاربران افغانستان ساده‌تر، شفاف‌تر و قابل پیگیری‌تر کند.\n\n"
+    "تمرکز صراف روی تجربهٔ سریع، معلومات روشن و روند قابل اعتماد است؛ از بررسی نرخ و "
+    "محاسبه گرفته تا ثبت و پیگیری سفارش.\n\n"
+    "*نرخ را ببین. محاسبه کن. با آگاهی تصمیم بگیر.*\n\n"
+    "برای آشنایی بیشتر، یکی از گزینه‌های زیر را انتخاب کنید. 👇"
 )
 
 ABOUT_MARKETS_TEXT = (
     "📊 *بازارها و نرخ‌ها*\n\n"
-    f"💵 *ارزهای خارجی — {len(TRACKED_CURRENCIES)} ارز*\n"
-    "• دالر، یورو، پوند، کلدار پاکستانی، تومان، درهم، روپیه، ریال سعودی، لیره، "
-    "یوان و سایر ارزهای پشتیبانی‌شده\n"
-    "• نمایش نرخ خرید و فروش در برابر افغانی\n"
-    "• استفاده از نرخ بازارهای محلی در صورت دسترس بودن\n"
-    "• نمایش نرخ مرجع بازار جهانی در کنار نرخ محلی\n\n"
+    "صراف معلومات مورد نیاز بازار را در یک محیط ساده و یک‌دست در اختیار کاربر قرار می‌دهد.\n\n"
+    "💵 *ارزهای خارجی*\n"
+    "• نمایش نرخ خرید و فروش ارزهای پرکاربرد در برابر افغانی\n\n"
     "🥇 *طلا*\n"
-    "• نرخ طلای ۲۴، ۲۲، ۲۱ و ۱۸ عیار\n"
-    "• قیمت به گرم و مثقال، به افغانی و دالر\n"
-    "• نمایش قیمت جهانی هر اونس تروی\n\n"
+    "• نمایش نرخ عیارهای پرکاربرد طلا به گرم و مثقال\n\n"
     "🥈 *نقره*\n"
-    "• نرخ نقره خالص به گرم و مثقال\n"
-    "• نمایش معادل افغانی و دالر\n\n"
+    "• نمایش نرخ نقره به واحدهای کاربردی بازار\n\n"
     "🪙 *رمزارزها*\n"
-    "• BTC، ETH، SOL، BNB، XRP و SHIB\n"
-    "• قیمت به دالر و معادل افغانی"
+    "• نمایش قیمت رمزارزهای پرکاربرد به دالر و معادل افغانی"
 )
 
 ABOUT_TOOLS_TEXT = (
-    "🧮 *ابزارهای مالی Saraf*\n\n"
-    "📊 *مقایسه تاریخی*\n"
-    "• مقایسه ارزها و طلای ۲۴ عیار با ۲۴ ساعت، ۷، ۳۰ و ۹۰ روز گذشته\n"
-    "• نمایش درصد تغییر و جهت حرکت نرخ\n\n"
-    "🔄 *مبدل ارز جهانی*\n"
-    "• تبدیل مستقیم میان ارزهای پشتیبانی‌شده\n"
-    "• محاسبه نرخ واحد و مبلغ نهایی\n\n"
-    "💵 *ماشین‌حساب ارز به افغانی*\n"
-    "• محاسبه مبلغ بر اساس نرخ خرید و فروش بازار\n\n"
+    "🧮 *ابزارهای مالی صراف*\n\n"
+    "📊 *مقایسه با گذشته*\n"
+    "• مقایسهٔ تغییرات نرخ در بازه‌های زمانی مختلف\n\n"
+    "🔄 *مبدل ارز*\n"
+    "• تبدیل مستقیم میان ارزهای پشتیبانی‌شده\n\n"
+    "💵 *ماشین‌حساب ارز*\n"
+    "• محاسبهٔ مبلغ بر اساس نرخ خرید و فروش\n\n"
     "🥇 *ماشین‌حساب طلا*\n"
-    "• محاسبه خرید و فروش بر اساس عیار، وزن و هزینه/کسر معامله\n\n"
+    "• محاسبهٔ خرید و فروش بر اساس عیار و وزن\n\n"
     "🥈 *ماشین‌حساب نقره*\n"
-    "• محاسبه خرید و فروش نقره بر اساس وزن و تنظیمات معامله"
+    "• محاسبهٔ مبلغ نقره بر اساس وزن و نوع معامله"
 )
 
 ABOUT_USDT_TEXT = (
     "🪙 *خرید و فروش USDT*\n\n"
-    "Saraf برای تتر فقط نرخ نمایش نمی‌دهد؛ چرخه ثبت، بررسی و پیگیری سفارش را نیز "
-    "مدیریت می‌کند.\n\n"
-    f"• محدوده سفارش: *{USDT_MIN_AMOUNT:g} تا {USDT_MAX_AMOUNT:g} USDT*\n"
-    "• دریافت نرخ خرید/فروش و محاسبه مبلغ معامله\n"
-    "• کارمزد پلکانی شفاف برای خرید\n"
-    "• پرداخت بانکی آنلاین یا مراجعه حضوری\n"
-    "• انتخاب صرافی/کیف پول مقصد و شبکه انتقال\n"
-    "• پشتیبانی از شبکه‌های تعریف‌شده مانند TRC20، ERC20 و BEP20\n"
-    "• آپلود رسید پرداخت یا مدرک انتقال\n"
+    "صراف روند خرید و فروش تتر را از دریافت نرخ تا ثبت و پیگیری سفارش در یک مسیر روشن "
+    "و قابل فهم برای کاربر فراهم می‌کند.\n\n"
+    f"• محدودهٔ سفارش: *{USDT_MIN_AMOUNT:g} تا {USDT_MAX_AMOUNT:g} USDT*\n"
+    "• دریافت نرخ و محاسبهٔ مبلغ معامله\n"
+    "• کارمزد پلکانی و شفاف برای خرید\n"
+    "• انتخاب روش پرداخت یا دریافت\n"
+    "• انتخاب صرافی یا کیف پول و شبکهٔ انتقال\n"
+    "• ثبت رسید یا مدرک انتقال\n"
     "• کد اختصاصی برای هر سفارش\n"
-    "• پیگیری سفارش از ثبت تا تایید و تکمیل\n"
-    "• مشاهده سفارش‌های قبلی در Mini App\n"
-    "• امتیازدهی ۱ تا ۵ ستاره پس از تکمیل معامله\n"
-    "• نمایش آمار واقعی معاملات تکمیل‌شده و میانگین امتیاز در Mini App\n"
-    "• تولید کارت دیجیتال سفارش برای استفاده مشتری و مدیریت\n\n"
-    "🚀 خدمات USDT از طریق *Telegram Mini App* ارائه می‌شود و در صورت غیرفعال بودن "
-    "Mini App، جریان گفتگویی داخل ربات به‌عنوان مسیر جایگزین در دسترس است."
+    "• پیگیری وضعیت سفارش تا تکمیل\n"
+    "• مشاهدهٔ سفارش‌های قبلی و ثبت امتیاز پس از معامله\n\n"
+    "🚀 خدمات USDT از طریق مینی‌اپ تلگرام صراف در دسترس است."
 )
 
 ABOUT_SECURITY_TEXT = (
-    "🛡 *امنیت، احراز هویت و کنترل ریسک*\n\n"
-    "👤 *پروفایل و KYC*\n"
-    "• تکمیل اطلاعات پایه برای ثبت سفارش‌های USDT\n"
-    f"• احراز هویت تکمیلی با مدرک هویتی و سلفی برای سفارش‌های بالاتر از "
-    f"*{USDT_IDENTITY_VERIFICATION_THRESHOLD_USD:g} USDT*\n"
-    "• نگهداری مدارک هویتی در فضای ذخیره‌سازی خصوصی\n\n"
-    "⭐ *Trust Profile و Risk Engine*\n"
-    "• پروفایل اعتبار بر اساس وضعیت KYC و سابقه معاملات\n"
-    "• ارزیابی ریسک سفارش پیش از بررسی مدیریت\n"
-    "• ثبت تعداد معاملات موفق/لغوشده و امتیاز اعتماد\n\n"
-    "🔐 *کنترل‌های فنی*\n"
-    "• اعتبارسنجی Telegram Mini App initData برای APIهای حساس\n"
-    "• اعتبارسنجی آدرس کیف پول بر اساس شبکه\n"
-    "• Rate Limit برای درخواست‌ها و آپلودهای حساس\n"
-    "• جلوگیری از ثبت تکراری سفارش در Retry/Double-click\n"
-    "• ثبت Audit برای رویدادهای مهم\n"
-    "• ربات مدیریت جداگانه برای پردازش اعلان‌ها و سفارش‌های مالی"
-)
-
-ABOUT_DATA_TEXT = (
-    "📡 *داده‌ها و نرخ‌های بازار*\n\n"
-    "Saraf از یک موتور نرخ مرکزی استفاده می‌کند تا داده‌های بازار محلی و نرخ‌های مرجع "
-    "بین‌المللی را در یک ساختار واحد پردازش کند.\n\n"
-    "• نرخ بازار محلی در اولویت قرار می‌گیرد؛ در صورت نبود داده کافی، نرخ مرجع "
-    "به‌عنوان پشتیبان استفاده می‌شود\n"
-    "• Snapshotهای نرخ به‌صورت دوره‌ای ذخیره می‌شوند تا مقایسه تاریخی ممکن باشد\n"
-    "• نرخ‌های طلا و نقره از قیمت جهانی و نرخ دالر/افغانی محاسبه می‌شوند\n"
-    "• نرخ رمزارزهای پشتیبانی‌شده از CoinGecko دریافت می‌شود\n"
-    "• API و ربات از همان لایه سرویس استفاده می‌کنند تا اعداد بین کانال‌ها یکسان بماند\n\n"
-    "نرخ‌های عمومی برای اطلاع‌رسانی هستند؛ قیمت نهایی یک معامله می‌تواند بر اساس نوع "
-    "سفارش، کارمزد، شبکه و شرایط همان لحظه متفاوت باشد."
-)
-
-ABOUT_INFRASTRUCTURE_TEXT = (
-    "⚙️ *سرویس‌ها و زیرساخت Saraf*\n\n"
-    "🤖 *Telegram Bot*\n"
-    "رابط اصلی کاربران برای نرخ‌ها، ابزارها و خدمات ارزی.\n\n"
-    "📱 *Telegram Mini App*\n"
-    "رابط کامل خرید/فروش USDT، KYC، سفارش‌ها، Timeline، رسید و امتیازدهی.\n\n"
-    "🌐 *Saraf API*\n"
-    "API مشترک برای نرخ ارز، طلا، مبدل، مقایسه تاریخی و عملیات Mini App.\n\n"
-    "🗄 *Supabase*\n"
-    "ذخیره تاریخچه نرخ‌ها، پروفایل‌ها، سفارش‌ها، امتیازها و فایل‌های مورد نیاز.\n\n"
-    "🛡 *Admin & Risk Services*\n"
-    "ربات مدیریت مستقل، موتور ریسک، Trust Profile، Audit و مدیریت وضعیت سفارش.\n\n"
-    "📣 *Facebook Automation*\n"
-    "بررسی دوره‌ای تغییر نرخ‌ها و امکان تولید/انتشار خودکار پست نرخ در صورت تغییر "
-    "معنادار.\n\n"
-    "❤️ *Health Monitoring*\n"
-    "بررسی سلامت سرویس و دسترسی پایگاه داده برای تشخیص وضعیت عادی یا degraded."
+    "🛡 *امنیت و تایید هویت*\n\n"
+    "صراف برای کاهش خطا و افزایش اطمینان در معاملات، سفارش‌ها را پیش از تکمیل بررسی می‌کند.\n\n"
+    "• تکمیل معلومات پایه برای ثبت سفارش\n"
+    f"• تایید هویت تکمیلی برای سفارش‌های بالاتر از *{USDT_IDENTITY_VERIFICATION_THRESHOLD_USD:g} USDT*\n"
+    "• بررسی دستی سفارش‌های مالی پیش از تکمیل\n"
+    "• کنترل معلومات پرداخت، شبکه و آدرس مقصد\n"
+    "• پیگیری وضعیت هر سفارش تا پایان روند\n\n"
+    "جزییات فنی و ساختار داخلی سیستم به‌دلایل امنیتی به‌صورت عمومی نشر نمی‌شود."
 )
 
 ABOUT_DEVELOPER_TEXT = (
-    "👨‍💻 *توسعه و طراحی Saraf*\n\n"
-    "*Sajad Mohammadi*\n"
-    f"پشتیبانی تلگرام: {SUPPORT_TELEGRAM_USERNAME}\n\n"
-    "Saraf به‌صورت مستمر بر اساس داده‌های واقعی، نیاز بازار و بازخورد کاربران "
-    "توسعه داده می‌شود.\n\n"
-    "گزارش خطا، پیشنهاد قابلیت جدید و بازخورد تجربه کاربری مستقیماً به بهبود سرویس "
-    "کمک می‌کند."
+    "👨‍💻 *توسعه و برند*\n\n"
+    "*سجاد محمدی — سازنده و توسعه‌دهندهٔ صراف*\n\n"
+    "صراف حاصل ترکیب تجربهٔ عملی در توسعهٔ نرم‌افزار، هوش مصنوعی، بازارهای مالی و "
+    "ساخت محصولات دیجیتال است. سجاد محمدی به‌عنوان توسعه‌دهندهٔ فول‌استک، مدرس هوش "
+    "مصنوعی و فعال بازار رمزارز، این محصول را با تمرکز بر نیاز واقعی کاربران افغانستان "
+    "طراحی و توسعه داده است.\n\n"
+    "تجربهٔ او در برنامه‌نویسی، طراحی محصول، بازاریابی دیجیتال، تولید محتوای بصری و آموزش "
+    "فناوری باعث شده صراف صرفاً یک ربات نرخ نباشد؛ بلکه به‌عنوان یک برند مالی دیجیتال "
+    "افغانستان با تمرکز بر سادگی، اعتماد، سرعت و تجربهٔ کاربری حرفه‌یی توسعه پیدا کند.\n\n"
+    "او دارای گواهی CS50 هاروارد و Gemini Certified Educator است و فعالیت حرفه‌یی‌اش را "
+    "در نقطهٔ تلاقی فناوری، هوش مصنوعی و بازارهای مالی پیش می‌برد.\n\n"
+    f"پشتیبانی و ارتباط مستقیم: {SUPPORT_TELEGRAM_USERNAME}"
 )
 
 DISCLAIMER_TEXT = (
     "⚠️ *شرایط استفاده و سلب مسئولیت*\n\n"
-    "• نرخ‌های عمومی Saraf برای اطلاع‌رسانی و محاسبه ارائه می‌شوند و لزوماً قیمت "
-    "قطعی معامله در بازار خارج از Saraf نیستند.\n"
-    "• اطلاعات بازار به‌منزله توصیه سرمایه‌گذاری یا تضمین سود نیست.\n"
-    "• پیش از تایید هر معامله USDT، مبلغ، نرخ، کارمزد، شبکه و آدرس مقصد را بررسی کنید.\n"
-    "• مسئولیت صحت آدرس کیف پول و اطلاعاتی که کاربر وارد می‌کند بر عهده خود کاربر است.\n"
-    "• تصمیم‌گیری مالی و نتایج ناشی از خرید، فروش یا انتقال دارایی بر عهده کاربر است.\n\n"
-    "© 2026 SARAF — *Smart Market Intelligence & Exchange*"
+    "• نرخ‌های عمومی صراف برای اطلاع‌رسانی و محاسبه ارائه می‌شوند و لزوماً قیمت قطعی "
+    "معامله در بازار خارج از صراف نیستند.\n"
+    "• معلومات بازار به‌معنای توصیهٔ سرمایه‌گذاری یا تضمین سود نیست.\n"
+    "• پیش از تایید هر معاملهٔ USDT، مبلغ، نرخ، کارمزد، شبکه و آدرس مقصد را بررسی کنید.\n"
+    "• مسئولیت صحت آدرس کیف پول و معلوماتی که کاربر وارد می‌کند بر عهدهٔ خود کاربر است.\n"
+    "• تصمیم‌گیری مالی و نتایج ناشی از خرید، فروش یا انتقال دارایی بر عهدهٔ کاربر است.\n\n"
+    "© 2026 صراف"
 )
 
 
@@ -182,44 +130,16 @@ def about_keyboard(page: str = "home") -> InlineKeyboardMarkup:
         return InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton(
-                        "📊 بازارها و نرخ‌ها",
-                        callback_data="about:markets",
-                    ),
-                    InlineKeyboardButton(
-                        "🧮 ابزارهای مالی",
-                        callback_data="about:tools",
-                    ),
+                    InlineKeyboardButton("📊 بازارها و نرخ‌ها", callback_data="about:markets"),
+                    InlineKeyboardButton("🧮 ابزارهای مالی", callback_data="about:tools"),
                 ],
                 [
-                    InlineKeyboardButton(
-                        "🪙 خدمات USDT",
-                        callback_data="about:usdt",
-                    ),
-                    InlineKeyboardButton(
-                        "🛡 امنیت و KYC",
-                        callback_data="about:security",
-                    ),
+                    InlineKeyboardButton("🪙 خدمات USDT", callback_data="about:usdt"),
+                    InlineKeyboardButton("🛡 امنیت و تایید هویت", callback_data="about:security"),
                 ],
                 [
-                    InlineKeyboardButton(
-                        "📡 داده‌ها و نرخ‌ها",
-                        callback_data="about:data",
-                    ),
-                    InlineKeyboardButton(
-                        "⚙️ سرویس‌ها و زیرساخت",
-                        callback_data="about:infrastructure",
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        "👨‍💻 توسعه و برند",
-                        callback_data="about:developer",
-                    ),
-                    InlineKeyboardButton(
-                        "⚠️ شرایط استفاده",
-                        callback_data="about:disclaimer",
-                    ),
+                    InlineKeyboardButton("👨‍💻 توسعه و برند", callback_data="about:developer"),
+                    InlineKeyboardButton("⚠️ شرایط استفاده", callback_data="about:disclaimer"),
                 ],
             ]
         )
@@ -228,42 +148,19 @@ def about_keyboard(page: str = "home") -> InlineKeyboardMarkup:
 
     if page == "usdt":
         rows.append(
-            [
-                InlineKeyboardButton(
-                    "🚀 ورود به خدمات USDT",
-                    callback_data="about:open_usdt",
-                )
-            ]
+            [InlineKeyboardButton("🚀 ورود به خدمات USDT", callback_data="about:open_usdt")]
         )
 
     rows.append(
-        [
-            InlineKeyboardButton(
-                "🔙 بازگشت به درباره Saraf",
-                callback_data="about:home",
-            )
-        ]
+        [InlineKeyboardButton("🔙 بازگشت به درباره صراف", callback_data="about:home")]
     )
-
     return InlineKeyboardMarkup(rows)
 
 
-async def start(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
-
-    db.upsert_user(
-        user.id,
-        user.username,
-        user.full_name,
-    )
-
-    safe_name = _escape_markdown_legacy(
-        user.first_name or "دوست عزیز"
-    )
-
+    db.upsert_user(user.id, user.username, user.full_name)
+    safe_name = _escape_markdown_legacy(user.first_name or "دوست عزیز")
     await update.message.reply_text(
         WELCOME_TEXT.format(name=safe_name),
         parse_mode="Markdown",
@@ -271,10 +168,7 @@ async def start(
     )
 
 
-async def about(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
+async def about(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         ABOUT_HOME_TEXT,
         parse_mode="Markdown",
@@ -282,13 +176,9 @@ async def about(
     )
 
 
-async def about_callback(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
+async def about_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-
     action = query.data.split(":", 1)[1]
 
     if action == "home":
@@ -302,10 +192,7 @@ async def about_callback(
     if action == "open_usdt":
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text=(
-                "🪙 *خرید و فروش USDT*\n\n"
-                "یکی از گزینه‌های زیر را انتخاب کنید:"
-            ),
+            text="🪙 *خرید و فروش USDT*\n\nیکی از گزینه‌های زیر را انتخاب کنید:",
             parse_mode="Markdown",
             reply_markup=usdt_menu_keyboard(),
         )
@@ -316,19 +203,13 @@ async def about_callback(
         "tools": ABOUT_TOOLS_TEXT,
         "usdt": ABOUT_USDT_TEXT,
         "security": ABOUT_SECURITY_TEXT,
-        "data": ABOUT_DATA_TEXT,
-        "infrastructure": ABOUT_INFRASTRUCTURE_TEXT,
         "developer": ABOUT_DEVELOPER_TEXT,
         "disclaimer": DISCLAIMER_TEXT,
     }
 
     text = pages.get(action)
-
     if not text:
-        logger.warning(
-            "Unknown about action: %s",
-            action,
-        )
+        logger.warning("Unknown about action: %s", action)
         return
 
     await query.edit_message_text(
@@ -338,15 +219,8 @@ async def about_callback(
     )
 
 
-async def stop(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-) -> None:
-    db.deactivate_user(
-        update.effective_user.id
-    )
-
+async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    db.deactivate_user(update.effective_user.id)
     await update.message.reply_text(
-        "شما از دریافت پیام‌های همگانی ربات خارج شدید. "
-        "هر وقت خواستید با /start دوباره فعال شوید."
+        "شما از دریافت پیام‌های همگانی ربات خارج شدید. هر وقت خواستید با /start دوباره فعال شوید."
     )
