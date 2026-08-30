@@ -10,7 +10,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from telegram import Update
+from telegram import MenuButtonWebApp, Update, WebAppInfo
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -22,6 +22,7 @@ from telegram.ext import (
 )
 from config import (
     BOT_TOKEN,
+    MINI_APP_URL,
     FETCH_INTERVAL_MINUTES,
     LOCAL_MARKET_FETCH_INTERVAL_MINUTES,
     FACEBOOK_CHECK_INTERVAL_MINUTES,
@@ -42,6 +43,30 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+
+
+async def sync_mini_app_menu_button(application: Application) -> None:
+    """دکمهٔ مستقیم Menu تلگرام را با همان URL فعلی مینی‌اپ همگام می‌کند.
+
+    این کار در هر startup انجام می‌شود تا URL قدیمی تنظیم‌شده در BotFather باعث
+    بازشدن نسخه/استقرار قدیمی نشود. دکمهٔ مستقیم و دکمه‌های داخل منوی ربات از
+    یک MINI_APP_URL واحد استفاده می‌کنند.
+    """
+    if not MINI_APP_URL:
+        logger.warning("MINI_APP_URL تنظیم نشده؛ دکمهٔ مستقیم مینی‌اپ همگام نشد.")
+        return
+
+    mini_app_url = f"{MINI_APP_URL.rstrip('/')}/miniapp/"
+    try:
+        await application.bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="🟢 خرید و فروش تتر",
+                web_app=WebAppInfo(url=mini_app_url),
+            )
+        )
+        logger.info("دکمهٔ مستقیم مینی‌اپ تلگرام با %s همگام شد.", mini_app_url)
+    except Exception:
+        logger.exception("همگام‌سازی دکمهٔ مستقیم مینی‌اپ تلگرام ناموفق بود.")
 
 
 async def touch_last_seen(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -151,7 +176,12 @@ def build_application() -> Application:
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN تنظیم نشده است. آن را در .env قرار دهید.")
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .post_init(sync_mini_app_menu_button)
+        .build()
+    )
 
     # group=-1 یعنی قبل از همهٔ هندلرهای دیگر (که در group=0 پیش‌فرض ثبت
     # می‌شوند) اجرا می‌شود، اما چون ApplicationHandlerStop پرتاب نمی‌کند،
