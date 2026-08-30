@@ -60,7 +60,7 @@ async def sync_mini_app_menu_button(application: Application) -> None:
     try:
         await application.bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
-                text="🟢 خرید و فروش تتر",
+                text="USDT",
                 web_app=WebAppInfo(url=mini_app_url),
             )
         )
