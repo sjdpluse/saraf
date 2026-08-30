@@ -1,22 +1,5 @@
 """
 سرویس ارسال خودکار پست به صفحهٔ فیسبوک.
-
-از نسخهٔ فعلی به بعد، ربات به‌جای پست متنی ساده، یک تصویر ۱۰۸۰×۱۰۸۰ حرفه‌یی
-(طراحی‌شده در post_image_service با داده‌های لحظه‌یی نرخ دالر، طلا و نقره) به همراه
-یک کپشن کامل (شامل نرخ همهٔ ارزها، تفکیک کامل عیارهای طلا، نرخ نقره، لینک ربات و
-هشتگ‌ها) در صفحهٔ فیسبوک منتشر می‌کند.
-
-بخش نرخ ارزهای کپشن دقیقاً همان قالبی را دارد که در ربات تلگرام («نمایش همهٔ
-نرخ‌ها») نمایش داده می‌شود: برای هر ارز یک بلوکِ جداگانه شامل نرخ سرای شهزاده،
-نرخ صرافی‌های محلی (Saraf) و نرخ بازار آزاد جهانی، با خط‌جداکننده در ابتدا و
-انتهای هر بلوک.
-
-فقط زمانی پست جدید ارسال می‌شود که تغییر محسوس نرخ (بیشتر یا مساوی
-FACEBOOK_CHANGE_THRESHOLD_PERCENT) نسبت به آخرین پست ارسال‌شده رخ داده باشد؛
-این وضعیت در جدول Supabase (`fb_post_state`) نگهداری می‌شود تا با ری‌استارت
-شدن پردازه از بین نرود.
-
-نیازمند: FACEBOOK_PAGE_ID و FACEBOOK_PAGE_ACCESS_TOKEN (راهنمای ساخت در README).
 """
 import logging
 from typing import Optional
@@ -30,9 +13,7 @@ from config import (
     FACEBOOK_PAGE_ID,
     FACEBOOK_PAGE_ACCESS_TOKEN,
     FACEBOOK_CHANGE_THRESHOLD_PERCENT,
-    FACEBOOK_POST_SITE_URL,
     FACEBOOK_HASHTAGS,
-    TELEGRAM_BOT_LINK,
 )
 from persian_date import get_afghan_datetime_str
 from services import post_image_service
@@ -43,11 +24,10 @@ logger = logging.getLogger(__name__)
 PHOTO_API_URL = "https://graph.facebook.com/v19.0/{page_id}/photos"
 _TIMEOUT = 30.0
 DIVIDER = "━━━━━━━━━━"
+WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbDBaZqC1FuAw0kj2G07"
 
 
 def _unit_amount(code: str) -> int:
-    """ارزهایی مثل تومان/کلدار/روپیه به ازای هر ۱۰۰۰ واحد نمایش داده می‌شوند
-    (هم‌راستا با handlers/currency.py تا کپشن فیسبوک با ربات تلگرام یکسان باشد)."""
     return 1000 if code in THOUSAND_UNIT_CURRENCIES else 1
 
 
@@ -56,7 +36,6 @@ def _scale(code: str, value: float) -> float:
 
 
 def _primary_rate(quote: dict) -> Optional[float]:
-    """اولویت نمایش: سرای شهزاده، در نبود آن صرافی‌های محلی."""
     local = quote.get("local")
     if local:
         return local["buy"]
@@ -87,7 +66,7 @@ def _build_current_state(quotes: dict, gold_breakdown: Optional[dict], silver_br
 
 def _has_significant_change(current: dict, last: dict) -> bool:
     if not last:
-        return True  # اولین اجرا -> همیشه پست شود
+        return True
     for key, value in current.items():
         old = last.get(key)
         if not old:
@@ -99,8 +78,6 @@ def _has_significant_change(current: dict, last: dict) -> bool:
 
 
 def _build_currency_block(code: str, name: str, quote: dict) -> str:
-    """دقیقاً هم‌شکل با _format_quote_block_for_all در handlers/currency.py؛
-    برای اینکه کپشن فیسبوک هم مثل «نمایش همهٔ نرخ‌ها» در ربات تلگرام نمایش داده شود."""
     flag = CURRENCY_FLAGS.get(code, "")
     amount = _unit_amount(code)
 
@@ -110,7 +87,6 @@ def _build_currency_block(code: str, name: str, quote: dict) -> str:
         "",
     ]
 
-    # ۱) نرخ سرای شهزاده
     local = quote.get("local")
     if local:
         lines.append(f"🏛 نرخ {local['market_label']}")
@@ -120,7 +96,6 @@ def _build_currency_block(code: str, name: str, quote: dict) -> str:
         )
         lines.append("")
 
-    # ۲) نرخ خرید/فروش صرافی‌های محلی (نرخ Saraf)
     saraf = quote["saraf_quote"]
     lines.append("💱 نرخ صرافی‌های محلی")
     lines.append(
@@ -129,22 +104,18 @@ def _build_currency_block(code: str, name: str, quote: dict) -> str:
     )
     lines.append("")
 
-    # ۳) نرخ بازار آزاد جهانی
     if quote.get("reference_rate"):
         lines.append("🌍 نرخ بازار آزاد جهانی")
         lines.append(f"{_scale(code, quote['reference_rate']):,.2f} افغانی")
 
     lines.append(DIVIDER)
-
     return "\n".join(lines)
 
 
 def _build_caption(quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None) -> str:
-    """کپشن کامل پست فیسبوک: نرخ همهٔ ارزها (به‌سبک نمایش تلگرام) + تفکیک کامل
-    طلا + نرخ نقره + لینک ربات + هشتگ‌ها."""
     date_str = get_afghan_datetime_str()
     lines = [
-        "💵 (Saraf) نرخ ارزهای خارجی در برابر پول افغانی امروز — صراف",
+        "💵 نرخ ارزهای خارجی در برابر پول افغانی امروز — صراف",
         date_str,
         "",
     ]
@@ -185,12 +156,9 @@ def _build_caption(quotes: dict, gold_breakdown: Optional[dict], silver_breakdow
         )
 
     lines.append("")
-    lines.append("🚀 نمایش همهٔ نرخ‌ها، مبدل ارز جهانی و ماشین‌حساب طلا، کاملاً رایگان و لحظه‌یی؛")
-    lines.append("همین حالا به ربات صراف بپیوندید:")
-    lines.append(TELEGRAM_BOT_LINK)
-
-    if FACEBOOK_POST_SITE_URL:
-        lines.append(FACEBOOK_POST_SITE_URL)
+    lines.append(f"📱 صراف در واتساپ: {WHATSAPP_CHANNEL_URL}")
+    lines.append("")
+    lines.append('🚀 برای بهره از تمامی خدمات صراف به‌صورت رایگان، کلمه "صراف" را کامنت کنید.')
 
     if FACEBOOK_HASHTAGS:
         lines.append("")
@@ -200,9 +168,6 @@ def _build_caption(quotes: dict, gold_breakdown: Optional[dict], silver_breakdow
 
 
 def _extract_graph_error(resp: httpx.Response) -> str:
-    """پیام خطای واقعی Meta Graph API را از پاسخ استخراج می‌کند (مثلاً کمبود
-    permission، توکن نامعتبر/منقضی، یا page_id اشتباه) تا به‌جای یک «ناموفق»ِ
-    مبهم، دلیل دقیق در پیام ادمین (دکمهٔ نشر دستی) و در لاگ دیده شود."""
     try:
         err = resp.json().get("error", {})
         parts = [err.get("message") or resp.text[:300]]
@@ -244,19 +209,6 @@ async def _post_photo_to_page(image_bytes: bytes, caption: str) -> tuple[bool, s
 async def check_and_maybe_post(
     quotes: dict, gold_breakdown: Optional[dict], silver_breakdown: Optional[dict] = None, force: bool = False
 ) -> tuple[bool, str]:
-    """
-    gold_breakdown: خروجی کامل gold_service.build_gold_breakdown(...) —
-    نه فقط یک عدد، چون هم برای طراحی تصویر و هم برای کپشن (تفکیک همهٔ عیارها) لازم است.
-    silver_breakdown: خروجی کامل silver_service.build_silver_breakdown(...) — اختیاری؛
-        اگر داده نشود، پیل نقرهٔ تصویر خط تیره نمایش می‌دهد و کپشن بخش نقره ندارد.
-    force: اگر True باشد، بررسی «تغییر محسوس نرخ» نادیده گرفته می‌شود و پست
-        همیشه منتشر می‌شود — برای نشر دستی (دکمهٔ ادمین در ربات) استفاده می‌شود.
-
-    خروجی: (True, "ok") اگر پست واقعاً با موفقیت منتشر شد؛ در غیر این صورت
-    (False, دلیل‌به‌فارسی) — این دلیل مستقیماً در پیام نتیجهٔ دکمهٔ نشر دستی به
-    ادمین نشان داده می‌شود تا بدون نیاز به لاگ سرور بفهمد دقیقاً کجا خطا شد
-    (کمبود permission، توکن نامعتبر، page_id اشتباه و...).
-    """
     if not quotes:
         return False, "نرخی در دسترس نیست"
 
