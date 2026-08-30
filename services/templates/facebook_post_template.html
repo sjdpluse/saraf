@@ -1,1175 +1,3376 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa-AF" dir="rtl">
 <head>
 <meta charset="UTF-8">
+
 <style>
   __FONTS_CSS__
 
-  * { margin:0; padding:0; box-sizing:border-box; }
-
-  :root{
-    --bg:#EEECE2;
-    --card:rgba(255,253,248,.94);
-    --ink:#17181A;
-    --ink-2:#6A6A63;
-    --ink-3:#9C9B92;
-    --line:rgba(39,42,48,.10);
-
-    --blue:#0A84FF;
-    --green:#2FBF71;
-    --red:#FF453A;
-    --gold:#C89427;
-    --silver:#7D8490;
-
-    --shadow:0 24px 60px rgba(23,27,36,.09), 0 5px 16px rgba(23,27,36,.05);
-    --shadow-soft:0 10px 28px rgba(23,27,36,.06);
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
 
-  html,body{
-    width:1080px;
-    height:1050px;
-    overflow:hidden;
-    direction:rtl;
-    font-family:'Peyda','SF Pro Display','SF Pro Text',-apple-system,BlinkMacSystemFont,sans-serif;
-    color:var(--ink);
-    background:var(--bg);
-    -webkit-font-smoothing:antialiased;
-    font-variant-numeric:tabular-nums lining-nums;
-    font-feature-settings:"tnum" 1,"lnum" 1;
+  :root {
+    --bg: #EEECE2;
+    --card: rgba(255,253,248,.94);
+
+    --ink: #17181A;
+    --ink-2: #6A6A63;
+    --ink-3: #9C9B92;
+
+    --line: rgba(39,42,48,.10);
+
+    --blue: #0A84FF;
+    --green: #2FBF71;
+    --red: #FF453A;
+    --gold: #C89427;
+    --silver: #7D8490;
+    --tether: #26A17B;
+
+    --shadow:
+      0 24px 60px rgba(23,27,36,.09),
+      0 5px 16px rgba(23,27,36,.05);
+
+    --shadow-soft:
+      0 10px 28px rgba(23,27,36,.06);
   }
 
-  body{ position:relative; }
+  html,
+  body {
+    width: 1080px;
+    height: 1050px;
+    overflow: hidden;
+
+    direction: rtl;
+
+    font-family:
+      'Peyda',
+      'SF Pro Display',
+      'SF Pro Text',
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
+
+    color: var(--ink);
+    background: var(--bg);
+
+    -webkit-font-smoothing: antialiased;
+
+    font-variant-numeric:
+      tabular-nums lining-nums;
+
+    font-feature-settings:
+      "tnum" 1,
+      "lnum" 1;
+  }
+
+  body {
+    position: relative;
+  }
+
 
   /* ================================================================
-     BACKGROUND — large detailed square pattern
+     BACKGROUND
   ================================================================= */
-  .stage{
-    width:1080px;
-    height:1050px;
-    padding:48px 58px 38px;
-    display:flex;
-    flex-direction:column;
-    position:relative;
-    isolation:isolate;
-    overflow:hidden;
+
+  .stage {
+    box-sizing: border-box;
+
+    width: 1080px;
+    height: 1050px;
+
+    padding: 40px 58px 30px;
+
+    display: flex;
+    flex-direction: column;
+
+    position: relative;
+    isolation: isolate;
+
+    overflow: hidden;
+
     background:
-      radial-gradient(circle at 7% 12%, rgba(10,132,255,.055), transparent 26%),
-      radial-gradient(circle at 93% 80%, rgba(200,148,39,.07), transparent 27%),
-      linear-gradient(180deg,#F3F1E8 0%,#EEECE2 55%,#E7E4D8 100%);
+      radial-gradient(
+        circle at 7% 12%,
+        rgba(10,132,255,.055),
+        transparent 26%
+      ),
+      radial-gradient(
+        circle at 93% 80%,
+        rgba(200,148,39,.07),
+        transparent 27%
+      ),
+      linear-gradient(
+        180deg,
+        #F3F1E8 0%,
+        #EEECE2 55%,
+        #E7E4D8 100%
+      );
   }
 
-  .stage::before{
-    content:"";
-    position:absolute;
-    inset:-10px;
-    z-index:-2;
-    pointer-events:none;
-    opacity:.95;
+  .stage::before {
+    content: "";
+
+    position: absolute;
+    inset: -10px;
+
+    z-index: -2;
+
+    pointer-events: none;
+
+    opacity: .95;
+
     background-image:
-      linear-gradient(rgba(72,66,48,.070) 1.5px, transparent 1.5px),
-      linear-gradient(90deg, rgba(72,66,48,.070) 1.5px, transparent 1.5px),
-      linear-gradient(rgba(72,66,48,.028) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(72,66,48,.028) 1px, transparent 1px);
+      linear-gradient(
+        rgba(72,66,48,.070) 1.5px,
+        transparent 1.5px
+      ),
+      linear-gradient(
+        90deg,
+        rgba(72,66,48,.070) 1.5px,
+        transparent 1.5px
+      ),
+      linear-gradient(
+        rgba(72,66,48,.028) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        rgba(72,66,48,.028) 1px,
+        transparent 1px
+      );
+
     background-size:
       96px 96px,
       96px 96px,
       24px 24px,
       24px 24px;
-    background-position:
-      0 0,
-      0 0,
-      0 0,
-      0 0;
   }
 
-  .stage::after{
-    content:"";
-    position:absolute;
-    inset:0;
-    z-index:-1;
-    pointer-events:none;
+  .stage::after {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    z-index: -1;
+
+    pointer-events: none;
+
     background:
-      linear-gradient(135deg, rgba(255,252,244,.60), rgba(255,252,244,.06) 40%, rgba(255,252,244,.30)),
-      radial-gradient(circle at center, transparent 48%, rgba(224,220,205,.55) 100%);
+      linear-gradient(
+        135deg,
+        rgba(255,252,244,.60),
+        rgba(255,252,244,.06) 40%,
+        rgba(255,252,244,.30)
+      ),
+      radial-gradient(
+        circle at center,
+        transparent 48%,
+        rgba(224,220,205,.55) 100%
+      );
   }
 
-  /* ---------- shared glass surface ---------- */
-  .surface{
-    background:var(--card);
-    border:1px solid rgba(255,255,255,.85);
-    box-shadow:var(--shadow);
-    backdrop-filter:blur(18px);
-    -webkit-backdrop-filter:blur(18px);
+
+  /* ================================================================
+     SHARED SURFACE
+  ================================================================= */
+
+  .surface {
+    background: var(--card);
+
+    border:
+      1px solid
+      rgba(255,255,255,.85);
+
+    box-shadow:
+      var(--shadow);
+
+    backdrop-filter:
+      blur(18px);
+
+    -webkit-backdrop-filter:
+      blur(18px);
   }
+
 
   /* ================================================================
      HEADER
   ================================================================= */
-  .topbar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    min-height:72px;
-    position:relative;
-    z-index:2;
+
+  .topbar {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    min-height: 72px;
+
+    position: relative;
+    z-index: 2;
   }
 
-  .acct{ display:flex; align-items:center; gap:16px; }
-  .acct img{
-    width:82px;
-    height:82px;
-    border-radius:0;
-    object-fit:contain;
-    background:transparent;
-    display:block;
-    box-shadow:none;
+  .acct {
+    display: flex;
+
+    align-items: center;
+
+    gap: 16px;
   }
 
-  .acct-name{
-    font-size:30px;
-    font-weight:850;
-    letter-spacing:-.45px;
-    line-height:1.05;
+  .acct img {
+    width: 92px;
+    height: 92px;
+
+    object-fit: contain;
+
+    display: block;
+
+    background: transparent;
   }
 
-  .acct-sub{
-    font-size:17px;
-    font-weight:650;
-    color:var(--ink-2);
-    margin-top:7px;
+  .acct-name {
+    font-size: 30px;
+    font-weight: 850;
+
+    letter-spacing: -.45px;
+
+    line-height: 1.05;
   }
 
-  .datechip{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    min-height:54px;
-    padding:0;
-    border-radius:999px;
-    background:transparent;
-    border:none;
-    box-shadow:none;
-    backdrop-filter:none;
-    font-size:19px;
-    font-weight:750;
-    color:var(--ink-2);
-    backdrop-filter:blur(14px);
+  .acct-sub {
+    font-size: 17px;
+    font-weight: 650;
+
+    color: var(--ink-2);
+
+    margin-top: 7px;
   }
+
+  .datechip {
+    display: flex;
+
+    align-items: center;
+
+    min-height: 54px;
+
+    font-size: 19px;
+    font-weight: 750;
+
+    color: var(--ink-2);
+  }
+
 
   /* ================================================================
      HERO — USD / AFN
   ================================================================= */
-  .hero{
-    margin-top:24px;
-    border-radius:38px;
-    padding:28px 32px 28px;
-    position:relative;
-    overflow:hidden;
-    min-height:296px;
+
+  .hero {
+    margin-top: 24px;
+
+    border-radius: 38px;
+
+    padding:
+      28px 32px 28px;
+
+    position: relative;
+
+    overflow: hidden;
+
+    min-height: 296px;
+
     background:
-      radial-gradient(120% 150% at 6% -20%, rgba(10,132,255,.26), rgba(10,132,255,0) 48%),
-      radial-gradient(110% 140% at 100% 118%, rgba(200,148,39,.26), rgba(200,148,39,0) 52%),
-      radial-gradient(90% 120% at 82% -10%, rgba(47,191,113,.13), rgba(47,191,113,0) 52%),
-      linear-gradient(152deg,#FFFFFF 0%,#FCFBF6 34%,#F6F2E6 70%,#EFEADB 100%);
-    border:1px solid rgba(255,255,255,.92);
+      radial-gradient(
+        120% 150%
+        at 6% -20%,
+        rgba(10,132,255,.26),
+        rgba(10,132,255,0) 48%
+      ),
+      radial-gradient(
+        110% 140%
+        at 100% 118%,
+        rgba(200,148,39,.26),
+        rgba(200,148,39,0) 52%
+      ),
+      radial-gradient(
+        90% 120%
+        at 82% -10%,
+        rgba(47,191,113,.13),
+        rgba(47,191,113,0) 52%
+      ),
+      linear-gradient(
+        152deg,
+        #FFFFFF 0%,
+        #FCFBF6 34%,
+        #F6F2E6 70%,
+        #EFEADB 100%
+      );
+
+    border:
+      1px solid
+      rgba(255,255,255,.92);
+
     box-shadow:
       0 34px 70px rgba(46,42,28,.13),
       0 8px 22px rgba(46,42,28,.07),
       inset 0 1px 0 rgba(255,255,255,.95);
   }
 
-  .hero::before{
-    content:"";
-    position:absolute;
-    inset:0;
-    z-index:0;
-    pointer-events:none;
+  .hero::before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    z-index: 0;
+
+    pointer-events: none;
+
     background:
-      radial-gradient(760px 300px at 50% -160px, rgba(255,255,255,.85), transparent 70%),
-      linear-gradient(115deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 34%);
+      radial-gradient(
+        760px 300px
+        at 50% -160px,
+        rgba(255,255,255,.85),
+        transparent 70%
+      ),
+      linear-gradient(
+        115deg,
+        rgba(255,255,255,.55) 0%,
+        rgba(255,255,255,0) 34%
+      );
   }
 
-  .hero::after{
-    content:"";
-    position:absolute;
-    right:-120px;
-    bottom:-190px;
-    width:520px;
-    height:520px;
-    border-radius:50%;
-    z-index:0;
-    pointer-events:none;
+  .hero::after {
+    content: "";
+
+    position: absolute;
+
+    right: -120px;
+    bottom: -190px;
+
+    width: 520px;
+    height: 520px;
+
+    border-radius: 50%;
+
+    z-index: 0;
+
+    pointer-events: none;
+
     background:
-      conic-gradient(from 210deg, rgba(10,132,255,.10), rgba(200,148,39,.10), rgba(47,191,113,.08), rgba(10,132,255,.10));
-    filter:blur(38px);
-    opacity:.75;
+      conic-gradient(
+        from 210deg,
+        rgba(10,132,255,.10),
+        rgba(200,148,39,.10),
+        rgba(47,191,113,.08),
+        rgba(10,132,255,.10)
+      );
+
+    filter: blur(38px);
+
+    opacity: .75;
   }
 
-  .hero-top{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:20px;
-    position:relative;
-    z-index:1;
+  .hero-top {
+    display: flex;
+
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    position: relative;
+    z-index: 1;
   }
 
-  .asset{
-    display:flex;
-    align-items:center;
-    gap:17px;
+  .asset {
+    display: flex;
+
+    align-items: center;
+
+    gap: 17px;
   }
 
-  /* overlapping US + Afghanistan flags */
-  .flag-stack{
-    width:110px;
-    height:64px;
-    position:relative;
-    flex:none;
-    direction:ltr;
+  .flag-stack {
+    width: 110px;
+    height: 64px;
+
+    position: relative;
+
+    flex: none;
+
+    direction: ltr;
   }
 
-  .hero-flag{
-    width:62px;
-    height:62px;
-    border-radius:50%;
-    overflow:hidden;
-    display:block;
-    position:absolute;
-    top:0;
-    background:#fff;
-    border:4px solid #fff;
-    box-shadow:0 9px 22px rgba(22,27,34,.15);
+  .hero-flag {
+    width: 62px;
+    height: 62px;
+
+    border-radius: 50%;
+
+    overflow: hidden;
+
+    display: block;
+
+    position: absolute;
+
+    top: 0;
+
+    background: #fff;
+
+    border: 4px solid #fff;
+
+    box-shadow:
+      0 9px 22px
+      rgba(22,27,34,.15);
   }
 
-  .hero-flag.us{ left:0; z-index:1; }
-  .hero-flag.af{ left:46px; z-index:2; }
-
-  .asset-name{
-    font-size:29px;
-    font-weight:850;
-    letter-spacing:-.35px;
-    line-height:1.1;
+  .hero-flag.us {
+    left: 0;
+    z-index: 1;
   }
 
-  .asset-sub{
-    font-size:17px;
-    font-weight:650;
-    color:var(--ink-2);
-    margin-top:7px;
+  .hero-flag.af {
+    left: 46px;
+    z-index: 2;
   }
 
-  .delta{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    padding:10px 17px;
-    border-radius:999px;
-    font-size:20px;
-    font-weight:850;
-    background:rgba(47,191,113,.12);
-    color:#218D52;
-    border:1px solid rgba(47,191,113,.12);
+  .asset-name {
+    font-size: 29px;
+    font-weight: 850;
+
+    letter-spacing: -.35px;
+
+    line-height: 1.1;
   }
 
-  .delta svg{ width:19px; height:19px; }
-  .delta.down{
-    background:rgba(255,69,58,.11);
-    color:#D92724;
-    border-color:rgba(255,69,58,.12);
+  .asset-sub {
+    font-size: 17px;
+    font-weight: 650;
+
+    color: var(--ink-2);
+
+    margin-top: 7px;
   }
 
-  .hero-body{
-    display:grid;
-    grid-template-columns:1.02fr .98fr;
-    gap:26px;
-    align-items:end;
-    margin-top:24px;
-    position:relative;
-    z-index:1;
-  }
+  .delta {
+    display: inline-flex;
 
-  .rates{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:13px;
-    direction:rtl;
-  }
+    align-items: center;
 
-  .rate-box{
-    min-height:122px;
-    padding:16px 18px 15px;
-    border-radius:25px;
-    position:relative;
-    overflow:hidden;
+    gap: 8px;
 
-    /* Liquid Glass — neutral and visually integrated with the Shahzada hero card */
+    padding:
+      10px 17px;
+
+    border-radius: 999px;
+
+    font-size: 20px;
+    font-weight: 850;
+
     background:
-      linear-gradient(145deg, rgba(255,255,255,.52), rgba(246,241,226,.28)),
+      rgba(47,191,113,.12);
+
+    color: #218D52;
+
+    border:
+      1px solid
+      rgba(47,191,113,.12);
+  }
+
+  .delta svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .delta.down {
+    background:
+      rgba(255,69,58,.11);
+
+    color: #D92724;
+
+    border-color:
+      rgba(255,69,58,.12);
+  }
+
+  .hero-body {
+    display: grid;
+
+    grid-template-columns:
+      1.02fr .98fr;
+
+    gap: 26px;
+
+    align-items: end;
+
+    margin-top: 24px;
+
+    position: relative;
+    z-index: 1;
+  }
+
+
+  /* ================================================================
+     USD RATE BOXES
+  ================================================================= */
+
+  .rates {
+    display: grid;
+
+    grid-template-columns:
+      1fr 1fr;
+
+    gap: 13px;
+
+    direction: rtl;
+  }
+
+  .rate-box {
+    min-height: 122px;
+
+    padding:
+      16px 18px 15px;
+
+    border-radius: 25px;
+
+    position: relative;
+
+    overflow: hidden;
+
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.52),
+        rgba(246,241,226,.28)
+      ),
       rgba(255,253,248,.30);
-    border:1px solid rgba(255,255,255,.78);
+
+    border:
+      1px solid
+      rgba(255,255,255,.78);
+
     box-shadow:
       0 14px 30px rgba(46,42,28,.07),
       inset 0 1px 0 rgba(255,255,255,.88),
       inset 0 -1px 0 rgba(94,84,58,.05);
-    backdrop-filter:blur(22px) saturate(135%);
-    -webkit-backdrop-filter:blur(22px) saturate(135%);
+
+    backdrop-filter:
+      blur(22px)
+      saturate(135%);
+
+    -webkit-backdrop-filter:
+      blur(22px)
+      saturate(135%);
   }
 
-  .rate-box::before{
-    content:"";
-    position:absolute;
-    inset:0;
-    pointer-events:none;
-    border-radius:inherit;
+  .rate-box::before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    pointer-events: none;
+
+    border-radius: inherit;
+
     background:
-      radial-gradient(120% 95% at 10% 0%, rgba(255,255,255,.68), transparent 48%),
-      linear-gradient(120deg, rgba(255,255,255,.26), transparent 42%);
-    opacity:.90;
+      radial-gradient(
+        120% 95%
+        at 10% 0%,
+        rgba(255,255,255,.68),
+        transparent 48%
+      ),
+      linear-gradient(
+        120deg,
+        rgba(255,255,255,.26),
+        transparent 42%
+      );
+
+    opacity: .90;
   }
 
-  .rate-box > *{ position:relative; z-index:1; }
+  .rate-box > * {
+    position: relative;
+    z-index: 1;
+  }
 
-  .rate-box.buy,
-  .rate-box.sell{
+  .rate-kicker {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    font-size: 16px;
+    font-weight: 800;
+
+    color: var(--ink-2);
+  }
+
+  .rate-kicker::before {
+    content: "";
+
+    width: 8px;
+    height: 8px;
+
+    border-radius: 50%;
+
+    flex: none;
+
     background:
-      linear-gradient(145deg, rgba(255,255,255,.50), rgba(239,234,218,.30)),
-      rgba(255,253,248,.28);
+      rgba(128,116,84,.58);
+
+    box-shadow:
+      0 0 0 4px
+      rgba(255,255,255,.34);
   }
 
-  .rate-kicker{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    font-size:16px;
-    font-weight:800;
-    color:var(--ink-2);
+  .rate-value {
+    display: flex;
+
+    align-items: flex-end;
+    justify-content: flex-end;
+
+    gap: 7px;
+
+    margin-top: 8px;
+
+    direction: ltr;
   }
 
-  .rate-kicker::before{
-    content:"";
-    width:8px;
-    height:8px;
-    border-radius:50%;
-    flex:none;
+  .buy .rate-num {
+    font-size: 58px;
+    line-height: .92;
+
+    font-weight: 860;
+
+    letter-spacing: -2.2px;
+
+    color: #191A1D;
   }
 
-  .buy .rate-kicker::before,
-  .sell .rate-kicker::before{
-    background:rgba(128,116,84,.58);
-    box-shadow:0 0 0 4px rgba(255,255,255,.34);
+  .sell .rate-num {
+    font-size: 68px;
+    line-height: .90;
+
+    font-weight: 880;
+
+    letter-spacing: -2.7px;
+
+    color: #161719;
   }
 
-  .rate-value{
-    display:flex;
-    align-items:flex-end;
-    gap:7px;
-    margin-top:8px;
-    direction:ltr;
-    justify-content:flex-end;
+  .rate-unit {
+    font-size: 24px;
+    font-weight: 800;
+
+    color: var(--ink-3);
+
+    padding-bottom: 5px;
   }
 
-  /* Requested hierarchy: SS_BUY smaller, SS_SELL slightly larger */
-  .buy .rate-num{
-    font-size:58px;
-    line-height:.92;
-    font-weight:860;
-    letter-spacing:-2.2px;
-    color:#191A1D;
+  .rate-caption {
+    font-size: 14px;
+    font-weight: 650;
+
+    color: var(--ink-3);
+
+    margin-top: 7px;
   }
 
-  .sell .rate-num{
-    font-size:68px;
-    line-height:.90;
-    font-weight:880;
-    letter-spacing:-2.7px;
-    color:#161719;
+
+  /* ================================================================
+     CHART
+  ================================================================= */
+
+  .chart-wrap {
+    height: 150px;
+
+    padding:
+      9px 6px 0;
+
+    display: flex;
+    flex-direction: column;
+
+    justify-content: flex-end;
   }
 
-  .rate-unit{
-    font-size:24px;
-    font-weight:800;
-    color:var(--ink-3);
-    padding-bottom:5px;
+  .chart-meta {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 7px;
+
+    padding:
+      0 10px;
+
+    color: var(--ink-3);
+
+    font-size: 14px;
+    font-weight: 700;
   }
 
-  .rate-caption{
-    font-size:14px;
-    font-weight:650;
-    color:var(--ink-3);
-    margin-top:7px;
+  .spark {
+    width: 100%;
+    height: 86px;
+
+    flex: none;
   }
 
-  .chart-wrap{
-    height:150px;
-    padding:9px 6px 0;
-    display:flex;
-    flex-direction:column;
-    justify-content:flex-end;
+  .chart-empty {
+    font-family:
+      'Peyda',
+      sans-serif;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    fill: var(--ink-3);
   }
 
-  .chart-meta{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    margin-bottom:7px;
-    padding:0 10px;
-    color:var(--ink-3);
-    font-size:14px;
-    font-weight:700;
-  }
-
-  .spark{
-    width:100%;
-    height:86px;
-    flex:none;
-  }
 
   /* ================================================================
      ASSET GRID
   ================================================================= */
-  .grid{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:18px;
-    margin-top:20px;
+
+  .grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(10, minmax(0, 1fr));
+
+    gap: 14px;
+
+    margin-top: 14px;
   }
 
-  .tile{
-    background:rgba(255,253,247,.93);
-    border:1px solid rgba(255,255,255,.95);
-    border-radius:29px;
-    padding:24px 24px;
-    box-shadow:var(--shadow-soft);
-    backdrop-filter:blur(16px);
-    -webkit-backdrop-filter:blur(16px);
-    position:relative;
-    overflow:hidden;
-  }
+  .tile {
+    min-width: 0;
 
-  .tile::after{
-    content:"";
-    position:absolute;
-    inset:0;
-    pointer-events:none;
-    background:linear-gradient(145deg,rgba(255,255,255,.22),transparent 45%);
-  }
-
-  .tile.local-card{
-    grid-column:1 / -1;
-    min-height:198px;
-    padding:21px 24px;
-    overflow:visible; /* allow the banknote to extend beyond the card */
     background:
-      radial-gradient(circle at 0 100%,rgba(200,148,39,.09),transparent 38%),
+      rgba(255,253,247,.93);
+
+    border:
+      1px solid
+      rgba(255,255,255,.95);
+
+    border-radius: 29px;
+
+    padding:
+      24px 24px;
+
+    box-shadow:
+      var(--shadow-soft);
+
+    backdrop-filter:
+      blur(16px);
+
+    -webkit-backdrop-filter:
+      blur(16px);
+
+    position: relative;
+
+    overflow: hidden;
+  }
+
+  .tile::after {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    pointer-events: none;
+
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.22),
+        transparent 45%
+      );
+  }
+
+  .tile.local-card {
+    grid-column:
+      span 6;
+
+    min-height: 208px;
+
+    padding:
+      16px 20px;
+
+    display: flex;
+    flex-direction: column;
+
+    /* Allow the decorative dollar image to intentionally break the card edge. */
+    overflow: visible;
+    z-index: 4;
+
+    background:
+      radial-gradient(
+        circle at 0 100%,
+        rgba(200,148,39,.09),
+        transparent 38%
+      ),
       rgba(255,253,247,.94);
   }
 
-  .tile-head{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    position:relative;
-    z-index:1;
+  .tile.usdt-card {
+    grid-column:
+      span 4;
+
+    min-height: 208px;
+
+    padding:
+      14px 16px;
+
+    display: flex;
+    flex-direction: column;
+
+    background:
+      radial-gradient(
+        circle at 100% 0,
+        rgba(38,161,123,.10),
+        transparent 42%
+      ),
+      rgba(255,253,247,.94);
   }
 
-  .tile-t{
-    display:flex;
-    align-items:center;
-    gap:13px;
-    min-width:0;
+  .tile.gold-card,
+  .tile.silver-card {
+    grid-column:
+      span 5;
   }
 
-  .ic{
-    width:50px;
-    height:50px;
-    border-radius:17px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    overflow:hidden;
-    flex:none;
-    background:#F0F1F3;
-    border:1px solid rgba(31,34,40,.07);
-    box-shadow:0 6px 16px rgba(28,32,39,.08);
+  .tile-head {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    position: relative;
+    z-index: 6;
   }
 
-  .ic img{
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    display:block;
+  .tile-t {
+    display: flex;
+
+    align-items: center;
+
+    gap: 13px;
+
+    min-width: 0;
   }
 
-  .ic.local{
-    background:linear-gradient(145deg,rgba(10,132,255,.16),rgba(10,132,255,.07));
-    color:var(--blue);
+  .ic {
+    width: 50px;
+    height: 50px;
+
+    border-radius: 17px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    flex: none;
+
+    background: #F0F1F3;
+
+    border:
+      1px solid
+      rgba(31,34,40,.07);
+
+    box-shadow:
+      0 6px 16px
+      rgba(28,32,39,.08);
   }
 
-  .ic.local svg{ width:25px; height:25px; }
+  .ic img {
+    width: 100%;
+    height: 100%;
 
-  .tile-name{
-    font-size:21px;
-    font-weight:850;
-    line-height:1.12;
+    object-fit: cover;
+
+    display: block;
   }
 
-  .tile-note{
-    font-size:14px;
-    font-weight:650;
-    color:var(--ink-3);
-    margin-top:5px;
+  .ic.local {
+    background:
+      linear-gradient(
+        145deg,
+        rgba(10,132,255,.16),
+        rgba(10,132,255,.07)
+      );
+
+    color:
+      var(--blue);
   }
 
-  .tile-body{
-    display:flex;
-    align-items:flex-end;
-    justify-content:space-between;
-    gap:13px;
-    margin-top:11px;
-    position:relative;
-    z-index:1;
+  .ic.local svg {
+    width: 25px;
+    height: 25px;
   }
 
-  .tile-val{
-    font-size:40px;
-    font-weight:870;
-    letter-spacing:-1.4px;
-    white-space:nowrap;
+  .tile-name {
+    font-size: 21px;
+    font-weight: 850;
+
+    line-height: 1.12;
   }
 
-  .tile-val span{
-    font-size:18px;
-    font-weight:750;
-    color:var(--ink-3);
-    margin-right:6px;
-    letter-spacing:0;
+  .tile-note {
+    font-size: 14px;
+    font-weight: 650;
+
+    color: var(--ink-3);
+
+    margin-top: 5px;
   }
 
-  .mini{
-    width:168px;
-    height:57px;
-    flex:none;
+  .tile-body {
+    display: flex;
+
+    align-items: flex-end;
+    justify-content: space-between;
+
+    gap: 13px;
+
+    margin-top: 11px;
+
+    position: relative;
+    z-index: 1;
   }
 
-  .mini.wide{
-    width:274px;
-    height:64px;
+  .tile-val {
+    font-size: 40px;
+    font-weight: 870;
+
+    letter-spacing: -1.4px;
+
+    white-space: nowrap;
   }
 
-  /* Local exchange card is intentionally placed BEFORE gold & silver */
-  .local-main{
-    display:grid;
-    grid-template-columns:auto auto 1fr;
-    align-items:center;
-    gap:30px;
-    margin-top:14px;
-    position:relative;
-    z-index:1;
+  .tile-val span {
+    font-size: 18px;
+    font-weight: 750;
+
+    color: var(--ink-3);
+
+    margin-right: 6px;
+
+    letter-spacing: 0;
   }
 
-  /* بدون کارت: نرخ خرید/فروش صرافی محلی فقط با یک خط جداکننده */
-  .local-rate{
-    min-height:66px;
-    padding:2px 0 2px 26px;
-    border:0;
-    background:transparent;
-    border-left:1px solid rgba(42,45,52,.10);
+  .mini {
+    width: 168px;
+    height: 57px;
+
+    flex: none;
   }
 
-  .local-rate.sell-local{ padding-left:0; border-left:0; }
 
-  .kv-l{
-    font-size:16px;
-    font-weight:800;
-    color:var(--ink-3);
+  /* ================================================================
+     LOCAL EXCHANGE
+  ================================================================= */
+
+  .local-main {
+    display: grid;
+
+    /* Keep buy/sell rates next to each other while reserving the left side for the vertical banknote artwork. */
+    grid-template-columns:
+      minmax(0, 1fr) minmax(0, 1fr);
+
+    align-items: center;
+
+    gap: 12px;
+
+    margin-top: 8px;
+
+    padding-left: 158px;
+
+    flex: 1;
+
+    position: relative;
+
+    z-index: 1;
   }
 
-  .kv-v{
-    font-size:38px;
-    font-weight:870;
-    letter-spacing:-1px;
-    margin-top:3px;
-    line-height:1;
+  .local-rate {
+    min-height: 52px;
+
+    padding:
+      2px 0 2px 16px;
+
+    border-left:
+      1px solid
+      rgba(42,45,52,.10);
   }
 
-  .kv-v.buy{ color:#3d3929; }
-  .kv-v.sell{ color:#3d3929; }
-
-  .kv-v span{
-    font-size:16px;
-    color:var(--ink-3);
-    font-weight:750;
-    margin-right:5px;
+  .local-rate.sell-local {
+    padding-left: 0;
+    border-left: 0;
   }
 
-  .local-note{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    direction:ltr;
-    height:150px;
-    position:relative;
-    overflow:visible;
-    z-index:3;
+  .kv-l {
+    font-size: 14px;
+    font-weight: 800;
+
+    color: var(--ink-3);
   }
 
-  .banknote{
-    height:290px;
-    width:auto;
-    max-width:none;
-    object-fit:contain;
-    display:block;
-    position:absolute;
-    left:50%;
-    top:28%;
-    border-radius:8px;
-    transform:translate(-50%,-50%) rotate(-2.2deg);
-    transform-origin:center;
-    filter:drop-shadow(0 20px 32px rgba(46,42,28,.24));
-    pointer-events:none;
+  .kv-v {
+    font-size: 24px;
+    font-weight: 870;
+
+    letter-spacing: -1px;
+
+    margin-top: 3px;
+
+    line-height: 1;
   }
+
+  .kv-v span {
+    font-size: 16px;
+    font-weight: 750;
+
+    color: var(--ink-3);
+
+    margin-right: 5px;
+  }
+
+  .local-note {
+    position: absolute;
+
+    /* Slightly outside the card to create the intended layered effect. */
+    left: 0px;
+    bottom: 20px;
+
+    width: 176px;
+    height: 182px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    direction: ltr;
+
+    overflow: visible;
+
+    z-index: 3;
+
+    pointer-events: none;
+  }
+
+  .banknote {
+    height: 285px;
+    width: auto;
+
+    max-width: none;
+
+    object-fit: contain;
+
+    display: block;
+
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    border-radius: 8px;
+
+    transform:
+      translate(-50%,-50%);
+
+    transform-origin:
+      center;
+
+    filter:
+      drop-shadow(
+        0 20px 32px
+        rgba(46,42,28,.24)
+      );
+
+    pointer-events: none;
+  }
+
+
+  /* ================================================================
+     USDT QUOTE
+  ================================================================= */
+
+  .usdt-quote-inner {
+    position: relative;
+
+    z-index: 2;
+
+    width: 100%;
+    flex: 1;
+
+    margin-top: 12px;
+
+    display: grid;
+
+    grid-template-columns:
+      1fr 1fr;
+
+    align-items: center;
+
+    direction: rtl;
+
+    padding:
+      10px 12px;
+
+    border-radius: 22px;
+
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.95),
+        rgba(236,248,244,.88)
+      );
+
+    border:
+      1px solid
+      rgba(38,161,123,.12);
+
+    box-shadow:
+      0 10px 26px
+      rgba(23,27,36,.07);
+  }
+
+  .usdt-quote {
+    position: relative;
+
+    z-index: 2;
+
+    width: 100%;
+    flex: 1;
+
+    margin-top: 10px;
+
+    display: grid;
+
+    grid-template-columns:
+      1fr 1fr;
+
+    align-items: center;
+
+    direction: rtl;
+
+    padding:
+      14px 20px;
+
+    border-radius: 24px;
+
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255,255,255,.95),
+        rgba(236,248,244,.88)
+      );
+
+    border:
+      1px solid
+      rgba(38,161,123,.10);
+
+    box-shadow:
+      0 10px 26px
+      rgba(23,27,36,.07);
+
+    backdrop-filter:
+      blur(18px);
+
+    -webkit-backdrop-filter:
+      blur(18px);
+  }
+
+  .usdt-brand {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    padding-left: 10px;
+
+    border-left:
+      1px solid
+      rgba(39,42,48,.09);
+  }
+
+  .usdt-symbol {
+    width: 46px;
+    height: 46px;
+
+    flex: none;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .usdt-symbol img {
+    width: 100%;
+    height: 100%;
+
+    display: block;
+    object-fit: contain;
+  }
+
+  .usdt-name {
+    font-size: 20px;
+    font-weight: 900;
+
+    line-height: 1;
+  }
+
+  .usdt-sub {
+    margin-top: 4px;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    color: var(--ink-3);
+
+    direction: ltr;
+
+    white-space: nowrap;
+  }
+
+  .usdt-rate {
+    padding:
+      0 8px;
+
+    text-align: right;
+  }
+
+  .usdt-rate +
+  .usdt-rate {
+    border-right:
+      1px solid
+      rgba(39,42,48,.08);
+  }
+
+  .usdt-label {
+    font-size: 13px;
+    font-weight: 800;
+
+    color: var(--ink-3);
+  }
+
+  .usdt-num {
+    margin-top: 3px;
+
+    font-size: 22px;
+    font-weight: 900;
+
+    line-height: 1;
+
+    letter-spacing: -.6px;
+
+    direction: ltr;
+
+    text-align: right;
+  }
+
+  .usdt-fee {
+    margin-top: 6px;
+
+    font-size: 11px;
+    font-weight: 750;
+
+    color: #218D52;
+
+    white-space: nowrap;
+  }
+
+  .usdt-no-fee {
+    color: var(--ink-3);
+  }
+
+
+  /* ================================================================
+     HISTORY ROW
+  ================================================================= */
+
+  .hist {
+    display: flex;
+
+    align-items: flex-end;
+    justify-content: space-between;
+
+    gap: 6px;
+
+    direction: ltr;
+
+    margin-top: 8px;
+
+    padding:
+      0 4px;
+
+    font-family:
+      'SF Pro Text',
+      'Helvetica Neue',
+      Helvetica,
+      Arial,
+      sans-serif;
+
+    font-weight: 300;
+  }
+
+  .hist .h-item {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    gap: 2px;
+
+    line-height: 1;
+  }
+
+  .hist .h-v {
+    font-size: 14px;
+    font-weight: 300;
+
+    letter-spacing: -.2px;
+
+    color: var(--ink-2);
+  }
+
+  .hist .h-d {
+    font-size: 10px;
+    font-weight: 300;
+
+    letter-spacing: .2px;
+
+    color: var(--ink-3);
+
+    text-transform: uppercase;
+  }
+
+  .hist.tiny .h-v {
+    font-size: 12px;
+  }
+
+  .hist.tiny .h-d {
+    font-size: 9px;
+  }
+
 
   /* ================================================================
      FOOTER
   ================================================================= */
-  .footer{
-    margin-top:auto;
-    padding-top:22px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    min-height:52px;
+
+  .footer {
+    margin-top: auto;
+
+    padding-top: 22px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    min-height: 52px;
   }
 
-  .f-note{
-    font-size:16px;
-    font-weight:650;
-    color:var(--ink-3);
+  .f-note {
+    font-size: 16px;
+    font-weight: 650;
+
+    color: var(--ink-3);
   }
 
-  .f-soc{
-    display:flex;
-    align-items:center;
-    gap:10px;
+  .f-soc {
+    display: flex;
+
+    align-items: center;
+
+    gap: 14px;
   }
 
-  .soc{
-    width:43px;
-    height:43px;
-    border-radius:14px;
-    background:rgba(255,255,255,.88);
-    border:1px solid rgba(255,255,255,.96);
-    box-shadow:0 7px 20px rgba(23,27,36,.055);
-    display:flex;
-    align-items:center;
-    justify-content:center;
+  /* Minimal, crisp social icons — no card, border or shadow. */
+  .soc {
+    width: 30px;
+    height: 30px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: #34363B;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+
+    opacity: .88;
   }
 
-  .soc svg{ width:20px; height:20px; }
-
-
-  /* ================================================================
-     HISTORY ROWS — past prices under charts (tiny/light English font)
-  ================================================================= */
-  .hist{
-    display:flex;
-    align-items:flex-end;
-    justify-content:space-between;
-    gap:6px;
-    direction:ltr;
-    margin-top:8px;
-    padding:0 4px;
-    font-family:'SF Pro Text','Helvetica Neue',Helvetica,Arial,sans-serif;
-    font-weight:300;
+  .soc svg {
+    width: 25px;
+    height: 25px;
+    display: block;
+    overflow: visible;
   }
-
-  .hist .h-item{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:2px;
-    line-height:1;
-  }
-
-  .hist .h-v{
-    font-size:14px;
-    font-weight:300;
-    letter-spacing:-.2px;
-    color:var(--ink-2);
-  }
-
-  .hist .h-d{
-    font-size:10px;
-    font-weight:300;
-    letter-spacing:.2px;
-    color:var(--ink-3);
-    text-transform:uppercase;
-  }
-
-  .hist.tiny .h-v{ font-size:12px; }
-  .hist.tiny .h-d{ font-size:9px; }
 
 </style>
 </head>
 
+
 <body>
-  <div class="stage">
 
-    <!-- ============================================================
-         HEADER
-    ============================================================= -->
-    <div class="topbar">
-      <div class="acct">
-        <img src="__LOGO_SRC__" alt="Saraf logo"/>
-        <div>
-          <div class="acct-name">صراف | Saraf</div>
-          <div class="acct-sub">نرخ لحظه‌ای ارزها در افغانستان</div>
-        </div>
-      </div>
+<div class="stage">
 
-      <!-- Afghanistan flag was removed from the date chip -->
-      <div class="datechip">__DATE__</div>
-    </div>
 
-    <!-- ============================================================
-         HERO — USD
-    ============================================================= -->
-    <div class="hero surface">
-      <div class="hero-top">
-        <div class="asset">
+  <!-- ============================================================
+       HEADER
+  ============================================================= -->
 
-          <!-- Dollar icon replaced with overlapping US + Afghanistan flags -->
-          <div class="flag-stack" aria-label="USA and Afghanistan flags">
+  <div class="topbar">
 
-            <!-- USA -->
-            <svg class="hero-flag us" viewBox="0 0 64 64" aria-hidden="true">
-              <defs>
-                <clipPath id="usClip"><circle cx="32" cy="32" r="32"/></clipPath>
-              </defs>
-              <g clip-path="url(#usClip)">
-                <rect width="64" height="64" fill="#fff"/>
-                <g fill="#B22234">
-                  <rect y="0" width="64" height="5"/>
-                  <rect y="10" width="64" height="5"/>
-                  <rect y="20" width="64" height="5"/>
-                  <rect y="30" width="64" height="5"/>
-                  <rect y="40" width="64" height="5"/>
-                  <rect y="50" width="64" height="5"/>
-                  <rect y="60" width="64" height="4"/>
-                </g>
-                <rect width="29" height="35" fill="#3C3B6E"/>
-                <g fill="#fff" opacity=".96">
-                  <circle cx="4" cy="5" r="1.2"/><circle cx="10" cy="5" r="1.2"/><circle cx="16" cy="5" r="1.2"/><circle cx="22" cy="5" r="1.2"/><circle cx="27" cy="5" r="1.2"/>
-                  <circle cx="7" cy="10" r="1.2"/><circle cx="13" cy="10" r="1.2"/><circle cx="19" cy="10" r="1.2"/><circle cx="25" cy="10" r="1.2"/>
-                  <circle cx="4" cy="15" r="1.2"/><circle cx="10" cy="15" r="1.2"/><circle cx="16" cy="15" r="1.2"/><circle cx="22" cy="15" r="1.2"/><circle cx="27" cy="15" r="1.2"/>
-                  <circle cx="7" cy="20" r="1.2"/><circle cx="13" cy="20" r="1.2"/><circle cx="19" cy="20" r="1.2"/><circle cx="25" cy="20" r="1.2"/>
-                  <circle cx="4" cy="25" r="1.2"/><circle cx="10" cy="25" r="1.2"/><circle cx="16" cy="25" r="1.2"/><circle cx="22" cy="25" r="1.2"/><circle cx="27" cy="25" r="1.2"/>
-                  <circle cx="7" cy="30" r="1.2"/><circle cx="13" cy="30" r="1.2"/><circle cx="19" cy="30" r="1.2"/><circle cx="25" cy="30" r="1.2"/>
-                </g>
-              </g>
-            </svg>
+    <div class="acct">
 
-            <!-- Afghanistan -->
-            <svg class="hero-flag af" viewBox="0 0 64 64" aria-hidden="true">
-              <defs>
-                <clipPath id="afClip"><circle cx="32" cy="32" r="32"/></clipPath>
-              </defs>
-              <g clip-path="url(#afClip)">
-                <rect x="0" width="21.4" height="64" fill="#000"/>
-                <rect x="21.3" width="21.4" height="64" fill="#BE0027"/>
-                <rect x="42.6" width="21.4" height="64" fill="#009A49"/>
-                <circle cx="32" cy="31" r="11.2" fill="none" stroke="#fff" stroke-width="1.6"/>
-                <circle cx="32" cy="29.3" r="4.6" fill="#fff"/>
-                <rect x="26.8" y="35" width="10.4" height="2.1" rx="1" fill="#fff"/>
-                <path d="M27.5 23.8h9M29.3 21.6h5.4" stroke="#fff" stroke-width="1.35" stroke-linecap="round"/>
-              </g>
-            </svg>
+      <img
+        src="__LOGO_SRC__"
+        alt="لوگوی صراف"
+      />
 
-          </div>
+      <div>
 
-          <div>
-            <div class="asset-name">دالر امریکایی</div>
-            <div class="asset-sub">سرای شهزاده · نرخ لحظه‌ای</div>
-          </div>
+        <div class="acct-name">
+          صراف | Saraf
         </div>
 
-        <div class="delta" id="usdDelta">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 17 10 11l4 4 6-6"/><path d="M20 9v5h-5"/>
-          </svg>
-          <span id="usdDeltaVal">۰٪</span>
-        </div>
-      </div>
-
-      <div class="hero-body">
-
-        <!-- SS_BUY smaller / SS_SELL slightly larger -->
-        <div class="rates">
-          <div class="rate-box buy">
-            <div class="rate-kicker">خرید</div>
-            <div class="rate-value">
-              <div class="rate-num">__SS_BUY__</div>
-              <div class="rate-unit">؋</div>
-            </div>
-            <div class="rate-caption">برای هر ۱ دالر امریکا</div>
-          </div>
-
-          <div class="rate-box sell">
-            <div class="rate-kicker">فروش</div>
-            <div class="rate-value">
-              <div class="rate-num">__SS_SELL__</div>
-              <div class="rate-unit">؋</div>
-            </div>
-            <div class="rate-caption">برای هر ۱ دالر امریکا</div>
-          </div>
-        </div>
-
-        <div class="chart-wrap">
-          <div class="chart-meta">
-            <span>روند ۷ روز اخیر</span>
-            <span>USD / AFN</span>
-          </div>
-          <svg class="spark" id="sparkUsd" viewBox="0 0 440 96" preserveAspectRatio="none"></svg>
-          <div class="hist" id="histUsd"></div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- ============================================================
-         ASSETS
-         Local exchanges intentionally come BEFORE gold and silver.
-    ============================================================= -->
-    <div class="grid">
-
-      <!-- LOCAL EXCHANGES — first -->
-      <div class="tile local-card">
-        <div class="tile-head">
-          <div class="tile-t">
-            <div class="ic local">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#0A84FF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 7h13l-2.5-2.5M20 17H7l2.5 2.5"/>
-              </svg>
-            </div>
-            <div>
-              <div class="tile-name">صرافی‌های محلی</div>
-              <div class="tile-note">نرخ مرجع بازار: __REF_RATE__</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="local-main">
-          <div class="local-rate buy-local">
-            <div class="kv-l">خرید</div>
-            <div class="kv-v buy">__LOC_BUY__ <span>؋</span></div>
-          </div>
-
-          <div class="local-rate sell-local">
-            <div class="kv-l">فروش</div>
-            <div class="kv-v sell">__LOC_SELL__ <span>؋</span></div>
-          </div>
-
-          <div class="local-note">
-            <img class="banknote" src="https://i.postimg.cc/B6t2vJGg/xx-(1).webp" alt="اسکناس ۱۰۰ دالری"/>
-          </div>
-        </div>
-      </div>
-
-      <!-- GOLD -->
-      <div class="tile">
-        <div class="tile-head">
-          <div class="tile-t">
-            <div class="ic">
-              <img
-                src="https://i.postimg.cc/pX2Fxkc5/699606123386534730.jpg"
-                alt="طلا"
-              />
-            </div>
-            <div>
-              <div class="tile-name">طلا ۲۴ عیار</div>
-              <div class="tile-note">هر گرم · __GOLD_USD__</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="tile-body">
-          <div class="tile-val">__GOLD_AFN__<span>؋</span></div>
-          <svg class="mini" id="sparkGold" viewBox="0 0 190 64" preserveAspectRatio="none"></svg>
-        </div>
-
-        <div class="hist tiny" id="histGold"></div>
-      </div>
-
-      <!-- SILVER -->
-      <div class="tile">
-        <div class="tile-head">
-          <div class="tile-t">
-            <div class="ic">
-              <img
-                src="https://i.postimg.cc/Gh5TQ1r5/OIP-(5).webp"
-                alt="نقره"
-              />
-            </div>
-            <div>
-              <div class="tile-name">نقره ۹۹۹</div>
-              <div class="tile-note">هر گرم · __SILVER_USD__</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="tile-body">
-          <div class="tile-val">__SILVER_AFN__<span>؋</span></div>
-          <svg class="mini" id="sparkSilver" viewBox="0 0 190 64" preserveAspectRatio="none"></svg>
-        </div>
-
-        <div class="hist tiny" id="histSilver"></div>
       </div>
 
     </div>
 
-    <!-- ============================================================
-         FOOTER
-    ============================================================= -->
-    <div class="footer">
-      <div class="f-note">صراف، همگام با اطلاعات مالی افغانستان</div>
 
-      <div class="f-soc">
-        <div class="soc">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#E1306C" stroke-width="1.8">
-            <rect x="3" y="3" width="18" height="18" rx="6"/>
-            <circle cx="12" cy="12" r="4"/>
-            <circle cx="17.2" cy="6.8" r="1.2" fill="#E1306C" stroke="none"/>
-          </svg>
-        </div>
-
-        <div class="soc">
-          <svg viewBox="0 0 24 24" fill="#1877F2">
-            <path d="M14 21v-7h2.5l.5-3H14V9c0-.9.3-1.5 1.6-1.5H17V4.8c-.3 0-1.3-.1-2.4-.1-2.4 0-4.1 1.5-4.1 4.2V11H8v3h2.5v7h3.5z"/>
-          </svg>
-        </div>
-
-        <div class="soc">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#229ED9" stroke-width="1.7" stroke-linejoin="round">
-            <path d="M21 4.5 3.5 11.2c-.7.3-.7 1.3.1 1.5l4.4 1.4 1.7 5.1c.2.6 1 .8 1.4.3l2.5-2.7 4.5 3.3c.6.4 1.4.1 1.6-.6l3-15.4c.2-.9-.7-1.6-1.7-1.1z"/>
-            <path d="M8 13.5l9-6.7"/>
-          </svg>
-        </div>
-
-        <div class="soc">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.6-1.2A9 9 0 1 0 12 3z" stroke="#25D366" stroke-width="1.7"/>
-          </svg>
-        </div>
-      </div>
+    <div class="datechip" id="dateOnly">
+      __DATE__
     </div>
 
   </div>
 
+
+
+  <!-- ============================================================
+       HERO — USD
+  ============================================================= -->
+
+  <div class="hero surface">
+
+    <div class="hero-top">
+
+      <div class="asset">
+
+
+        <div class="flag-stack">
+
+
+          <!-- USA FLAG -->
+
+          <svg
+            class="hero-flag us"
+            viewBox="0 0 64 64"
+          >
+
+            <defs>
+              <clipPath id="usClip">
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="32"
+                />
+              </clipPath>
+            </defs>
+
+            <g clip-path="url(#usClip)">
+
+              <rect
+                width="64"
+                height="64"
+                fill="#fff"
+              />
+
+              <g fill="#B22234">
+                <rect y="0"  width="64" height="5"/>
+                <rect y="10" width="64" height="5"/>
+                <rect y="20" width="64" height="5"/>
+                <rect y="30" width="64" height="5"/>
+                <rect y="40" width="64" height="5"/>
+                <rect y="50" width="64" height="5"/>
+                <rect y="60" width="64" height="4"/>
+              </g>
+
+              <rect
+                width="29"
+                height="35"
+                fill="#3C3B6E"
+              />
+
+              <g
+                fill="#fff"
+                opacity=".96"
+              >
+                <circle cx="4"  cy="5"  r="1.2"/>
+                <circle cx="10" cy="5"  r="1.2"/>
+                <circle cx="16" cy="5"  r="1.2"/>
+                <circle cx="22" cy="5"  r="1.2"/>
+                <circle cx="27" cy="5"  r="1.2"/>
+
+                <circle cx="7"  cy="10" r="1.2"/>
+                <circle cx="13" cy="10" r="1.2"/>
+                <circle cx="19" cy="10" r="1.2"/>
+                <circle cx="25" cy="10" r="1.2"/>
+
+                <circle cx="4"  cy="15" r="1.2"/>
+                <circle cx="10" cy="15" r="1.2"/>
+                <circle cx="16" cy="15" r="1.2"/>
+                <circle cx="22" cy="15" r="1.2"/>
+                <circle cx="27" cy="15" r="1.2"/>
+
+                <circle cx="7"  cy="20" r="1.2"/>
+                <circle cx="13" cy="20" r="1.2"/>
+                <circle cx="19" cy="20" r="1.2"/>
+                <circle cx="25" cy="20" r="1.2"/>
+
+                <circle cx="4"  cy="25" r="1.2"/>
+                <circle cx="10" cy="25" r="1.2"/>
+                <circle cx="16" cy="25" r="1.2"/>
+                <circle cx="22" cy="25" r="1.2"/>
+                <circle cx="27" cy="25" r="1.2"/>
+
+                <circle cx="7"  cy="30" r="1.2"/>
+                <circle cx="13" cy="30" r="1.2"/>
+                <circle cx="19" cy="30" r="1.2"/>
+                <circle cx="25" cy="30" r="1.2"/>
+              </g>
+
+            </g>
+
+          </svg>
+
+
+
+          <!-- AFGHANISTAN FLAG -->
+
+          <svg
+            class="hero-flag af"
+            viewBox="0 0 64 64"
+          >
+
+            <defs>
+              <clipPath id="afClip">
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="32"
+                />
+              </clipPath>
+            </defs>
+
+            <g clip-path="url(#afClip)">
+
+              <rect
+                x="0"
+                width="21.4"
+                height="64"
+                fill="#000"
+              />
+
+              <rect
+                x="21.3"
+                width="21.4"
+                height="64"
+                fill="#BE0027"
+              />
+
+              <rect
+                x="42.6"
+                width="21.4"
+                height="64"
+                fill="#009A49"
+              />
+
+              <circle
+                cx="32"
+                cy="31"
+                r="11.2"
+                fill="none"
+                stroke="#fff"
+                stroke-width="1.6"
+              />
+
+              <circle
+                cx="32"
+                cy="29.3"
+                r="4.6"
+                fill="#fff"
+              />
+
+              <rect
+                x="26.8"
+                y="35"
+                width="10.4"
+                height="2.1"
+                rx="1"
+                fill="#fff"
+              />
+
+            </g>
+
+          </svg>
+
+        </div>
+
+
+
+        <div>
+
+          <div class="asset-name">
+            دالر امریکایی
+          </div>
+
+          <div class="asset-sub">
+            سرای شهزاده
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <div
+        class="delta"
+        id="usdDelta"
+      >
+
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+
+          <path
+            d="M4 17 10 11l4 4 6-6"
+          />
+
+          <path
+            d="M20 9v5h-5"
+          />
+
+        </svg>
+
+        <span id="usdDeltaVal">
+          ۰٪
+        </span>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="hero-body">
+
+
+      <div class="rates">
+
+
+        <div class="rate-box buy">
+
+          <div class="rate-kicker">
+            خرید
+          </div>
+
+          <div class="rate-value">
+
+            <div class="rate-num">
+              __SS_BUY__
+            </div>
+
+            <div class="rate-unit">
+              ؋
+            </div>
+
+          </div>
+
+          <div class="rate-caption">
+            برای هر ۱ دالر امریکا
+          </div>
+
+        </div>
+
+
+
+        <div class="rate-box sell">
+
+          <div class="rate-kicker">
+            فروش
+          </div>
+
+          <div class="rate-value">
+
+            <div class="rate-num">
+              __SS_SELL__
+            </div>
+
+            <div class="rate-unit">
+              ؋
+            </div>
+
+          </div>
+
+          <div class="rate-caption">
+            برای هر ۱ دالر امریکا
+          </div>
+
+        </div>
+
+
+      </div>
+
+
+
+      <div class="chart-wrap">
+
+        <div class="chart-meta">
+
+          <span>
+            روند ۷ روز اخیر
+          </span>
+
+          <span>
+            USD / AFN
+          </span>
+
+        </div>
+
+
+        <svg
+          class="spark"
+          id="sparkUsd"
+          viewBox="0 0 440 96"
+          preserveAspectRatio="none"
+        ></svg>
+
+
+        <div
+          class="hist"
+          id="histUsd"
+        ></div>
+
+      </div>
+
+
+    </div>
+
+  </div>
+
+
+
+  <!-- ============================================================
+       ASSET GRID
+  ============================================================= -->
+
+  <div class="grid">
+
+
+
+    <!-- ==========================================================
+         LOCAL EXCHANGES + USDT
+    =========================================================== -->
+
+    <div class="tile local-card">
+
+
+      <div class="tile-head">
+
+        <div class="tile-t">
+
+          <div class="ic local">
+
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#0A84FF"
+              stroke-width="1.9"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+
+              <path
+                d="M4 7h13l-2.5-2.5"
+              />
+
+              <path
+                d="M20 17H7l2.5 2.5"
+              />
+
+            </svg>
+
+          </div>
+
+
+          <div>
+
+            <div class="tile-name">
+              صرافی‌های محلی
+            </div>
+
+            <div class="tile-note">
+              نرخ مرجع بازار: __REF_RATE__
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="local-main">
+
+
+        <div class="local-rate buy-local">
+
+          <div class="kv-l">
+            خرید
+          </div>
+
+          <div class="kv-v">
+            __LOC_BUY__
+            <span>؋</span>
+          </div>
+
+        </div>
+
+
+
+        <div class="local-rate sell-local">
+
+          <div class="kv-l">
+            فروش
+          </div>
+
+          <div class="kv-v">
+            __LOC_SELL__
+            <span>؋</span>
+          </div>
+
+        </div>
+
+
+
+        <div class="local-note">
+
+          <img
+            class="banknote"
+            src="https://i.postimg.cc/6pzkVM5z/dollar.webp"
+            alt="اسکناس ۱۰۰ دالری"
+          />
+
+        </div>
+
+
+      </div>
+
+    </div>
+
+
+
+    <!-- ==========================================================
+         TETHER (USDT)
+    =========================================================== -->
+
+    <div class="tile usdt-card">
+
+
+      <div class="tile-head">
+
+        <div class="tile-t">
+
+          <div class="usdt-symbol">
+            <img
+              src="https://i.postimg.cc/250WhXsF/tether.png"
+              alt="لوگوی تتر"
+            />
+          </div>
+
+
+          <div>
+
+            <div class="tile-name">
+               تتر - USDT
+            </div>
+
+            <div class="tile-note">
+              USDT / AFN 
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+
+
+
+      <!-- USDT -->
+
+      <div
+        class="usdt-quote-inner"
+        aria-label="نرخ خرید و فروش تتر"
+      >
+
+
+
+        <div class="usdt-rate">
+
+          <div class="usdt-label">
+            خرید تتر
+          </div>
+
+          <div class="usdt-num">
+            __USDT_BUY__ ؋
+          </div>
+
+          <div class="usdt-fee">
+            شامل ۲٪ کارمزد
+          </div>
+
+        </div>
+
+
+
+        <div class="usdt-rate">
+
+          <div class="usdt-label">
+            فروش تتر
+          </div>
+
+          <div class="usdt-num">
+            __USDT_SELL__ ؋
+          </div>
+
+          <div
+            class="
+              usdt-fee
+              usdt-no-fee
+            "
+          >
+            بدون کارمزد اضافه
+          </div>
+
+        </div>
+
+
+      </div>
+
+
+
+
+    </div>
+
+
+
+    <!-- ==========================================================
+         GOLD
+    =========================================================== -->
+
+    <div class="tile gold-card">
+
+      <div class="tile-head">
+
+        <div class="tile-t">
+
+          <div class="ic">
+
+            <img
+              src="https://i.postimg.cc/pX2Fxkc5/699606123386534730.jpg"
+              alt="طلا"
+            />
+
+          </div>
+
+
+          <div>
+
+            <div class="tile-name">
+              طلا ۲۴ عیار
+            </div>
+
+            <div class="tile-note">
+              هر گرم · __GOLD_USD__
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <div class="tile-body">
+
+        <div class="tile-val">
+          __GOLD_AFN__
+        </div>
+
+
+        <svg
+          class="mini"
+          id="sparkGold"
+          viewBox="0 0 190 64"
+          preserveAspectRatio="none"
+        ></svg>
+
+      </div>
+
+
+      <div
+        class="hist tiny"
+        id="histGold"
+      ></div>
+
+    </div>
+
+
+
+    <!-- ==========================================================
+         SILVER
+    =========================================================== -->
+
+    <div class="tile silver-card">
+
+      <div class="tile-head">
+
+        <div class="tile-t">
+
+          <div class="ic">
+
+            <img
+              src="https://i.postimg.cc/Gh5TQ1r5/OIP-(5).webp"
+              alt="نقره"
+            />
+
+          </div>
+
+
+          <div>
+
+            <div class="tile-name">
+              نقره ۹۹۹
+            </div>
+
+            <div class="tile-note">
+              هر گرم · __SILVER_USD__
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <div class="tile-body">
+
+        <div class="tile-val">
+          __SILVER_AFN__
+        </div>
+
+
+        <svg
+          class="mini"
+          id="sparkSilver"
+          viewBox="0 0 190 64"
+          preserveAspectRatio="none"
+        ></svg>
+
+      </div>
+
+
+      <div
+        class="hist tiny"
+        id="histSilver"
+      ></div>
+
+    </div>
+
+
+  </div>
+
+
+
+  <!-- ============================================================
+       FOOTER
+  ============================================================= -->
+
+  <div class="footer">
+
+    <div class="f-note">
+      صراف، همگام با اطلاعات مالی افغانستان
+    </div>
+
+
+    <div class="f-soc">
+
+
+      <!-- Instagram -->
+
+      <div class="soc" aria-label="Instagram">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5.2"
+                stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="12" cy="12" r="4.05"
+                  stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="17.45" cy="6.65" r="1.05" fill="currentColor"/>
+        </svg>
+      </div>
+
+
+
+      <!-- Facebook -->
+
+      <div class="soc" aria-label="Facebook">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M13.55 21v-8.05h2.7l.4-3.14h-3.1V7.8c0-.91.25-1.53 1.56-1.53h1.67V3.46c-.29-.04-1.28-.12-2.43-.12-2.4 0-4.05 1.47-4.05 4.16v2.31H7.58v3.14h2.72V21h3.25Z"/>
+        </svg>
+      </div>
+
+
+
+      <!-- Telegram -->
+
+      <div class="soc" aria-label="Telegram">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M20.82 3.56 2.95 10.45c-1.22.49-1.21 1.17-.22 1.47l4.59 1.43 1.76 5.49c.22.61.11.85.75.85.49 0 .71-.23.98-.49l2.2-2.14 4.58 3.39c.84.47 1.45.23 1.66-.78l2.84-13.39c.29-1.17-.45-1.7-1.27-1.32ZM8.04 13.02l10.34-6.53c.52-.32 1-.15.61.2l-8.54 7.71-.33 3.48-2.08-4.86Z"/>
+        </svg>
+      </div>
+
+
+
+      <!-- WhatsApp -->
+
+      <div class="soc" aria-label="WhatsApp">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.35 11.7a8.31 8.31 0 0 1-12.3 7.28L3.6 20.15l1.19-4.31A8.31 8.31 0 1 1 20.35 11.7Z"
+                stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8.47 7.95c.18-.4.37-.41.62-.42h.53c.17 0 .44.06.57.45l.72 1.76c.08.2.04.37-.07.54l-.46.61c-.15.18-.3.34-.13.64.17.3.75 1.23 1.62 1.99 1.12.99 2.06 1.3 2.36 1.45.3.15.47.13.65-.08l.83-.97c.2-.23.41-.2.69-.1l1.73.82c.28.14.47.21.54.33.07.12.07.7-.16 1.37-.23.67-1.33 1.28-1.83 1.36-.47.08-1.07.12-1.73-.1-.4-.13-.91-.3-1.57-.58a13.7 13.7 0 0 1-5.23-4.61c-.31-.43-.75-1.14-.75-2.18 0-1.04.55-1.55.75-1.76.19-.21.42-.26.56-.26Z"
+                fill="currentColor"/>
+        </svg>
+      </div>
+
+    </div>
+
+  </div>
+
+
+</div>
+
+
+
 <script>
-/* ---------------------------------------------------------------
-   Trend series (optional placeholders)
-   Example:
-   __USD_SERIES__ -> [70.1,70.4,70.2,70.9,71.3,71.1,71.6]
 
-   If a placeholder is left unreplaced, a neutral fallback series
-   is used so the template still renders correctly.
----------------------------------------------------------------- */
+/* ================================================================
+   REAL SERIES ONLY
+================================================================= */
+
 var RAW = {
-  usd:    "__USD_SERIES__",
-  gold:   "__GOLD_SERIES__",
-  silver: "__SILVER_SERIES__",
-  local:  "__LOCAL_SERIES__"
+  usd: "__USD_SERIES__",
+  gold: "__GOLD_SERIES__",
+  silver: "__SILVER_SERIES__"
 };
 
-function parseSeries(v, fallback){
-  try{
-    if(typeof v !== "string" || v.indexOf("SERIES") > -1) return fallback;
-    var a = JSON.parse(v.replace(/[^\[\]0-9.,\-]/g,""));
-    return (Array.isArray(a) && a.length > 1) ? a.map(Number) : fallback;
-  }catch(e){
-    return fallback;
-  }
-}
 
-var FB = {
-  usd:    [68.4,68.9,68.7,69.4,69.1,69.8,70.2,70.0,70.6],
-  gold:   [5820,5860,5840,5910,5895,5960,6010],
-  silver: [72,71.4,72.6,72.1,73.0,73.4,73.1],
-  local:  [69.0,69.3,69.1,69.6,69.9,69.7,70.1]
-};
+/* ================================================================
+   PARSE REAL DATA
+================================================================= */
 
-function toFa(n){
-  return String(n).replace(/\d/g,function(d){
-    return "۰۱۲۳۴۵۶۷۸۹"[+d];
-  });
-}
+function parseSeries(value) {
 
-function draw(id,data,opts){
-  var svg = document.getElementById(id);
-  if(!svg) return 0;
+  try {
 
-  var vb = svg.getAttribute("viewBox").split(" ").map(Number);
-  var W = vb[2], H = vb[3];
-  var pad = opts.pad || 8;
-  var labelSize = opts.labelSize || 13;
-  /* وقتی برچسب قیمت روشن است، فضای بالای نمودار را بیشتر رزرو می‌کنیم تا
-     برچسب بالاترین نقطه هرگز از لبهٔ svg بیرون نزند. */
-  var vPad = opts.labels ? (pad + labelSize + 6) : pad;
-
-  var min = Math.min.apply(null,data);
-  var max = Math.max.apply(null,data);
-  var span = (max-min) || 1;
-  var up = data[data.length-1] >= data[0];
-  var color = up ? "#2FBF71" : "#FF453A";
-
-  var pts = data.map(function(v,i){
-    var x = (W-pad*2)*(i/(data.length-1))+pad;
-    var y = H-vPad-((v-min)/span)*(H-vPad*2);
-    return [x,y];
-  });
-
-  var d = "M"+pts[0][0].toFixed(1)+" "+pts[0][1].toFixed(1);
-
-  for(var i=1;i<pts.length;i++){
-    var p0=pts[i-1], p1=pts[i], cx=(p0[0]+p1[0])/2;
-    d += " C"+cx.toFixed(1)+" "+p0[1].toFixed(1)+
-         ","+cx.toFixed(1)+" "+p1[1].toFixed(1)+
-         ","+p1[0].toFixed(1)+" "+p1[1].toFixed(1);
-  }
-
-  var gid=id+"-g";
-  var lines="";
-
-  if(opts.grid){
-    for(var g=0;g<3;g++){
-      var gy=(pad+(H-pad*2)*(g/2)).toFixed(1);
-      lines += '<line x1="'+pad+'" y1="'+gy+'" x2="'+(W-pad)+'" y2="'+gy+
-               '" stroke="rgba(60,60,67,.08)" stroke-width="1"/>';
+    if (
+      typeof value !== "string"
+      || value.indexOf("SERIES") > -1
+    ) {
+      return [];
     }
 
-    for(var gx=1;gx<4;gx++){
-      var xx=(pad+(W-pad*2)*(gx/4)).toFixed(1);
-      lines += '<line x1="'+xx+'" y1="'+pad+'" x2="'+xx+'" y2="'+(H-pad)+
-               '" stroke="rgba(60,60,67,.045)" stroke-width="1"/>';
+    var parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return [];
     }
+
+    return parsed
+      .map(Number)
+      .filter(Number.isFinite);
+
   }
 
-  var area = opts.area
-    ? '<path d="'+d+' L'+(W-pad)+' '+H+' L'+pad+' '+H+' Z" fill="url(#'+gid+')"/>'
-    : '';
-
-  var dots = "";
-  var labels = "";
-  if(opts.labels){
-    var fmt = opts.fmt || function(v){ return toFa(String(Math.round(v))); };
-    pts.forEach(function(p,i){
-      /* یک نقطهٔ کوچک زیر هر برچسب، به‌علاوهٔ خودِ برچسب قیمت آن روز. */
-      dots += '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+
-              '" r="'+(opts.sw>4?4.5:3.2)+'" fill="'+color+'" stroke="#fff" stroke-width="2"/>';
-      labels += '<text x="'+p[0].toFixed(1)+'" y="'+(p[1]-10).toFixed(1)+
-                 '" font-size="'+labelSize+'" font-weight="800" fill="'+color+
-                 '" text-anchor="middle" font-family="Peyda,-apple-system,sans-serif">'+
-                 fmt(data[i])+'</text>';
-    });
+  catch (error) {
+    return [];
   }
+
+}
+
+
+
+/* ================================================================
+   LATIN → PERSIAN DIGITS
+================================================================= */
+
+function toFa(value) {
+
+  return String(value)
+    .replace(
+      /\d/g,
+      function (digit) {
+
+        return "۰۱۲۳۴۵۶۷۸۹"[
+          Number(digit)
+        ];
+
+      }
+    );
+
+}
+
+
+
+/* ================================================================
+   MONOTONE CUBIC CURVE
+
+   نرم مثل نمودار قبلی،
+   اما بدون overshoot.
+
+   منحنی دقیقاً از نقاط واقعی عبور می‌کند.
+================================================================= */
+
+function monotonePath(points) {
+
+  if (!points.length) {
+    return "";
+  }
+
+  if (points.length === 1) {
+
+    return (
+      "M"
+      + points[0][0].toFixed(2)
+      + " "
+      + points[0][1].toFixed(2)
+    );
+
+  }
+
+
+  var count = points.length;
+
+  var slopes =
+    new Array(
+      count - 1
+    );
+
+  var tangents =
+    new Array(
+      count
+    );
+
+
+  /* slope between data points */
+
+  for (
+    var i = 0;
+    i < count - 1;
+    i++
+  ) {
+
+    var dx =
+      points[i + 1][0]
+      - points[i][0];
+
+    slopes[i] =
+      dx === 0
+        ? 0
+        : (
+            points[i + 1][1]
+            - points[i][1]
+          ) / dx;
+
+  }
+
+
+  tangents[0] =
+    slopes[0];
+
+  tangents[count - 1] =
+    slopes[count - 2];
+
+
+  /*
+    Internal tangents.
+
+    وقتی جهت حرکت عوض می‌شود،
+    tangent = 0 تا سقف/کف نرم
+    و واقعی ساخته شود.
+  */
+
+  for (
+    var j = 1;
+    j < count - 1;
+    j++
+  ) {
+
+    var before =
+      slopes[j - 1];
+
+    var after =
+      slopes[j];
+
+
+    if (
+      before === 0
+      || after === 0
+      || before * after <= 0
+    ) {
+
+      tangents[j] = 0;
+
+    }
+
+    else {
+
+      tangents[j] =
+        (
+          2
+          * before
+          * after
+        )
+        /
+        (
+          before
+          + after
+        );
+
+    }
+
+  }
+
+
+
+  /*
+    Fritsch-Carlson limiter.
+
+    جلوی overshoot و قله/کف جعلی
+    میان دو نقطه را می‌گیرد.
+  */
+
+  for (
+    var k = 0;
+    k < count - 1;
+    k++
+  ) {
+
+    var slope =
+      slopes[k];
+
+
+    if (slope === 0) {
+
+      tangents[k] = 0;
+      tangents[k + 1] = 0;
+
+      continue;
+
+    }
+
+
+    var a =
+      tangents[k]
+      / slope;
+
+    var b =
+      tangents[k + 1]
+      / slope;
+
+
+    if (a < 0) {
+      tangents[k] = 0;
+      a = 0;
+    }
+
+
+    if (b < 0) {
+      tangents[k + 1] = 0;
+      b = 0;
+    }
+
+
+    var magnitude =
+      a * a
+      + b * b;
+
+
+    if (magnitude > 9) {
+
+      var scale =
+        3
+        / Math.sqrt(
+            magnitude
+          );
+
+
+      tangents[k] =
+        scale
+        * a
+        * slope;
+
+
+      tangents[k + 1] =
+        scale
+        * b
+        * slope;
+
+    }
+
+  }
+
+
+
+  /* Build cubic SVG path */
+
+  var path =
+    "M"
+    + points[0][0].toFixed(2)
+    + " "
+    + points[0][1].toFixed(2);
+
+
+  for (
+    var p = 0;
+    p < count - 1;
+    p++
+  ) {
+
+    var x0 =
+      points[p][0];
+
+    var y0 =
+      points[p][1];
+
+    var x1 =
+      points[p + 1][0];
+
+    var y1 =
+      points[p + 1][1];
+
+    var width =
+      x1 - x0;
+
+
+    var c1x =
+      x0
+      + width / 3;
+
+    var c1y =
+      y0
+      + (
+          tangents[p]
+          * width
+          / 3
+        );
+
+
+    var c2x =
+      x1
+      - width / 3;
+
+    var c2y =
+      y1
+      - (
+          tangents[p + 1]
+          * width
+          / 3
+        );
+
+
+    path +=
+      " C"
+      + c1x.toFixed(2)
+      + " "
+      + c1y.toFixed(2)
+      + ","
+      + c2x.toFixed(2)
+      + " "
+      + c2y.toFixed(2)
+      + ","
+      + x1.toFixed(2)
+      + " "
+      + y1.toFixed(2);
+
+  }
+
+
+  return path;
+
+}
+
+
+
+/* ================================================================
+   SMOOTH REAL CHART
+================================================================= */
+
+function drawSmooth(
+  id,
+  data,
+  options
+) {
+
+  var svg =
+    document.getElementById(id);
+
+
+  if (!svg) {
+    return null;
+  }
+
+
+  svg.innerHTML = "";
+
+
+  /* no fake fallback */
+
+  if (
+    !data
+    || data.length < 2
+  ) {
+
+    var emptyViewBox =
+      svg
+        .getAttribute("viewBox")
+        .split(" ")
+        .map(Number);
+
+
+    svg.innerHTML =
+      '<text '
+      + 'class="chart-empty" '
+      + 'x="'
+      + (
+          emptyViewBox[2] / 2
+        )
+      + '" '
+      + 'y="'
+      + (
+          emptyViewBox[3] / 2
+        )
+      + '" '
+      + 'text-anchor="middle">'
+      + 'دادهٔ تاریخی کافی نیست'
+      + '</text>';
+
+
+    return null;
+
+  }
+
+
+
+  var viewBox =
+    svg
+      .getAttribute("viewBox")
+      .split(" ")
+      .map(Number);
+
+
+  var width =
+    viewBox[2];
+
+  var height =
+    viewBox[3];
+
+  var pad =
+    options.pad || 8;
+
+
+
+  /* ==============================================================
+     REAL RANGE
+  ============================================================== */
+
+  var low =
+    Math.min.apply(
+      null,
+      data
+    );
+
+  var high =
+    Math.max.apply(
+      null,
+      data
+    );
+
+
+  var rawSpan =
+    high - low;
+
+
+  var center =
+    (
+      high + low
+    ) / 2;
+
+
+  /*
+    نوسان بسیار کوچک نباید از نظر بصری
+    به سقوط/جهش عظیم تبدیل شود.
+  */
+
+  var minimumSpan =
+    Math.max(
+      Math.abs(center)
+      * (
+          options.minVisualRatio
+          || .0015
+        ),
+      options.minSpan || 0
+    );
+
+
+  var span =
+    Math.max(
+      rawSpan,
+      minimumSpan,
+      1e-9
+    );
+
+
+  var chartPadding =
+    span * .12;
+
+
+  var visualLow =
+    center
+    - span / 2
+    - chartPadding;
+
+
+  var visualHigh =
+    center
+    + span / 2
+    + chartPadding;
+
+
+  var verticalPad =
+    pad + 4;
+
+
+
+  var isUp =
+    data[data.length - 1]
+    >= data[0];
+
+
+  var color =
+    isUp
+      ? "#2FBF71"
+      : "#FF453A";
+
+
+
+  /* ==============================================================
+     REAL DATA POINTS
+  ============================================================== */
+
+  var points =
+    data.map(
+      function (
+        value,
+        index
+      ) {
+
+        var x =
+          pad
+          + (
+              width
+              - pad * 2
+            )
+          * (
+              index
+              / (
+                  data.length
+                  - 1
+                )
+            );
+
+
+        var ratio =
+          (
+            value
+            - visualLow
+          )
+          /
+          (
+            visualHigh
+            - visualLow
+          );
+
+
+        var y =
+          height
+          - verticalPad
+          - ratio
+          * (
+              height
+              - verticalPad * 2
+            );
+
+
+        return [
+          x,
+          y
+        ];
+
+      }
+    );
+
+
+
+  /* smooth monotone path */
+
+  var path =
+    monotonePath(
+      points
+    );
+
+
+
+  /* ==============================================================
+     GRID
+  ============================================================== */
+
+  var grid = "";
+
+
+  if (options.grid) {
+
+
+    for (
+      var g = 0;
+      g < 3;
+      g++
+    ) {
+
+      var yGrid =
+        (
+          pad
+          + (
+              height
+              - pad * 2
+            )
+          * (
+              g / 2
+            )
+        ).toFixed(1);
+
+
+      grid +=
+        '<line '
+        + 'x1="'
+        + pad
+        + '" '
+        + 'y1="'
+        + yGrid
+        + '" '
+        + 'x2="'
+        + (
+            width - pad
+          )
+        + '" '
+        + 'y2="'
+        + yGrid
+        + '" '
+        + 'stroke="rgba(60,60,67,.08)" '
+        + 'stroke-width="1"'
+        + '/>';
+
+    }
+
+
+
+    for (
+      var gx = 1;
+      gx < 4;
+      gx++
+    ) {
+
+      var xGrid =
+        (
+          pad
+          + (
+              width
+              - pad * 2
+            )
+          * (
+              gx / 4
+            )
+        ).toFixed(1);
+
+
+      grid +=
+        '<line '
+        + 'x1="'
+        + xGrid
+        + '" '
+        + 'y1="'
+        + pad
+        + '" '
+        + 'x2="'
+        + xGrid
+        + '" '
+        + 'y2="'
+        + (
+            height - pad
+          )
+        + '" '
+        + 'stroke="rgba(60,60,67,.045)" '
+        + 'stroke-width="1"'
+        + '/>';
+
+    }
+
+  }
+
+
+
+  /* ==============================================================
+     AREA
+  ============================================================== */
+
+  var gradientId =
+    id + "-gradient";
+
+
+  var area = "";
+
+
+  if (options.area) {
+
+    area =
+      '<path '
+      + 'd="'
+      + path
+      + ' L'
+      + points[
+          points.length - 1
+        ][0].toFixed(2)
+      + ' '
+      + (
+          height - pad
+        )
+      + ' L'
+      + points[0][0].toFixed(2)
+      + ' '
+      + (
+          height - pad
+        )
+      + ' Z" '
+      + 'fill="url(#'
+      + gradientId
+      + ')"'
+      + '/>';
+
+  }
+
+
+
+  /* ==============================================================
+     LAST DOT
+  ============================================================== */
+
+  var lastDot = "";
+
+
+  if (options.dot) {
+
+    var lastPoint =
+      points[
+        points.length - 1
+      ];
+
+
+    lastDot =
+      '<circle '
+      + 'cx="'
+      + lastPoint[0].toFixed(2)
+      + '" '
+      + 'cy="'
+      + lastPoint[1].toFixed(2)
+      + '" '
+      + 'r="'
+      + (
+          options.dotRadius
+          || 4.5
+        )
+      + '" '
+      + 'fill="'
+      + color
+      + '" '
+      + 'stroke="#fff" '
+      + 'stroke-width="2.6"'
+      + '/>';
+
+  }
+
+
+
+  /* ==============================================================
+     SVG OUTPUT
+  ============================================================== */
 
   svg.innerHTML =
-    '<defs>'+
-      '<linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1">'+
-        '<stop offset="0%" stop-color="'+color+'" stop-opacity=".24"/>'+
-        '<stop offset="100%" stop-color="'+color+'" stop-opacity="0"/>'+
-      '</linearGradient>'+
-    '</defs>'+
-    lines+
-    area+
-    '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+(opts.sw||3)+
-      '" stroke-linecap="round" stroke-linejoin="round"/>'+
-    dots+
-    labels+
-    (opts.dot
-      ? '<circle cx="'+pts[pts.length-1][0].toFixed(1)+'" cy="'+pts[pts.length-1][1].toFixed(1)+
-        '" r="'+(opts.sw>4?6:4.5)+'" fill="'+color+'" stroke="#fff" stroke-width="3"/>'
-      : '');
 
-  return ((data[data.length-1]-data[0])/(data[0]||1))*100;
+    '<defs>'
+
+      + '<linearGradient '
+      + 'id="'
+      + gradientId
+      + '" '
+      + 'x1="0" '
+      + 'y1="0" '
+      + 'x2="0" '
+      + 'y2="1">'
+
+        + '<stop '
+        + 'offset="0%" '
+        + 'stop-color="'
+        + color
+        + '" '
+        + 'stop-opacity=".23"'
+        + '/>'
+
+        + '<stop '
+        + 'offset="100%" '
+        + 'stop-color="'
+        + color
+        + '" '
+        + 'stop-opacity="0"'
+        + '/>'
+
+      + '</linearGradient>'
+
+    + '</defs>'
+
+    + grid
+
+    + area
+
+    + '<path '
+    + 'd="'
+    + path
+    + '" '
+    + 'fill="none" '
+    + 'stroke="'
+    + color
+    + '" '
+    + 'stroke-width="'
+    + (
+        options.sw || 3
+      )
+    + '" '
+    + 'stroke-linecap="round" '
+    + 'stroke-linejoin="round"'
+    + '/>'
+
+    + lastDot;
+
+
+
+  /* real total change */
+
+  return (
+    (
+      data[data.length - 1]
+      - data[0]
+    )
+    /
+    (
+      data[0] || 1
+    )
+  ) * 100;
+
 }
 
 
-/* ---------------------------------------------------------------
-   History rows: past prices are rendered UNDER the chart,
-   never on top of it. English (Latin) digits, light/tiny font.
-   step = 1 -> every day, step = 2 -> every other day.
----------------------------------------------------------------- */
-function renderHistory(id, data, opts){
-  var el = document.getElementById(id);
-  if(!el) return;
-  opts = opts || {};
-  var step = opts.step || 1;
-  var max  = opts.max || 7;
-  var fmt  = opts.fmt || function(v){ return String(Math.round(v)); };
+
+/* ================================================================
+   HISTORY
+================================================================= */
+
+function renderHistory(
+  id,
+  data,
+  options
+) {
+
+  var element =
+    document.getElementById(id);
+
+
+  if (!element) {
+    return;
+  }
+
+
+  if (
+    !data
+    || data.length < 2
+  ) {
+
+    element.innerHTML = "";
+
+    return;
+
+  }
+
+
+  var step =
+    options.step || 1;
+
+  var max =
+    options.max || 7;
+
+  var format =
+    options.format;
+
 
   var items = [];
-  /* data[last] = today -> start from yesterday and walk backwards */
-  for(var i = data.length - 2; i >= 0 && items.length < max; i -= step){
-    var back = data.length - 1 - i;
-    items.push('<div class="h-item"><div class="h-v">' + fmt(data[i]) +
-               '</div><div class="h-d">' + back + 'd</div></div>');
+
+
+  /*
+    آخرین نقطه نرخ فعلی است.
+    تاریخچه از نقطه قبل شروع می‌شود.
+  */
+
+  for (
+    var i =
+      data.length - 2;
+
+    i >= 0
+    && items.length < max;
+
+    i -= step
+  ) {
+
+    var daysBack =
+      data.length
+      - 1
+      - i;
+
+
+    items.push(
+
+      '<div class="h-item">'
+
+        + '<div class="h-v">'
+        + format(
+            data[i]
+          )
+        + '</div>'
+
+        + '<div class="h-d">'
+        + daysBack
+        + 'D'
+        + '</div>'
+
+      + '</div>'
+
+    );
+
   }
-  el.innerHTML = items.reverse().join("");
+
+
+  element.innerHTML =
+    items
+      .reverse()
+      .join("");
+
 }
 
-var fmtRateEn = function(v){ return v.toFixed(1); };
-var fmtIntEn  = function(v){ return String(Math.round(v)); };
 
-var fmtRate = function(v){ return toFa(v.toFixed(1)); };
-var fmtGold = function(v){ return toFa(String(Math.round(v))); };
 
-var sUsd = parseSeries(RAW.usd,FB.usd);
+/* ================================================================
+   SERIES
+================================================================= */
 
-var pct = draw(
-  "sparkUsd",
-  sUsd,
-  {area:true,dot:true,sw:4.2,pad:12,grid:true,labels:false}
-);
+var usdSeries =
+  parseSeries(
+    RAW.usd
+  );
 
-var sGold = parseSeries(RAW.gold,FB.gold);
-var sSilver = parseSeries(RAW.silver,FB.silver);
 
-draw(
+var goldSeries =
+  parseSeries(
+    RAW.gold
+  );
+
+
+var silverSeries =
+  parseSeries(
+    RAW.silver
+  );
+
+
+
+/* ================================================================
+   USD CHART
+================================================================= */
+
+var usdChange =
+  drawSmooth(
+    "sparkUsd",
+    usdSeries,
+    {
+      area: true,
+      dot: true,
+      sw: 4.2,
+      pad: 12,
+      grid: true,
+
+      minSpan: .08,
+
+      minVisualRatio:
+        .0015
+    }
+  );
+
+
+
+/* ================================================================
+   GOLD CHART
+================================================================= */
+
+drawSmooth(
   "sparkGold",
-  sGold,
-  {area:true,sw:3,pad:8,dot:true,grid:true,labels:false}
+  goldSeries,
+  {
+    area: true,
+    dot: true,
+    sw: 3,
+    pad: 8,
+    grid: true,
+
+    minSpan: 10,
+
+    minVisualRatio:
+      .0015
+  }
 );
 
-draw(
+
+
+/* ================================================================
+   SILVER CHART
+================================================================= */
+
+drawSmooth(
   "sparkSilver",
-  sSilver,
-  {area:true,sw:3,pad:8,dot:true,grid:true,labels:false}
+  silverSeries,
+  {
+    area: true,
+    dot: true,
+    sw: 3,
+    pad: 8,
+    grid: true,
+
+    minSpan: .2,
+
+    minVisualRatio:
+      .002
+  }
 );
 
-/* USD: last 7 days, every day, under the chart.
-   Gold & silver: every other day (1d, 3d, 5d, ...).
-   Local exchanges: no history at all, on or under the chart. */
-renderHistory("histUsd",    sUsd,    {step:1, max:7, fmt:fmtRateEn});
-renderHistory("histGold",   sGold,   {step:2, max:4, fmt:fmtIntEn});
-renderHistory("histSilver", sSilver, {step:2, max:4, fmt:fmtRateEn});
 
-var box = document.getElementById("usdDelta");
-var val = document.getElementById("usdDeltaVal");
-var down = pct < 0;
 
-if(down){
-  box.classList.add("down");
-  box.querySelector("svg").innerHTML =
-    '<path d="M4 7 10 13l4-4 6 6"/><path d="M20 15v-5h-5"/>';
+/* ================================================================
+   HISTORY
+================================================================= */
+
+renderHistory(
+  "histUsd",
+  usdSeries,
+  {
+    step: 1,
+    max: 7,
+
+    format: function (value) {
+      return value.toFixed(2);
+    }
+  }
+);
+
+
+renderHistory(
+  "histGold",
+  goldSeries,
+  {
+    step: 2,
+    max: 4,
+
+    format: function (value) {
+      return String(
+        Math.round(value)
+      );
+    }
+  }
+);
+
+
+renderHistory(
+  "histSilver",
+  silverSeries,
+  {
+    step: 2,
+    max: 4,
+
+    format: function (value) {
+      return value.toFixed(1);
+    }
+  }
+);
+
+
+
+/* ================================================================
+   DATE ONLY — remove any injected clock time
+================================================================= */
+
+var dateOnly =
+  document.getElementById(
+    "dateOnly"
+  );
+
+if (dateOnly) {
+  dateOnly.textContent =
+    dateOnly.textContent
+      .replace(
+        /(?:\s*[|·،,-]\s*)?(?:ساعت\s*)?[۰-۹0-9]{1,2}\s*:\s*[۰-۹0-9]{2}(?:\s*:\s*[۰-۹0-9]{2})?(?:\s*(?:AM|PM|am|pm))?\s*$/,
+        ""
+      )
+      .trim();
 }
 
-val.textContent =
-  (down ? "−" : "+") +
-  toFa(Math.abs(pct).toFixed(2)) +
-  "٪";
+
+/* ================================================================
+   USD DELTA
+================================================================= */
+
+var deltaBox =
+  document.getElementById(
+    "usdDelta"
+  );
+
+
+var deltaValue =
+  document.getElementById(
+    "usdDeltaVal"
+  );
+
+
+if (
+  deltaBox
+  && deltaValue
+) {
+
+
+  if (
+    usdChange === null
+  ) {
+
+    deltaBox.style.display =
+      "none";
+
+  }
+
+
+  else {
+
+    deltaBox.style.display =
+      "inline-flex";
+
+
+    var down =
+      usdChange < 0;
+
+
+    deltaBox
+      .classList
+      .toggle(
+        "down",
+        down
+      );
+
+
+    if (down) {
+
+      deltaBox
+        .querySelector("svg")
+        .innerHTML =
+          '<path d="M4 7 10 13l4-4 6 6"/>'
+          + '<path d="M20 15v-5h-5"/>';
+
+    }
+
+
+    deltaValue.textContent =
+      (
+        down
+          ? "−"
+          : "+"
+      )
+      + toFa(
+          Math.abs(
+            usdChange
+          ).toFixed(2)
+        )
+      + "٪";
+
+  }
+
+}
+
 </script>
+
 
 </body>
 </html>
