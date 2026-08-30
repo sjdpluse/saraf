@@ -20,7 +20,7 @@ import NetworkIcon from "../components/NetworkIcon";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const NETWORKS = ["TRC20", "ERC20", "BEP20"];
-const DEPOSIT_WALLETS = { BEP20: "0x4c49Ff39798C564A01F5fdEcB7E335a178f781BA" };
+const DEPOSIT_WALLETS = { BEP20: "0x4f43149a206694e53ca23abe407d58f01a416149" };
 
 const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
 const HESABPAY_LOGO_URL = "https://i.postimg.cc/63khhqcm/hesab.png";
@@ -264,7 +264,7 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
             <button className="btn btn-sell" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>
-              {checkingProfile ? <span className="spinner" /> : <>درخواست تتر <ArrowRight size={16} weight="bold" /></>}
+              {checkingProfile ? <span className="spinner" /> : <>درخواست فروش <ArrowRight size={16} weight="bold" /></>}
             </button>
             <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS")}><ChatCircleDots size={17} /> اطلاعات بیشتر</button>
           </div>
@@ -320,7 +320,7 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
           <label className="field-label">می‌خواهید مبلغ فروش را چگونه دریافت کنید؟</label>
           <div className="choice-row" style={{ marginTop: 4 }}>
             <button className="choice-btn" onClick={() => chooseReceive("in_person")} disabled={submitting}>{submitting && receiveMethod === "in_person" ? <span className="spinner" /> : <Buildings size={16} />} حضوری</button>
-            <button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => chooseReceive("online")} disabled={submitting}><Bank size={16} /> آنلاین (بانکی)</button>
+            <button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => chooseReceive("online")} disabled={submitting}><Bank size={16} /> آنلاین</button>
           </div>
 
           {showOnlineProviders && (
