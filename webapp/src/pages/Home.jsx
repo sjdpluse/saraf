@@ -23,9 +23,7 @@ export default function Home({ navigate, startTransaction }) {
     api
       .getStats()
       .then((s) => mounted && setStats(s))
-      .catch(() => {
-        /* آمار غیربحرانی است؛ در صورت خطا فقط نمایش داده نمی‌شود */
-      });
+      .catch(() => {});
     return () => {
       mounted = false;
     };
@@ -33,15 +31,14 @@ export default function Home({ navigate, startTransaction }) {
 
   return (
     <div className="app-shell">
-      {/* --- کارت اصلی: گرادیانت آبی + داک شیشه‌یی خرید/فروش --- */}
       <div className="hero-card animate-in">
         <div className="hero-top">
           <div className="hero-row">
             <div className="hero-brand">
               <div className="hero-logo">
-                <img src={SARAF_LOGO_URL} alt="Saraf" />
+                <img src={SARAF_LOGO_URL} alt="صراف" />
               </div>
-              <span className="hero-brand-name">Saraf</span>
+              <span className="hero-brand-name">صراف</span>
             </div>
           </div>
 
@@ -61,15 +58,11 @@ export default function Home({ navigate, startTransaction }) {
 
         <div className="hero-dock">
           <button className="hero-dock-btn buy" onClick={() => startTransaction("buy")}>
-            <span className="dock-icon">
-              <ArrowDown size={16} weight="bold" />
-            </span>
+            <span className="dock-icon"><ArrowDown size={16} weight="bold" /></span>
             خرید تتر
           </button>
           <button className="hero-dock-btn sell" onClick={() => startTransaction("sell")}>
-            <span className="dock-icon">
-              <ArrowUp size={16} weight="bold" />
-            </span>
+            <span className="dock-icon"><ArrowUp size={16} weight="bold" /></span>
             فروش تتر
           </button>
         </div>
@@ -84,9 +77,7 @@ export default function Home({ navigate, startTransaction }) {
           </div>
           <div className="stat-box">
             <Star size={20} className="stat-icon" weight="fill" />
-            <div className="stat-value num">
-              {stats.average_rating ? stats.average_rating.toFixed(1) : "—"}
-            </div>
+            <div className="stat-value num">{stats.average_rating ? stats.average_rating.toFixed(1) : "—"}</div>
             <div className="stat-label">میانگین امتیاز کاربران</div>
           </div>
         </div>
@@ -94,36 +85,32 @@ export default function Home({ navigate, startTransaction }) {
 
       <div className="card card-tappable animate-in" style={{ animationDelay: "0.09s" }} onClick={() => navigate("orders")}>
         <div className="list-row">
-          <div className="row-icon">
-            <ClipboardText size={20} />
-          </div>
+          <div className="row-icon"><ClipboardText size={20} /></div>
           <div className="row-text">
             <div className="row-title">سفارش‌های من</div>
-            <div className="row-subtitle">پیگیری وضعیت خرید/فروش‌های قبلی</div>
+            <div className="row-subtitle">پیگیری وضعیت خرید و فروش‌های قبلی</div>
           </div>
-          <div className="row-chevron">
-            <CaretLeft size={18} />
-          </div>
+          <div className="row-chevron"><CaretLeft size={18} /></div>
         </div>
       </div>
 
       <div className="card animate-in" style={{ animationDelay: "0.12s" }}>
         <div className="section-title">
           <img src={TETHER_LOGO_URL} alt="" className="tether-badge" style={{ width: 16, height: 16 }} />
-          چرا Saraf؟
+          چرا صراف؟
         </div>
         <div className="trust-list">
           <div className="trust-item">
             <ShieldCheck size={18} className="trust-icon" weight="fill" />
-            نرخ لحظه‌یی بر مبنای بازار واقعی صرافی‌های کابل، نه نرخ تخمینی
+            نرخ لحظه‌یی بازار برای تصمیم‌گیری روشن‌تر
           </div>
           <div className="trust-item">
             <Clock size={18} className="trust-icon" weight="fill" />
-            هر سفارش پیش از پردازش، توسط تیم ما به‌صورت دستی بررسی و تایید می‌شود
+            هر سفارش پیش از اجرا توسط تیم ما به‌صورت دستی بررسی و تایید می‌شود
           </div>
           <div className="trust-item">
             <HandCoins size={18} className="trust-icon" weight="fill" />
-            پرداخت حضوری یا بانکی — هرچه برایتان راحت‌تر است
+            پرداخت حضوری یا آنلاین — هرکدام که برایتان آسان‌تر است
           </div>
           <div className="trust-item">
             <Headset size={18} className="trust-icon" weight="fill" />
@@ -134,16 +121,12 @@ export default function Home({ navigate, startTransaction }) {
 
       <div className="card card-tappable animate-in" style={{ animationDelay: "0.15s" }} onClick={() => navigate("terms")}>
         <div className="list-row">
-          <div className="row-icon">
-            <FileText size={20} />
-          </div>
+          <div className="row-icon"><FileText size={20} /></div>
           <div className="row-text">
             <div className="row-title">قوانین و شرایط استفاده</div>
             <div className="row-subtitle">کارمزدها، زمان تحویل و مسئولیت‌ها</div>
           </div>
-          <div className="row-chevron">
-            <CaretLeft size={18} />
-          </div>
+          <div className="row-chevron"><CaretLeft size={18} /></div>
         </div>
       </div>
     </div>
