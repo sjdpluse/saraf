@@ -10,6 +10,7 @@ import {
   ClipboardText,
   House,
   ChatCircleDots,
+  Headset,
   ArrowRight,
 } from "@phosphor-icons/react";
 import { api, ApiError } from "../lib/api";
@@ -266,7 +267,20 @@ export default function Sell({ navigate, showError, resumeState, onResumeConsume
             <button className="btn btn-sell" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>
               {checkingProfile ? <span className="spinner" /> : <>درخواست فروش <ArrowRight size={16} weight="bold" /></>}
             </button>
-            <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS")}><ChatCircleDots size={17} /> اطلاعات بیشتر</button>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => openTelegramChat("SJDPLUS", "سلام، در مورد خرید و فروش تتر در Saraf معلومات بیشتر می‌خواهم.")}
+              >
+                <ChatCircleDots size={17} /> اطلاعات بیشتر
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => openTelegramChat("SJDPLUS", "سلام، برای خرید و فروش تتر در Saraf به پشتیبانی نیاز دارم.")}
+              >
+                <Headset size={17} /> پشتیبانی
+              </button>
+            </div>
           </div>
         </div>
       )}
