@@ -12,23 +12,15 @@ import { SARAF_LOGO_URL } from "./lib/brand";
 export default function App() {
   const [page, setPage] = useState("home");
   const [error, setError] = useState(null);
-  const [kycMode, setKycMode] = useState("profile"); // "profile" | "verify"
+  const [kycMode, setKycMode] = useState("profile");
   const [threshold, setThreshold] = useState(250);
-  // resume: { target: "buy"|"sell", amount, quote } — وقتی کاربر وسط خرید/فروش
-  // به تکمیل پروفایل یا احراز هویت فرستاده می‌شود، این state نگه می‌دارد که
-  // پس از برگشت دقیقاً به کجا و با چه مقدار/نرخی برگردد.
   const [resume, setResume] = useState(null);
 
   useEffect(() => {
     initTelegram();
-    // اگر ربات با دکمهٔ «خرید تتر»/«فروش تتر» کاربر را مستقیم به این‌جا
-    // فرستاده باشد (?action=buy یا ?action=sell)، همان صفحه بلافاصله باز
-    // می‌شود — دیگر نیازی نیست کاربر از صفحهٔ اصلی مینی‌اپ دوباره انتخاب کند.
     const params = new URLSearchParams(window.location.search);
     const action = params.get("action");
-    if (action === "buy" || action === "sell") {
-      setPage(action);
-    }
+    if (action === "buy" || action === "sell") setPage(action);
   }, []);
 
   function navigate(p) {
@@ -40,13 +32,6 @@ export default function App() {
     setError(message);
   }
 
-  /**
-   * ورود به خرید/فروش دیگر پروفایل را از قبل چک نمی‌کند — کاربر همیشه مستقیم
-   * به صفحهٔ خرید/فروش می‌رود و می‌تواند مبلغ و نرخ را بدون داشتن پروفایل
-   * ببیند. فقط وقتی واقعاً روی «درخواست تتر» بزند، خود Buy/Sell وضعیت پروفایل
-   * را چک و در صورت نیاز کاربر را به این‌جا (requestBasicProfile /
-   * requestIdentityVerification) هدایت می‌کند.
-   */
   function startTransaction(action) {
     navigate(action);
   }
@@ -81,12 +66,11 @@ export default function App() {
       <div className="app-shell">
         <div className="outside-telegram animate-in">
           <div className="logo-badge">
-            <img src={SARAF_LOGO_URL} alt="Saraf" />
+            <img src={SARAF_LOGO_URL} alt="صراف" />
           </div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>این صفحه فقط داخل تلگرام کار می‌کند</div>
           <div className="notice" style={{ justifyContent: "center" }}>
-            لطفاً از طریق ربات Saraf در تلگرام دکمهٔ «خرید و فروش تتر» را بزنید تا این
-            اپلیکیشن به‌درستی باز شود.
+            لطفاً از طریق ربات صراف در تلگرام دکمهٔ «خرید و فروش تتر» را بزنید تا مینی‌اپ به‌درستی باز شود.
           </div>
         </div>
       </div>
@@ -95,9 +79,6 @@ export default function App() {
 
   return (
     <>
-      {/* key={page} باعث می‌شود در هر تعویض صفحه، این wrapper دوباره mount شود
-          و انیمیشن ورود (page-transition در index.css) از نو اجرا شود — یک
-          transition سبک و ثابت بین همهٔ صفحات، بدون نیاز به کتابخانهٔ روتینگ. */}
       <div key={page} className="page-transition">
         {page === "home" && <Home navigate={navigate} startTransaction={startTransaction} />}
         {page === "buy" && (
