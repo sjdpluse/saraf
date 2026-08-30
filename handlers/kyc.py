@@ -1,10 +1,5 @@
 """
-جریان احراز هویت (KYC) — فقط یک‌بار برای هر کاربر اجرا می‌شود، پیش از اولین سفارش.
-
-مراحل: نام → نام خانوادگی → شمارهٔ تماس → اطلاعات پرداخت → عکس مدرک هویتی → سلفی
-پس از تکمیل، پروفایل ثبت می‌شود، درخواست بررسی برای ادمین ارسال می‌شود، و کاربر
-دقیقاً به همان نقطه‌یی که قبل از KYC بود (خرید یا فروش) بازمی‌گردد — چیزی از
-دست نمی‌رود.
+جریان تایید هویت (KYC) — فقط یک‌بار برای هر کاربر اجرا می‌شود، پیش از اولین سفارش.
 """
 import logging
 
@@ -16,14 +11,13 @@ from services import kyc_service
 
 logger = logging.getLogger(__name__)
 
-# --- کلیدهای user_data ---
 KYC_FIRST_NAME = "kyc_first_name"
 KYC_LAST_NAME = "kyc_last_name"
 KYC_PHONE = "kyc_phone"
 KYC_PAYMENT_INFO = "kyc_payment_info"
 KYC_ID_DOC_BYTES = "kyc_id_doc_bytes"
 KYC_ID_DOC_EXT = "kyc_id_doc_ext"
-KYC_RESUME_ACTION = "kyc_resume_action"  # "buy" یا "sell" — برای بازگشت بعد از تکمیل
+KYC_RESUME_ACTION = "kyc_resume_action"
 
 AWAITING_FIRST_NAME = "kyc_awaiting_first_name"
 AWAITING_LAST_NAME = "kyc_awaiting_last_name"
@@ -50,9 +44,6 @@ async def _download_photo_bytes(context: ContextTypes.DEFAULT_TYPE, file_id: str
     return bytes(await tg_file.download_as_bytearray())
 
 
-# ---------------------------------------------------------------------------
-# شروع جریان — از handlers/usdt.py صدا زده می‌شود وقتی پروفایل کاربر ناقص است
-# ---------------------------------------------------------------------------
 async def start_kyc(update: Update, context: ContextTypes.DEFAULT_TYPE, resume_action: str) -> None:
     context.user_data[KYC_RESUME_ACTION] = resume_action
     context.user_data[AWAITING_FIRST_NAME] = True
@@ -61,18 +52,15 @@ async def start_kyc(update: Update, context: ContextTypes.DEFAULT_TYPE, resume_a
     await context.bot.send_message(
         chat_id=chat_id,
         text=(
-            "🪪 *تکمیل پروفایل و احراز هویت*\n\n"
-            "برای اولین سفارش، لازم است یک‌بار پروفایل خود را تکمیل کنید. این کار فقط "
-            "همین یک‌بار انجام می‌شود و در سفارش‌های بعدی دیگر لازم نیست تکرار شود.\n\n"
+            "🪪 *تکمیل پروفایل و تایید هویت*\n\n"
+            "برای اولین سفارش، لازم است یک‌بار پروفایل خود را تکمیل کنید. این مرحله فقط "
+            "یک‌بار انجام می‌شود و در سفارش‌های بعدی نیاز به تکرار ندارد.\n\n"
             "لطفاً *نام* خود را بنویسید:"
         ),
         parse_mode="Markdown",
     )
 
 
-# ---------------------------------------------------------------------------
-# نام و نام خانوادگی
-# ---------------------------------------------------------------------------
 async def handle_first_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if not context.user_data.get(AWAITING_FIRST_NAME):
         return False
@@ -83,7 +71,7 @@ async def handle_first_name(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data[AWAITING_FIRST_NAME] = False
     context.user_data[KYC_FIRST_NAME] = name
     context.user_data[AWAITING_LAST_NAME] = True
-    await update.message.reply_text("لطفاً *نام خانوادگی* خود را بنویسید:", parse_mode="Markdown")
+    await update.message.reply_text("لطفاً *تخلص* خود را بنویسید:", parse_mode="Markdown")
     return True
 
 
@@ -92,22 +80,19 @@ async def handle_last_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return False
     name = update.message.text.strip()
     if len(name) < 2:
-        await update.message.reply_text("⚠️ لطفاً یک نام خانوادگی معتبر بنویسید.")
+        await update.message.reply_text("⚠️ لطفاً یک تخلص معتبر بنویسید.")
         return True
     context.user_data[AWAITING_LAST_NAME] = False
     context.user_data[KYC_LAST_NAME] = name
     context.user_data[AWAITING_PHONE] = True
     await update.message.reply_text(
-        "لطفاً *شمارهٔ تماس* خود را با دکمهٔ زیر ارسال کنید یا تایپ کنید:",
+        "لطفاً *شمارهٔ تماس* خود را با دکمهٔ زیر ارسال کنید یا بنویسید:",
         parse_mode="Markdown",
         reply_markup=kyc_phone_keyboard(),
     )
     return True
 
 
-# ---------------------------------------------------------------------------
-# شمارهٔ تماس
-# ---------------------------------------------------------------------------
 async def handle_phone_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if not context.user_data.get(AWAITING_PHONE):
         return False
@@ -138,36 +123,30 @@ async def _ask_payment_info(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data[AWAITING_PAYMENT_INFO] = True
     await update.message.reply_text(
         "✅ شمارهٔ تماس ثبت شد.\n\n"
-        "لطفاً *اطلاعات پرداخت* خود را بنویسید (شمارهٔ حساب بانکی یا شمارهٔ حواله‌جاتی که "
-        "معمولاً استفاده می‌کنید):",
+        "لطفاً *معلومات پرداخت* خود را بنویسید؛ شمارهٔ حساب بانکی یا شمارهٔ حواله‌جاتی که "
+        "معمولاً استفاده می‌کنید:",
         parse_mode="Markdown",
         reply_markup=ReplyKeyboardRemove(),
     )
 
 
-# ---------------------------------------------------------------------------
-# اطلاعات پرداخت
-# ---------------------------------------------------------------------------
 async def handle_payment_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if not context.user_data.get(AWAITING_PAYMENT_INFO):
         return False
     text = update.message.text.strip()
     if len(text) < 4:
-        await update.message.reply_text("⚠️ لطفاً اطلاعات پرداخت معتبر بنویسید.")
+        await update.message.reply_text("⚠️ لطفاً معلومات پرداخت معتبر بنویسید.")
         return True
     context.user_data[AWAITING_PAYMENT_INFO] = False
     context.user_data[KYC_PAYMENT_INFO] = text
     context.user_data[AWAITING_ID_DOC] = True
     await update.message.reply_text(
-        "🪪 حالا لطفاً *عکس تذکره یا مدرک هویتی* خود را ارسال کنید (واضح و خوانا):",
+        "🪪 حالا لطفاً *عکس تذکره یا سند هویتی* خود را ارسال کنید؛ عکس باید واضح و خوانا باشد:",
         parse_mode="Markdown",
     )
     return True
 
 
-# ---------------------------------------------------------------------------
-# مدرک هویتی
-# ---------------------------------------------------------------------------
 async def handle_id_document_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if not context.user_data.get(AWAITING_ID_DOC):
         return False
@@ -179,8 +158,8 @@ async def handle_id_document_photo(update: Update, context: ContextTypes.DEFAULT
     try:
         doc_bytes = await _download_photo_bytes(context, file_id)
     except Exception:
-        logger.exception("خطا در دانلود عکس مدرک هویتی")
-        await update.message.reply_text("⚠️ خطا در دریافت عکس؛ لطفاً دوباره ارسال کنید.")
+        logger.exception("خطا در دریافت عکس سند هویتی")
+        await update.message.reply_text("⚠️ دریافت عکس موفق نشد؛ لطفاً دوباره ارسال کنید.")
         return True
 
     context.user_data[AWAITING_ID_DOC] = False
@@ -188,16 +167,13 @@ async def handle_id_document_photo(update: Update, context: ContextTypes.DEFAULT
     context.user_data[KYC_ID_DOC_EXT] = "jpg"
     context.user_data[AWAITING_SELFIE] = True
     await update.message.reply_text(
-        "✅ مدرک هویتی دریافت شد.\n\n"
-        "🤳 در آخرین مرحله، لطفاً یک *سلفی واضح از چهرهٔ خودتان* ارسال کنید:",
+        "✅ سند هویتی دریافت شد.\n\n"
+        "🤳 در مرحلهٔ آخر، لطفاً یک *سلفی واضح از چهرهٔ خود* ارسال کنید:",
         parse_mode="Markdown",
     )
     return True
 
 
-# ---------------------------------------------------------------------------
-# سلفی — مرحلهٔ پایانی، ثبت پروفایل و بازگشت به جریان سفارش
-# ---------------------------------------------------------------------------
 async def handle_selfie_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     if not context.user_data.get(AWAITING_SELFIE):
         return False
@@ -209,8 +185,8 @@ async def handle_selfie_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         selfie_bytes = await _download_photo_bytes(context, file_id)
     except Exception:
-        logger.exception("خطا در دانلود عکس سلفی")
-        await update.message.reply_text("⚠️ خطا در دریافت عکس؛ لطفاً دوباره ارسال کنید.")
+        logger.exception("خطا در دریافت عکس سلفی")
+        await update.message.reply_text("⚠️ دریافت عکس موفق نشد؛ لطفاً دوباره ارسال کنید.")
         return True
 
     context.user_data[AWAITING_SELFIE] = False
@@ -236,17 +212,16 @@ async def handle_selfie_photo(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if not ok:
         await thinking.edit_text(
-            "⚠️ ثبت پروفایل ناموفق بود. لطفاً کمی بعد دوباره از منوی «🪙 خرید و فروش تتر» شروع کنید."
+            "⚠️ ثبت پروفایل موفق نشد. لطفاً کمی بعد دوباره از منوی «🪙 خرید و فروش تتر» شروع کنید."
         )
         return True
 
     await thinking.edit_text(
-        "✅ پروفایل شما ثبت شد و برای بررسی نزد تیم ما ارسال شد.\n"
-        "می‌توانید همین الان سفارش خود را ادامه دهید — بعد از تایید هویت، این مرحله "
-        "دیگر برای سفارش‌های بعدی تکرار نمی‌شود."
+        "✅ پروفایل شما ثبت شد و برای بررسی به تیم ما ارسال شد.\n"
+        "می‌توانید همین حالا سفارش خود را ادامه دهید؛ بعد از تایید هویت، این مرحله "
+        "برای سفارش‌های بعدی تکرار نمی‌شود."
     )
 
-    # بازگشت دقیق به همان جایی که قبل از KYC بود (خرید یا فروش)
     from handlers import usdt as usdt_handlers
 
     if resume_action in ("buy", "sell"):
