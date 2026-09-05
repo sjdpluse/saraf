@@ -5,9 +5,9 @@ const WHATSAPP_QR_URL = "https://wa.me/qr/25MA3IJZTGQPE1";
 
 function preparedText(mode, asset, orderCode) {
   if (mode === "tracking") {
-    return `سلام، برای رهگیری سفارش Saraf پیام می‌دهم. کد سفارش: ${orderCode || ""}`.trim();
+    return `سلام، برای رهگیری سفارش صراف پیام می‌دهم. کد سفارش: ${orderCode || ""}`.trim();
   }
-  return `سلام، برای خرید و فروش ${normalizeAsset(asset)} در Saraf به پشتیبانی واتسپ نیاز دارم.`;
+  return `سلام، برای خرید و فروش ${normalizeAsset(asset)} در صراف به پشتیبانی واتسپ نیاز دارم.`;
 }
 
 async function copyText(text) {

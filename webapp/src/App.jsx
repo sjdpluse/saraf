@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Buy from "./pages/Buy";
 import Sell from "./pages/Sell";
 import Orders from "./pages/Orders";
+import Reviews from "./pages/Reviews";
 import Terms from "./pages/Terms";
 import Kyc from "./pages/Kyc";
 import Toast from "./components/Toast";
@@ -125,6 +126,7 @@ export default function App() {
           />
         )}
         {page === "orders" && <Orders navigate={navigate} showError={showError} />}
+        {page === "reviews" && <Reviews navigate={navigate} showError={showError} />}
         {page === "terms" && <Terms navigate={navigate} />}
         {page === "kyc" && (
           <Kyc

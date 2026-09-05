@@ -18,10 +18,14 @@ function orderCode(order) {
   return `${asset}-${String(order.id).padStart(5, "0")}`;
 }
 
+function canTrackOrder(order) {
+  return order?.status === "pending";
+}
+
 function TrackingActions({ order, stopPropagation = false }) {
   const code = orderCode(order);
   const asset = orderAsset(order);
-  const telegramText = `سلام، برای رهگیری سفارش Saraf پیام می‌دهم. لطفاً وضعیت سفارش من را بررسی کنید. کد سفارش: ${code}`;
+  const telegramText = `سلام، برای رهگیری سفارش صراف پیام می‌دهم. لطفاً وضعیت سفارش من را بررسی کنید. کد سفارش: ${code}`;
 
   return (
     <div className="order-tracking-actions" onClick={stopPropagation ? (e) => e.stopPropagation() : undefined}>
@@ -82,10 +86,12 @@ function OrderDetail({ order, onBack, onRated, showError }) {
         </div>
       </div>
 
-      <div className="card animate-in order-tracking-card" style={{ animationDelay: "0.03s" }}>
-        <div className="section-title">رهگیری سفارش {code}</div>
-        <TrackingActions order={order} />
-      </div>
+      {canTrackOrder(order) && (
+        <div className="card animate-in order-tracking-card" style={{ animationDelay: "0.03s" }}>
+          <div className="section-title">رهگیری سفارش {code}</div>
+          <TrackingActions order={order} />
+        </div>
+      )}
 
       <div className="card animate-in" style={{ animationDelay: "0.06s" }}><div className="section-title">وضعیت سفارش</div><OrderTimeline order={order} /></div>
 
@@ -149,7 +155,7 @@ export default function Orders({ navigate, showError }) {
               <span className="usdt-amount num"><img src={assetLogo(asset)} alt={asset} className="asset-inline-logo" />{Number(o.usdt_amount).toLocaleString()} {asset}</span>
               <span className="afn-amount num">{Number(o.total_afn).toLocaleString()} افغانی</span>
             </div>
-            <TrackingActions order={o} stopPropagation />
+            {canTrackOrder(o) && <TrackingActions order={o} stopPropagation />}
           </div>
         );
       })}

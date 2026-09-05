@@ -333,8 +333,8 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
             <button className="btn btn-buy" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>{checkingProfile ? <span className="spinner" /> : <>ادامهٔ درخواست خرید <ArrowRight size={16} weight="bold" /></>}</button>
             <div className="help-actions-grid">
-              <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، در مورد خرید و فروش ${selectedAsset} در Saraf معلومات بیشتر می‌خواهم.`)}><ChatCircleDots size={17} /> اطلاعات بیشتر</button>
-              <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، برای خرید و فروش ${selectedAsset} در Saraf به پشتیبانی نیاز دارم.`)}><Headset size={17} /> پشتیبانی</button>
+              <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، در مورد خرید و فروش ${selectedAsset} در صراف معلومات بیشتر می‌خواهم.`)}><ChatCircleDots size={17} /> اطلاعات بیشتر</button>
+              <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، برای خرید و فروش ${selectedAsset} در صراف به پشتیبانی نیاز دارم.`)}><Headset size={17} /> پشتیبانی</button>
               <WhatsAppActionButton mode="support" asset={selectedAsset} />
             </div>
           </div>
