@@ -7,10 +7,15 @@ is stricter: a network is offered only when a Saraf deposit address is configure
 """
 from __future__ import annotations
 
+import json
+import logging
+import os
 from typing import Optional
 
-from config import USDT_DEPOSIT_WALLETS, USDC_DEPOSIT_WALLETS
+from config import USDT_DEPOSIT_WALLETS
 from services import usdt_service
+
+logger = logging.getLogger(__name__)
 
 # User-facing, deliberately curated network set. Codes are stable API values;
 # labels are presentation metadata.
@@ -36,6 +41,24 @@ def _asset(asset: Optional[str]) -> str:
     return usdt_service.normalize_asset(asset)
 
 
+def _load_usdc_deposit_wallets() -> dict[str, str]:
+    """Read explicit USDC receiving addresses without inventing any address.
+
+    Railway example:
+      USDC_DEPOSIT_WALLETS_JSON={"ERC20":"0x...","BASE":"0x...","SOLANA":"..."}
+    """
+    raw = os.getenv("USDC_DEPOSIT_WALLETS_JSON", "{}").strip() or "{}"
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.error("USDC_DEPOSIT_WALLETS_JSON is not valid JSON; no USDC sell network will be exposed")
+        return {}
+    if not isinstance(parsed, dict):
+        logger.error("USDC_DEPOSIT_WALLETS_JSON must be a JSON object")
+        return {}
+    return {str(k).strip().upper(): str(v).strip() for k, v in parsed.items() if str(v).strip()}
+
+
 def get_buy_networks(asset: Optional[str]) -> list[dict]:
     """Networks Saraf may send the selected asset to for a buy order."""
     return [dict(item) for item in _NETWORKS[_asset(asset)]]
@@ -47,7 +70,7 @@ def get_supported_network_codes(asset: Optional[str]) -> set[str]:
 
 def get_deposit_wallets(asset: Optional[str]) -> dict[str, str]:
     selected = _asset(asset)
-    raw = USDT_DEPOSIT_WALLETS if selected == "USDT" else USDC_DEPOSIT_WALLETS
+    raw = USDT_DEPOSIT_WALLETS if selected == "USDT" else _load_usdc_deposit_wallets()
     allowed = get_supported_network_codes(selected)
     return {
         str(network).strip().upper(): str(address).strip()
