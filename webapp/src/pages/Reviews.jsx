@@ -6,24 +6,40 @@ import {
   PaperPlaneTilt,
   PencilSimple,
   ShieldCheck,
-  Star,
+  ThumbsDown,
+  ThumbsUp,
 } from "@phosphor-icons/react";
 import { api, ApiError } from "../lib/api";
 import { SARAF_LOGO_URL } from "../lib/brand";
 import Skeleton from "../components/Skeleton";
 
 const MAX_REVIEW_LENGTH = 800;
+const INITIAL_VISIBLE_REVIEWS = 7;
+const REVIEWS_COVER_URL = "https://i.postimg.cc/j2LNsV6J/ec67a9b5ebaf057dfccee73a663f086e.jpg";
+const AFGHAN_MONTHS = ["حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله", "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"];
+const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
-function formatDate(value) {
+function toFaDigits(value) {
+  return String(value ?? "").replace(/\d/g, (digit) => FA_DIGITS[Number(digit)]);
+}
+
+function formatAfghanDate(value) {
   if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
   try {
-    return new Intl.DateTimeFormat("fa-AF", {
+    const parts = new Intl.DateTimeFormat("en-u-ca-persian", {
+      timeZone: "Asia/Kabul",
       year: "numeric",
-      month: "short",
+      month: "numeric",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(new Date(value));
+      hourCycle: "h23",
+    }).formatToParts(date);
+    const get = (type) => parts.find((part) => part.type === type)?.value || "";
+    const month = AFGHAN_MONTHS[Math.max(0, Number(get("month")) - 1)] || "";
+    return `${toFaDigits(get("day"))} ${month} ${toFaDigits(get("year"))}، ${toFaDigits(get("hour"))}:${toFaDigits(get("minute"))}`;
   } catch (_) {
     return "";
   }
@@ -34,10 +50,11 @@ function initials(name) {
   return parts.slice(0, 2).map((part) => part[0]).join("") || "ک";
 }
 
-function ReviewCard({ review, isAdmin, onReply, showError }) {
+function ReviewCard({ review, isAdmin, onReply, onVote, showError }) {
   const [editing, setEditing] = useState(false);
   const [reply, setReply] = useState(review.admin_reply || "");
   const [saving, setSaving] = useState(false);
+  const [voting, setVoting] = useState(false);
 
   async function submitReply() {
     const value = reply.trim();
@@ -47,9 +64,19 @@ function ReviewCard({ review, isAdmin, onReply, showError }) {
       await onReply(review.id, value);
       setEditing(false);
     } catch (_) {
-      // onReply خطای قابل نمایش را مدیریت می‌کند.
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function submitVote(nextVote) {
+    if (voting) return;
+    const resolvedVote = Number(review.user_vote) === nextVote ? 0 : nextVote;
+    setVoting(true);
+    try {
+      await onVote(review.id, resolvedVote);
+    } finally {
+      setVoting(false);
     }
   }
 
@@ -59,12 +86,35 @@ function ReviewCard({ review, isAdmin, onReply, showError }) {
         <div className="review-avatar">{initials(review.display_name)}</div>
         <div className="review-author">
           <div className="review-author-name">{review.display_name}</div>
-          <div className="review-date">{formatDate(review.created_at)}</div>
+          <div className="review-date">{formatAfghanDate(review.created_at)}</div>
         </div>
-        <div className="review-verified" title="کاربر تاییدشده در تلگرام"><CheckCircle size={17} weight="fill" /></div>
+        <div className="review-verified"><CheckCircle size={17} weight="fill" /></div>
       </div>
 
       <div className="review-body">{review.body}</div>
+
+      <div className="review-votes" aria-label="لایک یا دیس‌لایک نظر">
+        <button
+          type="button"
+          className={`review-vote-btn ${Number(review.user_vote) === 1 ? "active like" : ""}`}
+          aria-pressed={Number(review.user_vote) === 1}
+          onClick={() => submitVote(1)}
+          disabled={voting}
+        >
+          <ThumbsUp size={16} weight={Number(review.user_vote) === 1 ? "fill" : "regular"} />
+          <span className="num">{Number(review.likes || 0).toLocaleString()}</span>
+        </button>
+        <button
+          type="button"
+          className={`review-vote-btn ${Number(review.user_vote) === -1 ? "active dislike" : ""}`}
+          aria-pressed={Number(review.user_vote) === -1}
+          onClick={() => submitVote(-1)}
+          disabled={voting}
+        >
+          <ThumbsDown size={16} weight={Number(review.user_vote) === -1 ? "fill" : "regular"} />
+          <span className="num">{Number(review.dislikes || 0).toLocaleString()}</span>
+        </button>
+      </div>
 
       {review.admin_reply && !editing && (
         <div className="official-reply">
@@ -72,7 +122,7 @@ function ReviewCard({ review, isAdmin, onReply, showError }) {
             <img src={SARAF_LOGO_URL} alt="صراف" />
             <div>
               <div className="official-name"><ShieldCheck size={15} weight="fill" /> صراف</div>
-              <div className="review-date">پاسخ رسمی · {formatDate(review.admin_replied_at)}</div>
+              <div className="review-date">{formatAfghanDate(review.admin_replied_at)}</div>
             </div>
           </div>
           <div className="official-reply-body">{review.admin_reply}</div>
@@ -91,7 +141,7 @@ function ReviewCard({ review, isAdmin, onReply, showError }) {
             className="review-textarea compact"
             value={reply}
             onChange={(e) => setReply(e.target.value.slice(0, 1200))}
-            placeholder="پاسخ رسمی صراف را بنویسید…"
+            placeholder="پاسخ صراف را بنویسید…"
             maxLength={1200}
           />
           <div className="review-compose-footer">
@@ -113,21 +163,22 @@ export default function Reviews({ navigate, showError }) {
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const canSubmit = useMemo(() => body.trim().length >= 3 && !submitting, [body, submitting]);
+  const visibleItems = showAll ? items : items.slice(0, INITIAL_VISIBLE_REVIEWS);
+  const hiddenCount = Math.max(0, items.length - INITIAL_VISIBLE_REVIEWS);
 
   async function load() {
     setLoading(true);
     try {
-      const [reviews, publicStats] = await Promise.all([api.getReviews(50, 0), api.getStats().catch(() => null)]);
+      const reviews = await api.getReviews(50, 0);
       setItems(reviews.items || []);
       setTotal(Number(reviews.total || 0));
       setIsAdmin(Boolean(reviews.is_admin));
-      setStats(publicStats);
     } catch (e) {
       showError(e instanceof ApiError ? e.message : "دریافت نظرات ناموفق بود.");
     } finally {
@@ -158,10 +209,24 @@ export default function Reviews({ navigate, showError }) {
   async function replyToReview(id, replyBody) {
     try {
       const updated = await api.replyToReview(id, replyBody);
-      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated } : item)));
       return updated;
     } catch (e) {
       showError(e instanceof ApiError ? e.message : "ثبت پاسخ صراف ناموفق بود.");
+      throw e;
+    }
+  }
+
+  async function voteOnReview(id, vote) {
+    try {
+      const updated = await api.voteReview(id, vote);
+      setItems((prev) => prev.map((item) => (
+        item.id === id
+          ? { ...item, likes: updated.likes, dislikes: updated.dislikes, user_vote: updated.user_vote }
+          : item
+      )));
+    } catch (e) {
+      showError(e instanceof ApiError ? e.message : "ثبت لایک/دیس‌لایک ناموفق بود.");
       throw e;
     }
   }
@@ -174,21 +239,18 @@ export default function Reviews({ navigate, showError }) {
         <div className="header-spacer" />
       </div>
 
-      <section className="reviews-summary-card animate-in">
-        <div className="reviews-summary-icon"><ChatCircleText size={24} weight="fill" /></div>
-        <div className="reviews-summary-copy">
-          <div className="reviews-summary-title">تجربهٔ کاربران صراف</div>
-          <div className="reviews-summary-subtitle">نظر خود را بنویسید؛ پاسخ‌های دارای نشان «صراف» مستقیماً توسط مدیریت ثبت می‌شوند.</div>
-        </div>
-        <div className="reviews-summary-stats">
-          <div><strong className="num">{total.toLocaleString()}</strong><span>نظر</span></div>
-          <div><strong className="num">{stats?.average_rating ? Number(stats.average_rating).toFixed(1) : "—"}</strong><span><Star size={12} weight="fill" /> امتیاز</span></div>
-        </div>
-      </section>
+      <div className="reviews-cover-card animate-in" aria-hidden="true">
+        <img src={REVIEWS_COVER_URL} alt="" />
+        <ThumbsUp className="reviews-cover-like" weight="fill" />
+      </div>
+
+      <div className="reviews-list-head">
+        <div className="reviews-list-title">همهٔ نظرات <span className="reviews-count num">{total.toLocaleString()}</span></div>
+        {isAdmin && <span className="admin-mode-badge"><ShieldCheck size={14} weight="fill" /> مدیریت</span>}
+      </div>
 
       <section className="review-compose-card animate-in" style={{ animationDelay: "0.04s" }}>
         <div className="review-compose-title">نظر شما</div>
-        <div className="review-compose-subtitle">تجربه، پیشنهاد یا دیدگاه‌تان درباره خدمات صراف را با دیگر کاربران شریک کنید.</div>
         <textarea
           className="review-textarea"
           value={body}
@@ -204,26 +266,30 @@ export default function Reviews({ navigate, showError }) {
         </div>
       </section>
 
-      <div className="reviews-list-head">
-        <div>
-          <div className="reviews-list-title">همهٔ نظرات</div>
-          <div className="reviews-list-subtitle">جدیدترین نظرات در بالا نمایش داده می‌شوند.</div>
-        </div>
-        {isAdmin && <span className="admin-mode-badge"><ShieldCheck size={14} weight="fill" /> حالت مدیریت</span>}
-      </div>
-
       {loading && <Skeleton count={4} />}
       {!loading && items.length === 0 && (
         <div className="empty-state animate-in">
           <ChatCircleText size={44} className="empty-icon" />
           <div>هنوز نظری ثبت نشده است.</div>
-          <div className="notice" style={{ justifyContent: "center" }}>اولین نظر را شما بنویسید.</div>
         </div>
       )}
 
-      {!loading && items.map((review) => (
-        <ReviewCard key={review.id} review={review} isAdmin={isAdmin} onReply={replyToReview} showError={showError} />
+      {!loading && visibleItems.map((review) => (
+        <ReviewCard
+          key={review.id}
+          review={review}
+          isAdmin={isAdmin}
+          onReply={replyToReview}
+          onVote={voteOnReview}
+          showError={showError}
+        />
       ))}
+
+      {!loading && !showAll && hiddenCount > 0 && (
+        <button type="button" className="reviews-show-more" onClick={() => setShowAll(true)}>
+          نمایش بیشتر <span className="num">({hiddenCount.toLocaleString()})</span>
+        </button>
+      )}
     </div>
   );
 }

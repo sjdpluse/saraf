@@ -1,9 +1,8 @@
 """Mini App reviews endpoints.
 
-Users authenticated by Telegram Mini App initData can publish comments.  Only
-Telegram IDs configured in ADMIN_CHAT_IDS can post/edit the official «صراف»
-reply.  The browser never decides who is an admin; authorization is enforced
-on the server for every reply mutation.
+Users authenticated by Telegram Mini App initData can publish comments and
+vote on them. Only Telegram IDs configured in ADMIN_CHAT_IDS can post/edit the
+official «صراف» reply. Authorization is always enforced on the server.
 """
 from __future__ import annotations
 
@@ -28,6 +27,10 @@ class ReviewCreateRequest(BaseModel):
 
 class ReviewReplyRequest(BaseModel):
     body: str
+
+
+class ReviewVoteRequest(BaseModel):
+    vote: int
 
 
 def _authenticate(init_data: Optional[str]) -> dict:
@@ -62,7 +65,7 @@ def _is_admin(user: dict) -> bool:
         return False
 
 
-def _public_review(row: dict) -> dict:
+def _public_review(row: dict, *, likes: int = 0, dislikes: int = 0, user_vote: int = 0) -> dict:
     return {
         "id": row.get("id"),
         "display_name": row.get("display_name") or "کاربر صراف",
@@ -70,7 +73,47 @@ def _public_review(row: dict) -> dict:
         "admin_reply": row.get("admin_reply"),
         "admin_replied_at": row.get("admin_replied_at"),
         "created_at": row.get("created_at"),
+        "likes": int(likes or 0),
+        "dislikes": int(dislikes or 0),
+        "user_vote": int(user_vote or 0),
     }
+
+
+def _vote_snapshots(review_ids: list[int], chat_id: int) -> dict[int, dict]:
+    snapshots = {int(review_id): {"likes": 0, "dislikes": 0, "user_vote": 0} for review_id in review_ids}
+    if not review_ids:
+        return snapshots
+    try:
+        result = (
+            db.get_client()
+            .table("miniapp_review_votes")
+            .select("review_id,chat_id,vote")
+            .in_("review_id", review_ids)
+            .execute()
+        )
+    except Exception:
+        # A deployment can briefly run before the vote migration is applied.
+        # Reviews remain readable and simply show zero counters in that window.
+        return snapshots
+
+    for row in result.data or []:
+        review_id = int(row.get("review_id"))
+        if review_id not in snapshots:
+            continue
+        vote = int(row.get("vote") or 0)
+        if vote == 1:
+            snapshots[review_id]["likes"] += 1
+        elif vote == -1:
+            snapshots[review_id]["dislikes"] += 1
+        if int(row.get("chat_id") or 0) == chat_id:
+            snapshots[review_id]["user_vote"] = vote
+    return snapshots
+
+
+def _review_with_vote_snapshot(row: dict, chat_id: int) -> dict:
+    review_id = int(row.get("id"))
+    snapshot = _vote_snapshots([review_id], chat_id)[review_id]
+    return _public_review(row, **snapshot)
 
 
 async def list_reviews(
@@ -79,21 +122,24 @@ async def list_reviews(
     x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data"),
 ):
     user = _authenticate(x_telegram_init_data)
+    chat_id = int(user["id"])
     try:
-        query = (
+        result = (
             db.get_client()
             .table("miniapp_reviews")
             .select("id,display_name,body,admin_reply,admin_replied_at,created_at", count="exact")
             .eq("is_visible", True)
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
+            .execute()
         )
-        result = query.execute()
     except Exception as exc:
         raise HTTPException(status_code=503, detail="دریافت نظرات در حال حاضر ممکن نیست.") from exc
 
+    rows = result.data or []
+    snapshots = _vote_snapshots([int(row["id"]) for row in rows], chat_id)
     return {
-        "items": [_public_review(row) for row in (result.data or [])],
+        "items": [_public_review(row, **snapshots[int(row["id"])]) for row in rows],
         "total": int(getattr(result, "count", 0) or 0),
         "is_admin": _is_admin(user),
     }
@@ -125,14 +171,13 @@ async def create_review(
                 if age < POST_COOLDOWN_SECONDS:
                     raise HTTPException(status_code=429, detail="لطفاً چند لحظه بعد نظر بعدی را ثبت کنید.")
 
-        row = {
+        result = db.get_client().table("miniapp_reviews").insert({
             "chat_id": chat_id,
             "display_name": _display_name(user),
             "username": str(user.get("username") or "")[:80] or None,
             "body": body,
             "is_visible": True,
-        }
-        result = db.get_client().table("miniapp_reviews").insert(row).execute()
+        }).execute()
     except HTTPException:
         raise
     except Exception as exc:
@@ -149,6 +194,7 @@ async def reply_to_review(
     x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data"),
 ):
     user = _authenticate(x_telegram_init_data)
+    chat_id = int(user["id"])
     if not _is_admin(user):
         raise HTTPException(status_code=403, detail="فقط مدیر صراف اجازهٔ پاسخ به نظرات را دارد.")
 
@@ -171,7 +217,51 @@ async def reply_to_review(
 
     if not result.data:
         raise HTTPException(status_code=404, detail="نظر موردنظر پیدا نشد.")
-    return _public_review(result.data[0])
+    return _review_with_vote_snapshot(result.data[0], chat_id)
+
+
+async def vote_review(
+    review_id: int,
+    payload: ReviewVoteRequest,
+    x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data"),
+):
+    user = _authenticate(x_telegram_init_data)
+    chat_id = int(user["id"])
+    vote = int(payload.vote)
+    if vote not in (-1, 0, 1):
+        raise HTTPException(status_code=400, detail="رأی نامعتبر است.")
+
+    try:
+        review = (
+            db.get_client()
+            .table("miniapp_reviews")
+            .select("id")
+            .eq("id", review_id)
+            .eq("is_visible", True)
+            .limit(1)
+            .execute()
+        )
+        if not review.data:
+            raise HTTPException(status_code=404, detail="نظر موردنظر پیدا نشد.")
+
+        votes = db.get_client().table("miniapp_review_votes")
+        if vote == 0:
+            votes.delete().eq("review_id", review_id).eq("chat_id", chat_id).execute()
+        else:
+            now = datetime.now(timezone.utc).isoformat()
+            votes.upsert({
+                "review_id": review_id,
+                "chat_id": chat_id,
+                "vote": vote,
+                "updated_at": now,
+            }, on_conflict="review_id,chat_id").execute()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="ثبت لایک/دیس‌لایک ناموفق بود.") from exc
+
+    snapshot = _vote_snapshots([review_id], chat_id)[review_id]
+    return {"review_id": review_id, **snapshot}
 
 
 def install() -> None:
@@ -188,6 +278,12 @@ def install() -> None:
             reply_to_review,
             methods=["POST"],
             name="miniapp_reviews_reply",
+        )
+        self.add_api_route(
+            "/api/reviews/{review_id}/vote",
+            vote_review,
+            methods=["POST"],
+            name="miniapp_reviews_vote",
         )
 
     FastAPI.__init__ = patched_init
