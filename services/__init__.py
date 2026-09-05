@@ -1,7 +1,8 @@
 """Shared service package initialization."""
 
-# Install the USDT Mini App API guard before api.py registers its FastAPI routes.
-# The guard is additive and only targets the Mini App quote/order endpoints.
+# Install Mini App extensions before api.py instantiates/registers FastAPI routes.
+from services.stablecoin_api_extension import install as _install_stablecoin_api_extension
 from services.usdt_api_guard import install as _install_usdt_api_guard
 
+_install_stablecoin_api_extension()
 _install_usdt_api_guard()

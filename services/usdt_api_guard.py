@@ -1,10 +1,8 @@
-"""
-Stablecoin Mini App API hardening.
+"""Stablecoin Mini App API hardening.
 
-مسیرهای legacy /api/usdt/* برای سازگاری حفظ شده‌اند، اما guard دارایی انتخابی
-(USDT یا USDC) را از بدنهٔ خام درخواست می‌خواند و Quote را به همان asset متصل
-می‌کند. به این ترتیب Pydantic قدیمی api.py حتی اگر فیلد asset را نشناسد، انتخاب
-دارایی در لایهٔ امنیتی و سرویس سفارش از بین نمی‌رود.
+Legacy /api/usdt/* paths remain for compatibility. The guard reads `asset` from
+raw request bodies, binds quotes to that asset, and validates the transfer network
+before api.py can create an order.
 """
 from __future__ import annotations
 
@@ -16,7 +14,14 @@ from typing import Optional
 from fastapi import Depends, Header, Request, FastAPI
 
 from config import BOT_TOKEN
-from services import webapp_auth, usdt_service, quote_service, rate_limiter
+from services import (
+    quote_service,
+    rate_limiter,
+    stablecoin_networks,
+    usdt_service,
+    wallet_validator,
+    webapp_auth,
+)
 from services.money import D, to_float, quantize_afn
 from services.api_errors import ApiError
 
@@ -91,15 +96,33 @@ async def _guard_order(
     rate_limiter.enforce("order", request, identity=str(user["id"]))
     key = _idempotency_key(idempotency_key)
     payload = await _json_body(request)
+
     quote_id, amount = payload.get("quote_id"), payload.get("amount")
     if not isinstance(quote_id, int) or not isinstance(amount, (int, float)):
         raise ApiError(status_code=400, code="VALIDATION_ERROR", message="quote_id و amount برای ثبت سفارش الزامی است.")
+
     asset = _normalize_asset(payload.get("asset"))
     action = "buy" if request.url.path.endswith("/buy") else "sell"
     try:
         quote_row = quote_service.load_and_validate(user["id"], quote_id, action, amount, asset=asset)
     except quote_service.QuoteError as exc:
         _raise_quote_error(exc)
+
+    exchange_name = str(payload.get("exchange_name") or "").strip()
+    if not exchange_name:
+        raise ApiError(status_code=400, code="VALIDATION_ERROR", message="نام صرافی یا کیف پول الزامی است.")
+
+    try:
+        network = stablecoin_networks.validate_network(
+            asset,
+            str(payload.get("network") or ""),
+            direction=action,
+        )
+        if action == "buy":
+            wallet_validator.validate_wallet_address(network, str(payload.get("wallet_address") or ""))
+    except (ValueError, wallet_validator.WalletValidationError) as exc:
+        raise ApiError(status_code=400, code="NETWORK_OR_WALLET_INVALID", message=str(exc))
+
     _order_context.set(
         {
             "chat_id": user["id"],
@@ -107,6 +130,7 @@ async def _guard_order(
             "quote_id": quote_id,
             "quote": quote_row,
             "asset": asset,
+            "network": network,
         }
     )
 

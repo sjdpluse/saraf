@@ -1,22 +1,26 @@
-// آیکون‌های اختصاصی شبکه — SVG داخلی (بدون نیاز به میزبانی خارجی)، به سبک
-// نشان‌های گرد رنگی که اپ‌های صرافی معمولاً برای TRC20/ERC20/BEP20 استفاده
-// می‌کنند. رنگ هر کدام با هویت بصری شناخته‌شدهٔ همان شبکه هماهنگ است.
+function Badge({ text, background = "#8E8E93", foreground = "#fff", fontSize = 8 }) {
+  return (
+    <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
+      <circle cx="12" cy="12" r="12" fill={background} />
+      <text x="12" y="12.7" fill={foreground} fontSize={fontSize} fontWeight="800" textAnchor="middle" dominantBaseline="middle" fontFamily="Arial, sans-serif">
+        {text}
+      </text>
+    </svg>
+  );
+}
 
 function TronMark() {
   return (
-    <svg viewBox="0 0 24 24" width="100%" height="100%">
+    <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
       <circle cx="12" cy="12" r="12" fill="#EF0027" />
-      <path
-        d="M6.2 7.4 17.9 9.5l-6.4 9.9-6.7-10.6Zm.9 1.1 4.1 8.9 4.9-7.6-9-1.3Zm5.9-1.9 3.8.7-4.7 4.9.9-5.6Z"
-        fill="#fff"
-      />
+      <path d="M6.2 7.4 17.9 9.5l-6.4 9.9-6.7-10.6Zm.9 1.1 4.1 8.9 4.9-7.6-9-1.3Zm5.9-1.9 3.8.7-4.7 4.9.9-5.6Z" fill="#fff" />
     </svg>
   );
 }
 
 function EthMark() {
   return (
-    <svg viewBox="0 0 24 24" width="100%" height="100%">
+    <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
       <circle cx="12" cy="12" r="12" fill="#627EEA" />
       <path d="M12.3 3v6.6l5.6 2.5-5.6-9.1Z" fill="#fff" opacity="0.7" />
       <path d="M12.3 3 6.7 12.1l5.6-2.5V3Z" fill="#fff" />
@@ -30,7 +34,7 @@ function EthMark() {
 
 function BnbMark() {
   return (
-    <svg viewBox="0 0 24 24" width="100%" height="100%">
+    <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
       <circle cx="12" cy="12" r="12" fill="#F3BA2F" />
       <g fill="#fff">
         <path d="M9 7 12 4l3 3-1.7 1.7L12 7.4l-1.3 1.3L9 7Z" />
@@ -43,19 +47,45 @@ function BnbMark() {
   );
 }
 
-function GenericMark() {
+function SolanaMark() {
   return (
-    <svg viewBox="0 0 24 24" width="100%" height="100%">
-      <circle cx="12" cy="12" r="12" fill="#8E8E93" />
-      <circle cx="12" cy="12" r="5" fill="none" stroke="#fff" strokeWidth="1.6" />
+    <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
+      <defs><linearGradient id="sol" x1="0" y1="1" x2="1" y2="0"><stop stopColor="#9945FF"/><stop offset="1" stopColor="#14F195"/></linearGradient></defs>
+      <circle cx="12" cy="12" r="12" fill="#111" />
+      <path d="M7.2 6.8h10.2l-2.1 2.1H5.1l2.1-2.1Zm-2.1 4.1h10.2l2.1 2.1H7.2l-2.1-2.1Zm2.1 4.2h10.2l-2.1 2.1H5.1l2.1-2.1Z" fill="url(#sol)" />
     </svg>
   );
+}
+
+function PolygonMark() {
+  return <Badge text="P" background="#8247E5" fontSize={10} />;
+}
+function ArbitrumMark() {
+  return <Badge text="ARB" background="#2D374B" fontSize={6.2} />;
+}
+function BaseMark() {
+  return <Badge text="B" background="#0052FF" fontSize={10} />;
+}
+function AvalancheMark() {
+  return <Badge text="A" background="#E84142" fontSize={10} />;
+}
+function OptimismMark() {
+  return <Badge text="OP" background="#FF0420" fontSize={7.5} />;
+}
+function GenericMark() {
+  return <Badge text="•" />;
 }
 
 const MARKS = {
   TRC20: TronMark,
   ERC20: EthMark,
   BEP20: BnbMark,
+  ARBITRUM: ArbitrumMark,
+  BASE: BaseMark,
+  POLYGON: PolygonMark,
+  SOLANA: SolanaMark,
+  AVALANCHE: AvalancheMark,
+  OPTIMISM: OptimismMark,
 };
 
 export default function NetworkIcon({ network, size = 20 }) {
