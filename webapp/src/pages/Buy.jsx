@@ -19,7 +19,8 @@ import { hapticSuccess, hapticError, openTelegramChat } from "../lib/telegram";
 import CopyRow from "../components/CopyRow";
 import OrderReview from "../components/OrderReview";
 import { assetLogo, ASSET_NAMES_FA, normalizeAsset } from "../lib/brand";
-import NetworkIcon from "../components/NetworkIcon";
+import NetworkOption from "../components/NetworkOption";
+import InPersonPass from "../components/InPersonPass";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
@@ -60,6 +61,8 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(null);
+  const [showInPersonPass, setShowInPersonPass] = useState(false);
+  const [inPersonCode] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
   const [showOnlineProviders, setShowOnlineProviders] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState(null);
   const [loadingPaymentInfo, setLoadingPaymentInfo] = useState(false);
@@ -149,6 +152,14 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
   }
 
   function choosePayment(method) {
+    if (method === "in_person") {
+      setShowOnlineProviders(false);
+      setPaymentMethod("in_person");
+      setPaymentInfo(null);
+      setReceiptUrl(null);
+      setShowInPersonPass(true);
+      return;
+    }
     if (method === "online") {
       setPaymentMethod(null);
       setShowOnlineProviders(true);
@@ -263,6 +274,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
         network: finalNetwork,
         wallet_address: walletAddress.trim(),
         receipt_url: receiptUrl,
+        in_person_code: paymentMethod === "in_person" ? inPersonCode : null,
       });
       clearPreview();
       setOrderCode(res.order_code);
@@ -310,7 +322,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
         <div className="card animate-in">
           <div className="quote-box">
             <div className="quote-row"><span>مقدار درخواستی</span><span className="value num" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><img src={coinLogo} alt="" className="tether-badge" style={{ borderRadius: "50%" }} />{Number(amount).toLocaleString()} {selectedAsset}</span></div>
-            <div className="quote-row"><span>ارزش دالری</span><span className="value num">${Number(quote.total_usd ?? amount).toLocaleString()}</span></div>
+            <div className="quote-row"><span>مبلغ قابل پرداخت به دالر</span><span className="value num">${Number(quote.payable_usd ?? quote.total_usd ?? amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
             <div className="quote-row"><span>نرخ دالر</span><span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span></div>
             <div className="quote-row"><span>مبلغ پایه</span><span className="value num">{quote.base_afn.toLocaleString()} افغانی</span></div>
             <div className="quote-row"><span>کارمزد ({quote.fee_percent}٪)</span><span className="value num">{quote.fee_afn.toLocaleString()} افغانی</span></div>
@@ -334,6 +346,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
             <button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => choosePayment("online")} disabled={loadingPaymentInfo}><Bank size={16} /> آنلاین</button>
           </div>
           {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش پرداخت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}><button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")} disabled={loadingPaymentInfo}>{loadingPaymentInfo ? <span className="spinner" /> : <img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} />} عزیزی بانک</button><button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")} disabled={loadingPaymentInfo}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div></div>}
+          {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="buy" asset={selectedAsset} code={inPersonCode} buttonClass="btn-buy" onContinue={() => { setShowInPersonPass(false); setStepIdx(4); }} /></div>}
         </div>
       )}
 
@@ -359,7 +372,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
         <div className="card animate-in">
           <label className="field-label">شبکهٔ مورد نظر برای دریافت {selectedAsset}</label>
           <div className="notice" style={{ marginBottom: 12 }}>فقط شبکه‌های پشتیبانی‌شده برای {selectedAsset} نمایش داده می‌شوند.</div>
-          <div className="choice-row cols-3" style={{ marginTop: 4 }}>{networks.map((item) => <button key={item.code} className={`choice-btn ${network === item.code ? "selected" : ""}`} onClick={() => chooseNetwork(item.code)}><NetworkIcon network={item.code} size={18} />{item.label}</button>)}</div>
+          <div className="network-option-list" style={{ marginTop: 4 }}>{networks.map((item) => <NetworkOption key={item.code} item={item} selected={network === item.code} onClick={() => chooseNetwork(item.code)} />)}</div>
           <div style={{ marginTop: 10 }}><button className={`choice-btn ${network === "other" ? "selected" : ""}`} style={{ width: "100%" }} onClick={() => chooseNetwork("other")}><MagnifyingGlass size={16} /> وارد کردن نام شبکه</button></div>
           {network === "other" && <><input className="input" style={{ marginTop: 12 }} placeholder="مثال: Ethereum یا Base" value={networkCustom} onChange={(e) => setNetworkCustom(e.target.value)} /><button className="btn btn-buy" style={{ marginTop: 12 }} onClick={continueCustomNetwork} disabled={!networkCustom.trim()}>بررسی و ادامه</button></>}
         </div>
@@ -384,6 +397,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
           network={networkLabel}
           walletAddress={walletAddress.trim()}
           paymentLabel={paymentLabel(paymentMethod)}
+          inPersonCode={paymentMethod === "in_person" ? inPersonCode : null}
           cardPreviewUrl={cardPreviewUrl}
           previewLoading={previewLoading}
           onBack={goBack}

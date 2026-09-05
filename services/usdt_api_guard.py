@@ -157,6 +157,7 @@ def _patch_quote_service() -> None:
                 "fee_afn": to_float(quantize_afn(fee_afn)),
                 "total_afn": to_float(D(q["total_afn"])),
                 "total_usd": to_float(D(q["total_usd"])),
+                "payable_usd": to_float(quantize_afn(D(q["total_afn"])) / rate),
                 "quote_id": q["id"],
                 "expires_at": q["expires_at"],
             }
@@ -180,6 +181,7 @@ def _patch_quote_service() -> None:
                 "usd_rate": to_float(D(q["usd_rate"])),
                 "total_afn": to_float(D(q["total_afn"])),
                 "total_usd": to_float(D(q["total_usd"])),
+                "receivable_usd": to_float(D(q["total_usd"])),
                 "quote_id": q["id"],
                 "expires_at": q["expires_at"],
             }

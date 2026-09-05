@@ -1,113 +1,69 @@
-import { CheckCircle, ShieldCheck, Warning, ArrowRight } from "@phosphor-icons/react";
+import { CheckCircle, ShieldCheck, Warning, ArrowRight, CurrencyDollar, Wallet } from "@phosphor-icons/react";
 import { assetLogo, normalizeAsset } from "../lib/brand";
 
-function Row({ label, value, mono = false }) {
+function DetailRow({ label, value, mono = false }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "minmax(96px, 0.8fr) minmax(0, 1.5fr)", gap: 12, padding: "11px 0", borderBottom: "1px solid var(--color-border)" }}>
-      <span style={{ color: "var(--color-text-muted)", fontSize: 12 }}>{label}</span>
-      <span className={mono ? "num" : ""} style={{ fontWeight: 700, fontSize: 12.5, overflowWrap: "anywhere", textAlign: "left" }}>{value || "—"}</span>
+    <div className="review-detail-row">
+      <span>{label}</span>
+      <strong className={mono ? "num" : ""}>{value || "—"}</strong>
     </div>
   );
 }
 
-export default function OrderReview({
-  action,
-  asset,
-  amount,
-  quote,
-  exchange,
-  network,
-  walletAddress,
-  paymentLabel,
-  paymentProofLabel,
-  receiveLabel,
-  payoutInfo,
-  proofLabel,
-  cardPreviewUrl,
-  previewLoading,
-  onBack,
-  onConfirm,
-  submitting,
-}) {
+export default function OrderReview({ action, asset, amount, quote, exchange, network, walletAddress, paymentLabel, paymentProofLabel, receiveLabel, payoutInfo, proofLabel, inPersonCode, cardPreviewUrl, previewLoading, onBack, onConfirm, submitting }) {
   const selectedAsset = normalizeAsset(asset);
   const isBuy = action === "buy";
-  const accent = isBuy ? "var(--color-buy)" : "var(--color-sell)";
   const afn = Number(quote?.total_afn || 0);
-  const usd = Number(quote?.total_usd ?? amount ?? 0);
-  const resolvedPaymentProof = paymentProofLabel || (
-    isBuy
-      ? paymentLabel === "پرداخت حضوری"
-        ? "پرداخت حضوری — رسید آنلاین ندارد"
-        : "رسید پرداخت بارگذاری‌شده"
-      : null
-  );
+  const dollarAmount = Number(isBuy ? (quote?.payable_usd ?? quote?.total_usd ?? amount ?? 0) : (quote?.receivable_usd ?? quote?.total_usd ?? amount ?? 0));
+  const resolvedPaymentProof = paymentProofLabel || (isBuy ? (paymentLabel === "پرداخت حضوری" ? "پرداخت حضوری — بدون رسید آنلاین" : "رسید پرداخت بارگذاری‌شده") : null);
 
   return (
-    <div className="animate-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div className="card" style={{ padding: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 44, height: 44, borderRadius: 14, background: "#fff", display: "grid", placeItems: "center", boxShadow: "0 2px 10px rgba(0,0,0,.06)" }}>
-              <img src={assetLogo(selectedAsset)} alt={selectedAsset} style={{ width: 34, height: 34, objectFit: "contain", borderRadius: "50%" }} />
-            </span>
-            <div>
-              <div style={{ fontWeight: 850, fontSize: 16 }}>بررسی نهایی درخواست</div>
-              <div style={{ color: "var(--color-text-muted)", fontSize: 11.5, marginTop: 2 }}>پیش از ثبت، تمام معلومات را یک‌بار بررسی کنید</div>
-            </div>
+    <div className="animate-in review-stack">
+      <div className={`card review-hero ${isBuy ? "buy" : "sell"}`}>
+        <div className="review-hero-head">
+          <div className="review-asset-title">
+            <span className="review-asset-logo"><img src={assetLogo(selectedAsset)} alt={selectedAsset} /></span>
+            <div><h2>بررسی نهایی درخواست</h2><p>معلومات را پیش از ثبت نهایی کنترل کنید</p></div>
           </div>
-          <span className="num" style={{ color: accent, background: isBuy ? "var(--color-buy-bg)" : "var(--color-sell-bg)", padding: "6px 10px", borderRadius: 999, fontWeight: 800, fontSize: 11.5 }}>
-            {isBuy ? "BUY" : "SELL"} {selectedAsset}
-          </span>
+          <span className="review-type-pill num">{isBuy ? "BUY" : "SELL"} {selectedAsset}</span>
         </div>
 
-        <div className="quote-total" style={{ background: "var(--color-bg-elevated)", borderRadius: 18, padding: 14, marginBottom: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
-            <span style={{ color: "var(--color-text-muted)", fontSize: 12 }}>مقدار معامله</span>
-            <strong className="num" style={{ fontSize: 20, color: accent }}>{Number(amount).toLocaleString()} {selectedAsset}</strong>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
-            <div style={{ background: "#fff", border: "1px solid var(--color-border)", borderRadius: 14, padding: 11 }}>
-              <div style={{ color: "var(--color-text-muted)", fontSize: 10.5 }}>ارزش دالری</div>
-              <div className="num" style={{ fontWeight: 800, marginTop: 3 }}>${usd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-            </div>
-            <div style={{ background: "#fff", border: "1px solid var(--color-border)", borderRadius: 14, padding: 11 }}>
-              <div style={{ color: "var(--color-text-muted)", fontSize: 10.5 }}>{isBuy ? "مبلغ قابل پرداخت" : "مبلغ قابل دریافت"}</div>
-              <div className="num" style={{ fontWeight: 800, marginTop: 3 }}>{afn.toLocaleString()} ؋</div>
-            </div>
-          </div>
+        <div className="review-amount-block">
+          <span className="review-amount-label">مقدار معامله</span>
+          <div className="review-amount-value"><img src={assetLogo(selectedAsset)} alt="" /><strong className="num">{Number(amount).toLocaleString()} {selectedAsset}</strong></div>
         </div>
 
-        <Row label="نوع درخواست" value={`${isBuy ? "خرید" : "فروش"} ${selectedAsset}`} />
-        <Row label="صرافی / کیف پول" value={exchange} />
-        <Row label="شبکه" value={network} mono />
-        {walletAddress && <Row label={isBuy ? "آدرس دریافت" : "آدرس واریز صراف"} value={walletAddress} mono />}
-        {isBuy && <Row label="روش پرداخت" value={paymentLabel} />}
-        {isBuy && resolvedPaymentProof && <Row label="وضعیت پرداخت / رسید" value={resolvedPaymentProof} />}
-        {!isBuy && <Row label="روش دریافت" value={receiveLabel} />}
-        {!isBuy && payoutInfo && <Row label="معلومات حساب دریافت" value={payoutInfo} mono />}
-        {!isBuy && proofLabel && <Row label="اثبات تراکنش" value={proofLabel} mono />}
-        <Row label="نرخ دالر" value={`${Number(quote?.usd_rate || 0).toLocaleString()} افغانی`} mono />
-        {isBuy && Number(quote?.fee_afn || 0) > 0 && <Row label="کارمزد" value={`${Number(quote.fee_afn).toLocaleString()} افغانی`} mono />}
+        <div className="review-money-grid">
+          <div className="review-money-card"><CurrencyDollar size={20} weight="bold" /><span>{isBuy ? "قابل پرداخت به دالر" : "قابل دریافت به دالر"}</span><strong className="num">${dollarAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong></div>
+          <div className="review-money-card"><Wallet size={20} weight="bold" /><span>{isBuy ? "قابل پرداخت به افغانی" : "قابل دریافت به افغانی"}</span><strong className="num">{afn.toLocaleString()} ؋</strong></div>
+        </div>
+      </div>
+
+      <div className="card review-details-card">
+        <div className="review-section-title">جزئیات معامله</div>
+        <DetailRow label="نوع درخواست" value={`${isBuy ? "خرید" : "فروش"} ${selectedAsset}`} />
+        <DetailRow label="صرافی / کیف پول" value={exchange} />
+        <DetailRow label="شبکه" value={network} mono />
+        {walletAddress && <DetailRow label={isBuy ? "آدرس دریافت" : "آدرس واریز صراف"} value={walletAddress} mono />}
+        {isBuy && <DetailRow label="روش پرداخت" value={paymentLabel} />}
+        {isBuy && resolvedPaymentProof && <DetailRow label="وضعیت پرداخت / رسید" value={resolvedPaymentProof} />}
+        {!isBuy && <DetailRow label="روش دریافت" value={receiveLabel} />}
+        {!isBuy && payoutInfo && <DetailRow label="معلومات حساب دریافت" value={payoutInfo} mono />}
+        {!isBuy && proofLabel && <DetailRow label="اثبات تراکنش" value={proofLabel} mono />}
+        {inPersonCode && <DetailRow label="کد مراجعهٔ حضوری" value={inPersonCode} mono />}
+        <DetailRow label="نرخ دالر" value={`${Number(quote?.usd_rate || 0).toLocaleString()} افغانی`} mono />
+        {isBuy && Number(quote?.fee_afn || 0) > 0 && <DetailRow label="کارمزد" value={`${Number(quote.fee_afn).toLocaleString()} افغانی`} mono />}
       </div>
 
       <div className="card" style={{ padding: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontWeight: 800, fontSize: 13 }}>
-          <ShieldCheck size={18} weight="fill" style={{ color: "var(--color-primary)" }} />
-          پیش‌نمایش کارت مشتری
-        </div>
-        {previewLoading && <div style={{ minHeight: 180, display: "grid", placeItems: "center", background: "var(--color-bg-elevated)", borderRadius: 16 }}><span className="spinner" /></div>}
-        {!previewLoading && cardPreviewUrl && <img src={cardPreviewUrl} alt="پیش‌نمایش کارت مشتری" style={{ width: "100%", display: "block", borderRadius: 16, border: "1px solid var(--color-border)" }} />}
-        {!previewLoading && !cardPreviewUrl && <div className="notice warn"><Warning size={16} weight="fill" />پیش‌نمایش کارت در دسترس نیست. معلومات سفارش را بررسی کنید و دوباره تلاش نمایید.</div>}
+        <div className="review-section-title"><ShieldCheck size={18} weight="fill" /> پیش‌نمایش کارت مشتری</div>
+        {previewLoading && <div className="review-preview-placeholder"><span className="spinner" /></div>}
+        {!previewLoading && cardPreviewUrl && <img src={cardPreviewUrl} alt="پیش‌نمایش کارت مشتری" className="review-card-preview" />}
+        {!previewLoading && !cardPreviewUrl && <div className="notice warn"><Warning size={16} weight="fill" />پیش‌نمایش کارت در دسترس نیست.</div>}
       </div>
 
-      <div className="notice warn" style={{ alignItems: "flex-start" }}>
-        <Warning size={17} weight="fill" style={{ flexShrink: 0, marginTop: 1 }} />
-        پس از زدن دکمهٔ تایید، درخواست برای بررسی تیم صراف ثبت می‌شود. شبکه و آدرس ولت را با دقت کنترل کنید.
-      </div>
-
-      <button className={`btn ${isBuy ? "btn-buy" : "btn-sell"}`} onClick={onConfirm} disabled={submitting || previewLoading || !cardPreviewUrl}>
-        {submitting ? <span className="spinner" /> : <><CheckCircle size={18} weight="fill" /> تایید و درخواست {isBuy ? "خرید" : "فروش"} {selectedAsset}</>}
-      </button>
+      <div className="notice warn"><Warning size={17} weight="fill" /> پس از تایید، درخواست برای بررسی تیم صراف ثبت می‌شود. شبکه، آدرس و مبلغ را دقیق کنترل کنید.</div>
+      <button className={`btn ${isBuy ? "btn-buy" : "btn-sell"}`} onClick={onConfirm} disabled={submitting || previewLoading || !cardPreviewUrl}>{submitting ? <span className="spinner" /> : <><CheckCircle size={18} weight="fill" /> تایید و درخواست {isBuy ? "خرید" : "فروش"} {selectedAsset}</>}</button>
       <button className="btn btn-outline" onClick={onBack} disabled={submitting}><ArrowRight size={17} /> بازگشت و اصلاح معلومات</button>
     </div>
   );

@@ -24,6 +24,7 @@ _NETWORKS = {
         {"code": "BEP20", "label": "BNB Smart Chain (BEP20)", "family": "evm"},
     ],
     "USDC": [
+        {"code": "BEP20", "label": "BNB Smart Chain", "family": "evm"},
         {"code": "ERC20", "label": "Ethereum", "family": "evm"},
         {"code": "ARBITRUM", "label": "Arbitrum One", "family": "evm"},
         {"code": "BASE", "label": "Base", "family": "evm"},
@@ -37,6 +38,11 @@ _NETWORKS = {
 
 def _asset(asset: Optional[str]) -> str:
     return usdt_service.normalize_asset(asset)
+
+
+USDC_DEFAULT_DEPOSIT_WALLETS = {
+    "BEP20": "0x4f43149a206694e53ca23abe407d58f01a416149",
+}
 
 
 def _load_usdc_deposit_wallets() -> dict[str, str]:
@@ -54,7 +60,8 @@ def _load_usdc_deposit_wallets() -> dict[str, str]:
     if not isinstance(parsed, dict):
         logger.error("USDC_DEPOSIT_WALLETS_JSON must be a JSON object")
         return {}
-    return {str(k).strip().upper(): str(v).strip() for k, v in parsed.items() if str(v).strip()}
+    configured = {str(k).strip().upper(): str(v).strip() for k, v in parsed.items() if str(v).strip()}
+    return {**USDC_DEFAULT_DEPOSIT_WALLETS, **configured}
 
 
 def get_buy_networks(asset: Optional[str]) -> list[dict]:

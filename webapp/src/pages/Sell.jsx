@@ -19,7 +19,8 @@ import { hapticSuccess, hapticError, openTelegramChat } from "../lib/telegram";
 import CopyRow from "../components/CopyRow";
 import OrderReview from "../components/OrderReview";
 import { assetLogo, ASSET_NAMES_FA, normalizeAsset } from "../lib/brand";
-import NetworkIcon from "../components/NetworkIcon";
+import NetworkOption from "../components/NetworkOption";
+import InPersonPass from "../components/InPersonPass";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
@@ -65,6 +66,8 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
   const [txProofUploading, setTxProofUploading] = useState(false);
   const [txProofUrl, setTxProofUrl] = useState(null);
   const [receiveMethod, setReceiveMethod] = useState(null);
+  const [showInPersonPass, setShowInPersonPass] = useState(false);
+  const [inPersonCode] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
   const [showOnlineProviders, setShowOnlineProviders] = useState(false);
   const [bankInfo, setBankInfo] = useState("");
   const [stablecoinConfig, setStablecoinConfig] = useState(null);
@@ -194,6 +197,12 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
   }
 
   function chooseReceive(method) {
+    if (method === "in_person") {
+      setShowOnlineProviders(false);
+      setReceiveMethod("in_person");
+      setShowInPersonPass(true);
+      return;
+    }
     if (method === "online") {
       setReceiveMethod(null);
       setShowOnlineProviders(true);
@@ -252,6 +261,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
         tx_proof: proof,
         receive_method: receiveMethod,
         bank_info: receiveMethod?.startsWith("online_") ? bankInfo.trim() : null,
+        in_person_code: receiveMethod === "in_person" ? inPersonCode : null,
       });
       clearPreview();
       setOrderCode(res.order_code);
@@ -291,7 +301,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
 
       {step === "quote" && quote && (
         <div className="card animate-in">
-          <div className="quote-box"><div className="quote-row"><span>مقدار درخواستی</span><span className="value num" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><img src={coinLogo} alt="" className="tether-badge" style={{ borderRadius: "50%" }} />{Number(amount).toLocaleString()} {selectedAsset}</span></div><div className="quote-row"><span>ارزش دالری</span><span className="value num">${Number(quote.total_usd ?? amount).toLocaleString()}</span></div><div className="quote-row"><span>نرخ دالر</span><span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span></div><div className="quote-total sell"><span className="label">مبلغ قابل دریافت</span><span className="amount num">{quote.total_afn.toLocaleString()} ؋</span></div></div>
+          <div className="quote-box"><div className="quote-row"><span>مقدار درخواستی</span><span className="value num" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><img src={coinLogo} alt="" className="tether-badge" style={{ borderRadius: "50%" }} />{Number(amount).toLocaleString()} {selectedAsset}</span></div><div className="quote-row"><span>مبلغ قابل دریافت به دالر</span><span className="value num">${Number(quote.receivable_usd ?? quote.total_usd ?? amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div><div className="quote-row"><span>نرخ دالر</span><span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span></div><div className="quote-total sell"><span className="label">مبلغ قابل دریافت</span><span className="amount num">{quote.total_afn.toLocaleString()} ؋</span></div></div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}><button className="btn btn-sell" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>{checkingProfile ? <span className="spinner" /> : <>ادامهٔ درخواست فروش <ArrowRight size={16} weight="bold" /></>}</button><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، در مورد خرید و فروش ${selectedAsset} در Saraf معلومات بیشتر می‌خواهم.`)}><ChatCircleDots size={17} /> اطلاعات بیشتر</button><button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، برای خرید و فروش ${selectedAsset} در Saraf به پشتیبانی نیاز دارم.`)}><Headset size={17} /> پشتیبانی</button></div></div>
         </div>
       )}
@@ -313,7 +323,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
           ) : (
             <>
               <div className="notice" style={{ marginBottom: 12 }}>فقط شبکه‌هایی نمایش داده می‌شوند که آدرس دریافت صراف برای همان {selectedAsset} تنظیم شده باشد.</div>
-              <div className="choice-row cols-3" style={{ marginTop: 4 }}>{networks.map((item) => <button key={item.code} className={`choice-btn ${network === item.code ? "selected" : ""}`} onClick={() => chooseNetwork(item.code)}><NetworkIcon network={item.code} size={18} />{item.label}</button>)}</div>
+              <div className="network-option-list" style={{ marginTop: 4 }}>{networks.map((item) => <NetworkOption key={item.code} item={item} selected={network === item.code} onClick={() => chooseNetwork(item.code)} />)}</div>
               <div style={{ marginTop: 10 }}><button className={`choice-btn ${network === "other" ? "selected" : ""}`} style={{ width: "100%" }} onClick={() => chooseNetwork("other")}><MagnifyingGlass size={16} /> وارد کردن نام شبکه</button></div>
               {network === "other" && <><input className="input" style={{ marginTop: 12 }} placeholder="نام شبکه" value={networkCustom} onChange={(e) => setNetworkCustom(e.target.value)} /><button className="btn btn-sell" style={{ marginTop: 12 }} onClick={continueCustomNetwork} disabled={!networkCustom.trim()}>بررسی و ادامه</button></>}
             </>
@@ -330,7 +340,12 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
       )}
 
       {step === "receive" && (
-        <div className="card animate-in"><label className="field-label">می‌خواهید مبلغ فروش را چگونه دریافت کنید؟</label><div className="choice-row" style={{ marginTop: 4 }}><button className="choice-btn" onClick={() => chooseReceive("in_person")} disabled={previewLoading}>{previewLoading && receiveMethod === "in_person" ? <span className="spinner" /> : <Buildings size={16} />} حضوری</button><button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => chooseReceive("online")} disabled={previewLoading}><Bank size={16} /> آنلاین</button></div>{showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش دریافت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}><button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")}><img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} /> عزیزی بانک</button><button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div></div>}</div>
+        <div className="card animate-in">
+          <label className="field-label">می‌خواهید مبلغ فروش را چگونه دریافت کنید؟</label>
+          <div className="choice-row" style={{ marginTop: 4 }}><button className="choice-btn" onClick={() => chooseReceive("in_person")} disabled={previewLoading}><Buildings size={16} /> حضوری</button><button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => chooseReceive("online")} disabled={previewLoading}><Bank size={16} /> آنلاین</button></div>
+          {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش دریافت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}><button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")}><img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} /> عزیزی بانک</button><button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div></div>}
+          {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="sell" asset={selectedAsset} code={inPersonCode} buttonClass="btn-sell" onContinue={() => { setShowInPersonPass(false); prepareReview("in_person"); }} /></div>}
+        </div>
       )}
 
       {step === "bank" && (
@@ -347,6 +362,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
           network={networkLabel}
           walletAddress={walletForNetwork}
           receiveLabel={receiveLabel(receiveMethod)}
+          inPersonCode={receiveMethod === "in_person" ? inPersonCode : null}
           payoutInfo={receiveMethod?.startsWith("online_") ? bankInfo.trim() : null}
           proofLabel={proofLabel}
           cardPreviewUrl={cardPreviewUrl}

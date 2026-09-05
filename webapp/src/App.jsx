@@ -6,6 +6,7 @@ import Orders from "./pages/Orders";
 import Terms from "./pages/Terms";
 import Kyc from "./pages/Kyc";
 import Toast from "./components/Toast";
+import WhatsAppSupport from "./components/WhatsAppSupport";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
 import { SARAF_LOGO_URL, normalizeAsset } from "./lib/brand";
 
@@ -136,6 +137,7 @@ export default function App() {
           />
         )}
       </div>
+      <WhatsAppSupport />
       <Toast message={error} onClose={() => setError(null)} />
     </>
   );

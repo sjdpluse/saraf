@@ -512,6 +512,7 @@ async def usdt_quote(payload: UsdtQuoteRequest, user: dict = Depends(_authentica
 
 class UsdtBuyOrderRequest(BaseModel):
     amount: float
+    in_person_code: Optional[str] = None
     payment_method: str  # "in_person" | "online"
     exchange_name: Optional[str] = None
     network: str
@@ -531,6 +532,8 @@ async def create_usdt_buy_order(payload: UsdtBuyOrderRequest, user: dict = Depen
         )
     if payload.payment_method not in ("in_person", "online"):
         raise HTTPException(status_code=400, detail="روش پرداخت نامعتبر است.")
+    if payload.payment_method == "in_person" and (not payload.in_person_code or not payload.in_person_code.isdigit() or len(payload.in_person_code) != 4):
+        raise HTTPException(status_code=400, detail="کد ۴ رقمی مراجعهٔ حضوری نامعتبر است.")
     if payload.payment_method == "online" and not payload.receipt_url:
         raise HTTPException(status_code=400, detail="برای پرداخت آنلاین، رسید بانکی الزامی است.")
     if payload.payment_method == "online":
@@ -571,12 +574,14 @@ async def create_usdt_buy_order(payload: UsdtBuyOrderRequest, user: dict = Depen
         source="miniapp",
         idempotency_key=(usdt_api_guard.get_order_context() or {}).get("key"),
         quote_id=quote.get("quote_id"),
+        in_person_code=payload.in_person_code,
     )
     return {"order_id": result["order_id"], "order_code": result["order_code"], "quote": quote}
 
 
 class UsdtSellOrderRequest(BaseModel):
     amount: float
+    in_person_code: Optional[str] = None
     exchange_name: str
     network: str
     tx_proof: str
@@ -596,6 +601,8 @@ async def create_usdt_sell_order(payload: UsdtSellOrderRequest, user: dict = Dep
         )
     if payload.receive_method not in ("in_person", "online"):
         raise HTTPException(status_code=400, detail="روش دریافت نامعتبر است.")
+    if payload.receive_method == "in_person" and (not payload.in_person_code or not payload.in_person_code.isdigit() or len(payload.in_person_code) != 4):
+        raise HTTPException(status_code=400, detail="کد ۴ رقمی مراجعهٔ حضوری نامعتبر است.")
     if payload.receive_method == "online" and not payload.bank_info:
         raise HTTPException(status_code=400, detail="برای دریافت آنلاین، اطلاعات بانکی الزامی است.")
     if not payload.tx_proof:
@@ -633,6 +640,7 @@ async def create_usdt_sell_order(payload: UsdtSellOrderRequest, user: dict = Dep
         source="miniapp",
         idempotency_key=(usdt_api_guard.get_order_context() or {}).get("key"),
         quote_id=quote.get("quote_id"),
+        in_person_code=payload.in_person_code,
     )
     return {"order_id": result["order_id"], "order_code": result["order_code"], "quote": quote}
 
