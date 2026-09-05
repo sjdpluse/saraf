@@ -15,7 +15,7 @@ import Skeleton from "../components/Skeleton";
 
 const MAX_REVIEW_LENGTH = 800;
 const INITIAL_VISIBLE_REVIEWS = 7;
-const REVIEWS_COVER_URL = "https://i.postimg.cc/j2LNsV6J/ec67a9b5ebaf057dfccee73a663f086e.jpg";
+const REVIEWS_COVER_URL = "https://i.postimg.cc/x1cssCXT/sa-2.jpg";
 const AFGHAN_MONTHS = ["حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله", "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت"];
 const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
@@ -241,30 +241,12 @@ export default function Reviews({ navigate, showError }) {
 
       <div className="reviews-cover-card animate-in" aria-hidden="true">
         <img src={REVIEWS_COVER_URL} alt="" />
-        <ThumbsUp className="reviews-cover-like" weight="fill" />
       </div>
 
       <div className="reviews-list-head">
         <div className="reviews-list-title">همهٔ نظرات <span className="reviews-count num">{total.toLocaleString()}</span></div>
         {isAdmin && <span className="admin-mode-badge"><ShieldCheck size={14} weight="fill" /> مدیریت</span>}
       </div>
-
-      <section className="review-compose-card animate-in" style={{ animationDelay: "0.04s" }}>
-        <div className="review-compose-title">نظر شما</div>
-        <textarea
-          className="review-textarea"
-          value={body}
-          onChange={(e) => setBody(e.target.value.slice(0, MAX_REVIEW_LENGTH))}
-          placeholder="نظر خود را بنویسید…"
-          maxLength={MAX_REVIEW_LENGTH}
-        />
-        <div className="review-compose-footer">
-          <span className={`review-counter num ${body.length > 740 ? "near-limit" : ""}`}>{body.length}/{MAX_REVIEW_LENGTH}</span>
-          <button type="button" className="review-submit-btn" onClick={submitReview} disabled={!canSubmit}>
-            {submitting ? <span className="spinner" /> : <><PaperPlaneTilt size={16} weight="fill" /> نشر نظر</>}
-          </button>
-        </div>
-      </section>
 
       {loading && <Skeleton count={4} />}
       {!loading && items.length === 0 && (
@@ -290,6 +272,23 @@ export default function Reviews({ navigate, showError }) {
           نمایش بیشتر <span className="num">({hiddenCount.toLocaleString()})</span>
         </button>
       )}
+
+      <section className="review-compose-card animate-in" style={{ animationDelay: "0.04s" }}>
+        <div className="review-compose-title">نظر شما</div>
+        <textarea
+          className="review-textarea"
+          value={body}
+          onChange={(e) => setBody(e.target.value.slice(0, MAX_REVIEW_LENGTH))}
+          placeholder="نظر خود را بنویسید…"
+          maxLength={MAX_REVIEW_LENGTH}
+        />
+        <div className="review-compose-footer">
+          <span className={`review-counter num ${body.length > 740 ? "near-limit" : ""}`}>{body.length}/{MAX_REVIEW_LENGTH}</span>
+          <button type="button" className="review-submit-btn" onClick={submitReview} disabled={!canSubmit}>
+            {submitting ? <span className="spinner" /> : <><PaperPlaneTilt size={16} weight="fill" /> نشر نظر</>}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
