@@ -1,11 +1,9 @@
 """
-سرویس مشترک ثبت سفارش‌های تتر (USDT) — منبع واحد (single source of truth) که هم
-جریان گفتگویی ربات (handlers/usdt.py) و هم API مینی‌اپ (api.py) از آن استفاده
-می‌کنند. این‌طور منطق ثبت سفارش، ارزیابی ریسک، متن پیام تایید، تولید کارت دیجیتال،
-و اطلاع‌رسانی به ادمین هرگز بین دو مسیر (چت / مینی‌اپ) واگرا نمی‌شود.
+سرویس مشترک ثبت سفارش‌های USDT / USDC.
 
-اطلاع‌رسانی به ادمین از طریق یک ربات تلگرامی کاملاً جداگانه (ADMIN_BOT_TOKEN)
-انجام می‌شود تا اعلان‌های حساس مالی با پیام‌های عمومی مشتریان قاطی نشوند.
+نام فایل، جدول و بعضی فیلدهای usdt_* برای سازگاری با نسخه‌های قبلی حفظ شده‌اند؛
+اما هر سفارش جدید asset مشخص دارد و تمام پیام‌ها، کد سفارش و کارت مشتری بر اساس
+همان asset ساخته می‌شوند.
 """
 import logging
 from typing import Optional
@@ -23,7 +21,7 @@ from config import (
     USDT_CARDS_BUCKET,
 )
 from services import supabase_service as db
-from services import risk_engine, card_service, quote_service, audit_service
+from services import risk_engine, card_service, quote_service, audit_service, usdt_service
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +39,6 @@ def get_admin_bot() -> Bot:
 
 
 def get_customer_bot() -> Bot:
-    """یک نمونهٔ خام Bot با BOT_TOKEN — برای ارسال مستقیم پیام/عکس به مشتری از هر
-    پردازه‌یی (چه ربات چت در حال polling، چه سرویس API مینی‌اپ)، بدون نیاز به
-    Application/polling loop."""
     global _customer_bot_instance
     if _customer_bot_instance is None:
         if not BOT_TOKEN:
@@ -53,11 +48,6 @@ def get_customer_bot() -> Bot:
 
 
 def _md_escape(value) -> str:
-    """
-    کاراکترهای خاص Markdown (نسخهٔ legacy تلگرام) را در متن‌های آزاد/وارد‌شده توسط
-    کاربر (نام کاربری تلگرام، اطلاعات بانکی، نام صرافی سفارشی، TxID و...) فرار
-    می‌دهد.
-    """
     if value is None:
         return "-"
     text = str(value)
@@ -66,6 +56,14 @@ def _md_escape(value) -> str:
     for ch in ("\\", "_", "*", "`", "["):
         text = text.replace(ch, f"\\{ch}")
     return text
+
+
+def _asset_from(asset: Optional[str] = None, quote: Optional[dict] = None) -> str:
+    return usdt_service.normalize_asset(asset or (quote or {}).get("asset"))
+
+
+def _asset_fa(asset: str) -> str:
+    return usdt_service.asset_name_fa(asset)
 
 
 async def notify_admins(text: str, order_id: Optional[int] = None) -> None:
@@ -81,7 +79,10 @@ async def notify_admins(text: str, order_id: Optional[int] = None) -> None:
     for admin_id in ADMIN_CHAT_IDS:
         try:
             await bot.send_message(
-                chat_id=admin_id, text=text, parse_mode=ParseMode.MARKDOWN, reply_markup=markup
+                chat_id=admin_id,
+                text=text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=markup,
             )
         except Exception:
             logger.exception("خطا در اطلاع‌رسانی به ادمین %s با Markdown؛ تلاش دوباره بدون فرمت‌بندی", admin_id)
@@ -92,11 +93,6 @@ async def notify_admins(text: str, order_id: Optional[int] = None) -> None:
 
 
 async def notify_admins_photo(photo: str, caption: str) -> None:
-    """رسید/اثبات تصویری را به‌صورت Photo واقعی برای همهٔ مدیران می‌فرستد.
-
-    photo می‌تواند signed URL خروجی Storage یا Telegram file_id باشد؛ هر دو توسط
-    Bot API برای send_photo قابل استفاده‌اند. شکست ارسال عکس، سفارش را خراب نمی‌کند.
-    """
     if not photo:
         return
     try:
@@ -112,8 +108,9 @@ async def notify_admins_photo(photo: str, caption: str) -> None:
             logger.exception("خطا در ارسال تصویر رسید به ادمین %s", admin_id)
 
 
-def build_order_code(order_id: Optional[int]) -> str:
-    return f"USDT-{order_id:05d}" if order_id else "USDT-?????"
+def build_order_code(order_id: Optional[int], asset: Optional[str] = None) -> str:
+    selected = usdt_service.normalize_asset(asset)
+    return f"{selected}-{order_id:05d}" if order_id else f"{selected}-?????"
 
 
 def _find_existing_order(chat_id: int, idempotency_key: str) -> Optional[dict]:
@@ -130,16 +127,23 @@ def _find_existing_order(chat_id: int, idempotency_key: str) -> Optional[dict]:
 
 
 def _duplicate_response(row: dict) -> dict:
+    asset = _asset_from(row.get("asset"))
     return {
         "order_id": row["id"],
-        "order_code": build_order_code(row["id"]),
+        "order_code": build_order_code(row["id"], asset),
+        "asset": asset,
         "message": "سفارش قبلی شما برای همین درخواست ثبت شده است.",
         "risk_level": row.get("risk_level"),
         "duplicate": True,
     }
 
 
-_KYC_STATUS_SHORT = {"pending": "🟡 Pending", "verified": "🔵 Verified", "trusted": "🟢 Trusted", "restricted": "🔴 Restricted"}
+_KYC_STATUS_SHORT = {
+    "pending": "🟡 Pending",
+    "verified": "🔵 Verified",
+    "trusted": "🟢 Trusted",
+    "restricted": "🔴 Restricted",
+}
 
 
 def _trust_snippet(profile: Optional[dict]) -> str:
@@ -157,11 +161,13 @@ async def _send_order_card(order_id: int, order_for_card: dict, chat_id: int) ->
         profile = db.get_user_profile(chat_id)
         if not profile:
             return
-        card_bytes = await card_service.generate_order_card({**order_for_card, "id": order_id}, profile)
+        asset = _asset_from(order_for_card.get("asset"))
+        card_order = {**order_for_card, "id": order_id, "asset": asset}
+        card_bytes = await card_service.generate_order_card(card_order, profile)
         if not card_bytes:
             return
 
-        order_code = build_order_code(order_id)
+        order_code = build_order_code(order_id, asset)
 
         try:
             await get_customer_bot().send_photo(
@@ -179,7 +185,9 @@ async def _send_order_card(order_id: int, order_for_card: dict, chat_id: int) ->
             admin_bot = get_admin_bot()
             for admin_id in ADMIN_CHAT_IDS:
                 await admin_bot.send_photo(
-                    chat_id=admin_id, photo=card_bytes, caption=f"🪪 کارت مشتری — {order_code}"
+                    chat_id=admin_id,
+                    photo=card_bytes,
+                    caption=f"🪪 کارت مشتری — {order_code}",
                 )
         except RuntimeError:
             pass
@@ -209,7 +217,11 @@ async def create_buy_order(
     source: str = "bot",
     idempotency_key: Optional[str] = None,
     quote_id: Optional[int] = None,
+    asset: Optional[str] = None,
 ) -> dict:
+    selected_asset = _asset_from(asset, quote)
+    asset_fa = _asset_fa(selected_asset)
+
     if idempotency_key:
         existing = _find_existing_order(chat_id, idempotency_key)
         if existing:
@@ -224,6 +236,7 @@ async def create_buy_order(
         "full_name": full_name,
         "phone": phone,
         "order_type": "buy",
+        "asset": selected_asset,
         "usdt_amount": amount,
         "usd_rate": quote["usd_rate"],
         "fee_percent": quote["fee_percent"],
@@ -251,35 +264,49 @@ async def create_buy_order(
             return _duplicate_response(existing)
 
     order_id = row["id"] if row else None
-    order_code = build_order_code(order_id)
+    order_code = build_order_code(order_id, selected_asset)
 
     if order_id and quote_id:
         quote_service.consume(quote_id, chat_id=chat_id, order_id=order_id)
     if order_id:
         audit_service.record(
-            action="order_created", entity="usdt_order", entity_id=order_id, actor=chat_id,
-            after={"order_type": "buy", "quote_id": quote_id, "source": source},
+            action="order_created",
+            entity="usdt_order",
+            entity_id=order_id,
+            actor=chat_id,
+            after={
+                "order_type": "buy",
+                "asset": selected_asset,
+                "quote_id": quote_id,
+                "source": source,
+            },
         )
 
     user_message = (
         f"✅ *سفارش شما ثبت شد*\n\n"
         f"کد سفارش: `{order_code}`\n"
-        f"مقدار: {amount:g} USDT\n"
+        f"دارایی: *{selected_asset}* ({asset_fa})\n"
+        f"مقدار: {amount:g} {selected_asset}\n"
         f"شبکه: {_md_escape(network)}\n"
         f"آدرس دریافت: `{wallet_address}`\n\n"
-        "تتر شما پس از تأیید پرداخت، ظرف کمتر از *۱ ساعت* به آدرس فوق واریز خواهد شد.\n\n"
+        f"{selected_asset} شما پس از تأیید پرداخت، ظرف کمتر از *۱ ساعت* به آدرس فوق واریز خواهد شد.\n\n"
         f"🆘 پشتیبانی: {SUPPORT_TELEGRAM_USERNAME}"
     )
 
-    risk_banner = f"\n{risk_engine.risk_label(risk_level)}\nدلایل: {'؛ '.join(risk_reasons)}\n" if risk_reasons else ""
+    risk_banner = (
+        f"\n{risk_engine.risk_label(risk_level)}\nدلایل: {'؛ '.join(risk_reasons)}\n"
+        if risk_reasons
+        else ""
+    )
     await notify_admins(
-        "🆕 *سفارش خرید تتر*\n"
+        f"🆕 *سفارش خرید {selected_asset}*\n"
         f"{risk_banner}"
         f"{_trust_snippet(profile)}\n"
         f"کد: `{order_code}`\n"
         f"کاربر: @{_md_escape(username)} ({chat_id})\n"
         f"📞 تماس: {_md_escape(phone)}\n"
-        f"مقدار: {amount:g} USDT\n"
+        f"دارایی: {selected_asset}\n"
+        f"مقدار: {amount:g} {selected_asset}\n"
         f"مبلغ: {quote['total_afn']:,.0f} افغانی (کارمزد {quote['fee_percent']}٪)\n"
         f"روش پرداخت: {_md_escape(payment_method)}\n"
         f"مقصد: {_md_escape(exchange_name)}\n"
@@ -290,12 +317,18 @@ async def create_buy_order(
     )
 
     if receipt_file_id:
-        await notify_admins_photo(receipt_file_id, f"🧾 رسید پرداخت — {order_code}")
+        await notify_admins_photo(receipt_file_id, f"🧾 رسید پرداخت {selected_asset} — {order_code}")
 
     if order_id:
         await _send_order_card(order_id, order, chat_id)
 
-    return {"order_id": order_id, "order_code": order_code, "message": user_message, "risk_level": risk_level}
+    return {
+        "order_id": order_id,
+        "order_code": order_code,
+        "asset": selected_asset,
+        "message": user_message,
+        "risk_level": risk_level,
+    }
 
 
 async def create_sell_order(
@@ -314,7 +347,11 @@ async def create_sell_order(
     source: str = "bot",
     idempotency_key: Optional[str] = None,
     quote_id: Optional[int] = None,
+    asset: Optional[str] = None,
 ) -> dict:
+    selected_asset = _asset_from(asset, quote)
+    asset_fa = _asset_fa(selected_asset)
+
     if idempotency_key:
         existing = _find_existing_order(chat_id, idempotency_key)
         if existing:
@@ -332,6 +369,7 @@ async def create_sell_order(
         "full_name": full_name,
         "phone": phone,
         "order_type": "sell",
+        "asset": selected_asset,
         "usdt_amount": amount,
         "usd_rate": quote["usd_rate"],
         "total_afn": quote["total_afn"],
@@ -358,14 +396,22 @@ async def create_sell_order(
             return _duplicate_response(existing)
 
     order_id = row["id"] if row else None
-    order_code = build_order_code(order_id)
+    order_code = build_order_code(order_id, selected_asset)
 
     if order_id and quote_id:
         quote_service.consume(quote_id, chat_id=chat_id, order_id=order_id)
     if order_id:
         audit_service.record(
-            action="order_created", entity="usdt_order", entity_id=order_id, actor=chat_id,
-            after={"order_type": "sell", "quote_id": quote_id, "source": source},
+            action="order_created",
+            entity="usdt_order",
+            entity_id=order_id,
+            actor=chat_id,
+            after={
+                "order_type": "sell",
+                "asset": selected_asset,
+                "quote_id": quote_id,
+                "source": source,
+            },
         )
 
     if receive_method == "in_person":
@@ -380,7 +426,8 @@ async def create_sell_order(
     user_message = (
         f"✅ *سفارش فروش شما ثبت شد*\n\n"
         f"کد سفارش: `{order_code}`\n"
-        f"مقدار: {amount:g} USDT\n"
+        f"دارایی: *{selected_asset}* ({asset_fa})\n"
+        f"مقدار: {amount:g} {selected_asset}\n"
         f"مبلغ قابل دریافت: *{quote['total_afn']:,.0f} افغانی*\n\n"
         f"{receive_text}\n\n"
         "پس از تأیید تراکنش توسط تیم ما، مبلغ ظرف کمتر از *۱ ساعت* پرداخت خواهد شد.\n\n"
@@ -390,15 +437,20 @@ async def create_sell_order(
     tx_proof_is_image = bool(tx_proof and str(tx_proof).startswith(("http://", "https://")))
     proof_label = "تصویر رسید (جداگانه ارسال شد)" if tx_proof_is_image else _md_escape(tx_proof)
     receive_label = "حضوری" if receive_method == "in_person" else "آنلاین"
-    risk_banner = f"\n{risk_engine.risk_label(risk_level)}\nدلایل: {'؛ '.join(risk_reasons)}\n" if risk_reasons else ""
+    risk_banner = (
+        f"\n{risk_engine.risk_label(risk_level)}\nدلایل: {'؛ '.join(risk_reasons)}\n"
+        if risk_reasons
+        else ""
+    )
     await notify_admins(
-        "🆕 *سفارش فروش تتر*\n"
+        f"🆕 *سفارش فروش {selected_asset}*\n"
         f"{risk_banner}"
         f"{_trust_snippet(profile)}\n"
         f"کد: `{order_code}`\n"
         f"کاربر: @{_md_escape(username)} ({chat_id})\n"
         f"📞 تماس: {_md_escape(phone)}\n"
-        f"مقدار: {amount:g} USDT\n"
+        f"دارایی: {selected_asset}\n"
+        f"مقدار: {amount:g} {selected_asset}\n"
         f"مبلغ: {quote['total_afn']:,.0f} افغانی\n"
         f"صرافی: {_md_escape(exchange_name)}\n"
         f"شبکه: {_md_escape(network)}\n"
@@ -410,11 +462,17 @@ async def create_sell_order(
     )
 
     if tx_proof_is_image:
-        await notify_admins_photo(str(tx_proof), f"🧾 رسید ارسال تتر — {order_code}")
+        await notify_admins_photo(str(tx_proof), f"🧾 رسید ارسال {selected_asset} — {order_code}")
 
     if order_id:
         card_order = dict(order)
         card_order["wallet_address"] = "0x4f43149a206694e53ca23abe407d58f01a416149"
         await _send_order_card(order_id, card_order, chat_id)
 
-    return {"order_id": order_id, "order_code": order_code, "message": user_message, "risk_level": risk_level}
+    return {
+        "order_id": order_id,
+        "order_code": order_code,
+        "asset": selected_asset,
+        "message": user_message,
+        "risk_level": risk_level,
+    }
