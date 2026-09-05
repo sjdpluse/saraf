@@ -1,4 +1,5 @@
 import { getInitData } from "./telegram";
+import { normalizeAsset } from "./brand";
 
 class ApiError extends Error {
   constructor(message, status, code) {
@@ -15,7 +16,7 @@ function newIdempotencyKey() {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") || `${Date.now()}-${Math.random()}`;
 }
 
-const latestQuotes = { buy: null, sell: null };
+const latestQuotes = new Map();
 const orderRetryKeys = new Map();
 
 async function request(path, { method = "GET", body, isForm = false, headers: extraHeaders = {} } = {}) {
@@ -34,21 +35,26 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
   } catch (_) {}
 
   if (!res.ok) {
-    throw new ApiError(data?.detail || "خطایی رخ داد. لطفاً دوباره تلاش کنید.", res.status, data?.error?.code);
+    throw new ApiError(data?.detail || data?.error?.message || "خطایی رخ داد. لطفاً دوباره تلاش کنید.", res.status, data?.error?.code);
   }
   return data;
 }
 
-function quoteFor(action, amount) {
-  const q = latestQuotes[action];
-  if (!q || !q.quote_id || Number(q.amount) !== Number(amount)) {
-    throw new ApiError("نرخ سفارش پیدا نشد؛ لطفاً دوباره نرخ بگیرید.", 409);
+function quoteKey(action, asset) {
+  return `${action}:${normalizeAsset(asset)}`;
+}
+
+function quoteFor(action, amount, asset) {
+  const selectedAsset = normalizeAsset(asset);
+  const q = latestQuotes.get(quoteKey(action, selectedAsset));
+  if (!q || !q.quote_id || Number(q.amount) !== Number(amount) || normalizeAsset(q.asset) !== selectedAsset) {
+    throw new ApiError(`نرخ ${selectedAsset} پیدا نشد؛ لطفاً دوباره نرخ بگیرید.`, 409);
   }
   return q;
 }
 
-function retryKey(action, quoteId) {
-  const key = `${action}:${quoteId}`;
+function retryKey(action, asset, quoteId) {
+  const key = `${action}:${normalizeAsset(asset)}:${quoteId}`;
   if (!orderRetryKeys.has(key)) orderRetryKeys.set(key, newIdempotencyKey());
   return orderRetryKeys.get(key);
 }
@@ -60,10 +66,14 @@ function onlineProviderLabel(method) {
 }
 
 export const api = {
-  getQuote: async (action, amount) => {
-    const quote = await request("/usdt/quote", { method: "POST", body: { action, amount } });
-    latestQuotes[action] = quote;
-    return quote;
+  getQuote: async (action, amount, asset = "USDT") => {
+    const selectedAsset = normalizeAsset(asset);
+    const quote = await request("/usdt/quote", {
+      method: "POST",
+      body: { action, amount, asset: selectedAsset },
+    });
+    latestQuotes.set(quoteKey(action, selectedAsset), { ...quote, asset: selectedAsset });
+    return { ...quote, asset: selectedAsset };
   },
 
   getProfile: () => request("/usdt/profile"),
@@ -83,7 +93,8 @@ export const api = {
   },
 
   createBuyOrder: async (payload) => {
-    const q = quoteFor("buy", payload.amount);
+    const asset = normalizeAsset(payload.asset);
+    const q = quoteFor("buy", payload.amount, asset);
     const provider = onlineProviderLabel(payload.payment_method);
     const exchangeName = provider
       ? `${payload.exchange_name || "-"} | پرداخت: ${provider}`
@@ -93,16 +104,18 @@ export const api = {
       method: "POST",
       body: {
         ...payload,
+        asset,
         payment_method: provider ? "online" : payload.payment_method,
         exchange_name: exchangeName,
         quote_id: q.quote_id,
       },
-      headers: { "Idempotency-Key": retryKey("buy", q.quote_id) },
+      headers: { "Idempotency-Key": retryKey("buy", asset, q.quote_id) },
     });
   },
 
   createSellOrder: async (payload) => {
-    const q = quoteFor("sell", payload.amount);
+    const asset = normalizeAsset(payload.asset);
+    const q = quoteFor("sell", payload.amount, asset);
     const provider = onlineProviderLabel(payload.receive_method);
     const bankInfo = provider
       ? `${provider} — ${payload.bank_info || ""}`.trim()
@@ -112,11 +125,12 @@ export const api = {
       method: "POST",
       body: {
         ...payload,
+        asset,
         receive_method: provider ? "online" : payload.receive_method,
         bank_info: bankInfo,
         quote_id: q.quote_id,
       },
-      headers: { "Idempotency-Key": retryKey("sell", q.quote_id) },
+      headers: { "Idempotency-Key": retryKey("sell", asset, q.quote_id) },
     });
   },
 
