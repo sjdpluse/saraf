@@ -40,6 +40,23 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
   return data;
 }
 
+async function requestBlob(path, body) {
+  const res = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: {
+      "X-Telegram-Init-Data": getInitData(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let data = null;
+    try { data = await res.json(); } catch (_) {}
+    throw new ApiError(data?.detail || data?.error?.message || "ساخت پیش‌نمایش ناموفق بود.", res.status, data?.error?.code);
+  }
+  return res.blob();
+}
+
 function quoteKey(action, asset) {
   return `${action}:${normalizeAsset(asset)}`;
 }
@@ -74,6 +91,22 @@ export const api = {
     });
     latestQuotes.set(quoteKey(action, selectedAsset), { ...quote, asset: selectedAsset });
     return { ...quote, asset: selectedAsset };
+  },
+
+  getStablecoinConfig: () => request("/stablecoins/config"),
+
+  getCardPreview: async ({ action, asset, amount, exchange_name, network, wallet_address }) => {
+    const selectedAsset = normalizeAsset(asset);
+    const q = quoteFor(action, amount, selectedAsset);
+    return requestBlob("/stablecoins/card-preview", {
+      action,
+      asset: selectedAsset,
+      amount: Number(amount),
+      quote_id: q.quote_id,
+      exchange_name,
+      network,
+      wallet_address: wallet_address || null,
+    });
   },
 
   getProfile: () => request("/usdt/profile"),
