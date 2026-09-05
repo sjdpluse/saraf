@@ -1,0 +1,40 @@
+name: Apply USDC Mini App fixes
+
+on:
+  push:
+    branches: [fix/usdc-miniapp-complete]
+    paths:
+      - '.github/scripts/apply_usdc_miniapp_fixes.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/usdc-miniapp-complete
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply code changes
+        run: python .github/scripts/apply_usdc_miniapp_fixes.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build Mini App
+        working-directory: webapp
+        run: npm ci && npm run build
+      - name: Compile Python
+        run: python -m compileall -q api.py config.py services
+      - name: Commit generated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add webapp/src webapp/dist services api.py supabase/migrations
+          git diff --cached --quiet && exit 0
+          git commit -m "Complete USDC miniapp UX and in-person flow"
+          git push origin HEAD:fix/usdc-miniapp-complete
