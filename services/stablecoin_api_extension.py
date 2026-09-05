@@ -37,7 +37,10 @@ def _authenticate(init_data: Optional[str]) -> dict:
         raise HTTPException(status_code=401, detail=str(exc))
 
 
-async def stablecoin_config():
+async def stablecoin_config(
+    x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data"),
+):
+    _authenticate(x_telegram_init_data)
     return stablecoin_networks.public_config()
 
 
