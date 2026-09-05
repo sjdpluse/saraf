@@ -1543,16 +1543,6 @@ textarea.input {
   object-fit: contain;
 }
 
-.reviews-cover-like {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  transform: translate(-50%, -50%);
-  width: clamp(72px, 24vw, 122px);
-  height: clamp(72px, 24vw, 122px);
-  color: #fff;
-  opacity: 0.1;
-  pointer-events: none;
-}
 
 .reviews-list-head {
   display: flex;
