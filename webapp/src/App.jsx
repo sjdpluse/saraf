@@ -7,10 +7,11 @@ import Terms from "./pages/Terms";
 import Kyc from "./pages/Kyc";
 import Toast from "./components/Toast";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
-import { SARAF_LOGO_URL } from "./lib/brand";
+import { SARAF_LOGO_URL, normalizeAsset } from "./lib/brand";
 
 export default function App() {
   const [page, setPage] = useState("home");
+  const [asset, setAsset] = useState("USDT");
   const [error, setError] = useState(null);
   const [kycMode, setKycMode] = useState("profile");
   const [threshold, setThreshold] = useState(250);
@@ -20,6 +21,8 @@ export default function App() {
     initTelegram();
     const params = new URLSearchParams(window.location.search);
     const action = params.get("action");
+    const requestedAsset = normalizeAsset(params.get("asset"));
+    setAsset(requestedAsset);
     if (action === "buy" || action === "sell") setPage(action);
   }, []);
 
@@ -32,28 +35,39 @@ export default function App() {
     setError(message);
   }
 
-  function startTransaction(action) {
+  function selectAsset(nextAsset) {
+    setAsset(normalizeAsset(nextAsset));
+  }
+
+  function startTransaction(action, nextAsset = asset) {
+    setAsset(normalizeAsset(nextAsset));
     navigate(action);
   }
 
   function requestBasicProfile(target, resumeData) {
-    setResume({ target, ...resumeData });
+    const selectedAsset = normalizeAsset(resumeData?.asset || asset);
+    setAsset(selectedAsset);
+    setResume({ target, asset: selectedAsset, ...resumeData });
     setKycMode("profile");
     navigate("kyc");
   }
 
   function requestIdentityVerification(target, resumeData, thresholdUsd) {
-    setResume({ target, ...resumeData });
+    const selectedAsset = normalizeAsset(resumeData?.asset || asset);
+    setAsset(selectedAsset);
+    setResume({ target, asset: selectedAsset, ...resumeData });
     setKycMode("verify");
     if (thresholdUsd) setThreshold(thresholdUsd);
     navigate("kyc");
   }
 
   function handleKycComplete() {
+    if (resume?.asset) setAsset(normalizeAsset(resume.asset));
     navigate(resume?.target || "home");
   }
 
   function handleKycCancel() {
+    if (resume?.asset) setAsset(normalizeAsset(resume.asset));
     navigate(resume?.target || "home");
   }
 
@@ -70,7 +84,7 @@ export default function App() {
           </div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>این صفحه فقط داخل تلگرام کار می‌کند</div>
           <div className="notice" style={{ justifyContent: "center" }}>
-            لطفاً از طریق ربات صراف در تلگرام دکمهٔ «خرید و فروش تتر» را بزنید تا مینی‌اپ به‌درستی باز شود.
+            لطفاً از طریق ربات صراف دکمهٔ «خرید و فروش | USDT / USDC» را بزنید تا مینی‌اپ به‌درستی باز شود.
           </div>
         </div>
       </div>
@@ -79,10 +93,18 @@ export default function App() {
 
   return (
     <>
-      <div key={page} className="page-transition">
-        {page === "home" && <Home navigate={navigate} startTransaction={startTransaction} />}
+      <div key={`${page}-${asset}`} className="page-transition">
+        {page === "home" && (
+          <Home
+            navigate={navigate}
+            startTransaction={startTransaction}
+            selectedAsset={asset}
+            onSelectAsset={selectAsset}
+          />
+        )}
         {page === "buy" && (
           <Buy
+            asset={asset}
             navigate={navigate}
             showError={showError}
             resumeState={resume?.target === "buy" ? resume : null}
@@ -93,6 +115,7 @@ export default function App() {
         )}
         {page === "sell" && (
           <Sell
+            asset={asset}
             navigate={navigate}
             showError={showError}
             resumeState={resume?.target === "sell" ? resume : null}
