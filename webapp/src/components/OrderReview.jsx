@@ -34,6 +34,13 @@ export default function OrderReview({
   const accent = isBuy ? "var(--color-buy)" : "var(--color-sell)";
   const afn = Number(quote?.total_afn || 0);
   const usd = Number(quote?.total_usd ?? amount ?? 0);
+  const resolvedPaymentProof = paymentProofLabel || (
+    isBuy
+      ? paymentLabel === "پرداخت حضوری"
+        ? "پرداخت حضوری — رسید آنلاین ندارد"
+        : "رسید پرداخت بارگذاری‌شده"
+      : null
+  );
 
   return (
     <div className="animate-in" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -75,7 +82,7 @@ export default function OrderReview({
         <Row label="شبکه" value={network} mono />
         {walletAddress && <Row label={isBuy ? "آدرس دریافت" : "آدرس واریز صراف"} value={walletAddress} mono />}
         {isBuy && <Row label="روش پرداخت" value={paymentLabel} />}
-        {isBuy && paymentProofLabel && <Row label="وضعیت پرداخت / رسید" value={paymentProofLabel} />}
+        {isBuy && resolvedPaymentProof && <Row label="وضعیت پرداخت / رسید" value={resolvedPaymentProof} />}
         {!isBuy && <Row label="روش دریافت" value={receiveLabel} />}
         {!isBuy && payoutInfo && <Row label="معلومات حساب دریافت" value={payoutInfo} mono />}
         {!isBuy && proofLabel && <Row label="اثبات تراکنش" value={proofLabel} mono />}
