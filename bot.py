@@ -28,7 +28,7 @@ from config import (
     FACEBOOK_CHECK_INTERVAL_MINUTES,
     INSTAGRAM_CHECK_INTERVAL_MINUTES,
 )
-from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_SILVER, BTN_CRYPTO, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT, BTN_ADMIN_POST
+from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_SILVER, BTN_CRYPTO, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT, BTN_ADMIN_POST, mini_app_web_url
 from handlers import start, currency, gold, silver, crypto, compare, admin, converter, usdt, kyc
 from jobs import (
     fetch_and_store_snapshot,
@@ -51,7 +51,7 @@ async def sync_mini_app_menu_button(application: Application) -> None:
         logger.warning("MINI_APP_URL تنظیم نشده؛ دکمهٔ مستقیم مینی‌اپ همگام نشد.")
         return
 
-    mini_app_url = f"{MINI_APP_URL.rstrip('/')}/miniapp/"
+    mini_app_url = mini_app_web_url()
     try:
         await application.bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(

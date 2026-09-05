@@ -21,6 +21,8 @@ import OrderReview from "../components/OrderReview";
 import { assetLogo, ASSET_NAMES_FA, normalizeAsset } from "../lib/brand";
 import NetworkOption from "../components/NetworkOption";
 import InPersonPass from "../components/InPersonPass";
+import { WhatsAppActionButton } from "../components/WhatsAppSupport";
+import { generateInPersonCode } from "../lib/inPerson";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
@@ -62,7 +64,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
   const [checkingProfile, setCheckingProfile] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [showInPersonPass, setShowInPersonPass] = useState(false);
-  const [inPersonCode] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
+  const [inPersonCode] = useState(() => generateInPersonCode());
   const [showOnlineProviders, setShowOnlineProviders] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState(null);
   const [loadingPaymentInfo, setLoadingPaymentInfo] = useState(false);
@@ -330,9 +332,10 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
             <button className="btn btn-buy" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>{checkingProfile ? <span className="spinner" /> : <>ادامهٔ درخواست خرید <ArrowRight size={16} weight="bold" /></>}</button>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div className="help-actions-grid">
               <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، در مورد خرید و فروش ${selectedAsset} در Saraf معلومات بیشتر می‌خواهم.`)}><ChatCircleDots size={17} /> اطلاعات بیشتر</button>
               <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، برای خرید و فروش ${selectedAsset} در Saraf به پشتیبانی نیاز دارم.`)}><Headset size={17} /> پشتیبانی</button>
+              <WhatsAppActionButton mode="support" asset={selectedAsset} />
             </div>
           </div>
         </div>
@@ -346,7 +349,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
             <button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => choosePayment("online")} disabled={loadingPaymentInfo}><Bank size={16} /> آنلاین</button>
           </div>
           {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش پرداخت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}><button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")} disabled={loadingPaymentInfo}>{loadingPaymentInfo ? <span className="spinner" /> : <img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} />} عزیزی بانک</button><button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")} disabled={loadingPaymentInfo}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div></div>}
-          {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="buy" asset={selectedAsset} code={inPersonCode} buttonClass="btn-buy" onContinue={() => { setShowInPersonPass(false); setStepIdx(4); }} /></div>}
+          {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="buy" asset={selectedAsset} code={inPersonCode} buttonClass="btn-buy" showError={showError} onContinue={() => { setShowInPersonPass(false); setStepIdx(4); }} /></div>}
         </div>
       )}
 

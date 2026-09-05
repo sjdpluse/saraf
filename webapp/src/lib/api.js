@@ -95,6 +95,12 @@ export const api = {
 
   getStablecoinConfig: () => request("/stablecoins/config"),
 
+  getInPersonPassLink: ({ action, asset, code }) =>
+    request("/stablecoins/in-person-pass-link", {
+      method: "POST",
+      body: { action, asset: normalizeAsset(asset), code: String(code || "") },
+    }),
+
   getCardPreview: async ({ action, asset, amount, exchange_name, network, wallet_address }) => {
     const selectedAsset = normalizeAsset(asset);
     const q = quoteFor(action, amount, selectedAsset);

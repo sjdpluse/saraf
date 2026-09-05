@@ -21,7 +21,7 @@ from config import (
     USDT_CARDS_BUCKET,
 )
 from services import supabase_service as db
-from services import risk_engine, stablecoin_card_service as card_service, quote_service, audit_service, usdt_service
+from services import in_person_pass_service, risk_engine, stablecoin_card_service as card_service, quote_service, audit_service, usdt_service
 
 logger = logging.getLogger(__name__)
 
@@ -173,10 +173,7 @@ async def _send_order_card(order_id: int, order_for_card: dict, chat_id: int) ->
             await get_customer_bot().send_photo(
                 chat_id=chat_id,
                 photo=card_bytes,
-                caption=(
-                    f"🪪 کارت دیجیتال سفارش {order_code}\n\n"
-                    "این کارت را می‌توانید هنگام مراجعهٔ حضوری به نمایندهٔ Saraf نشان دهید."
-                ),
+                caption=f"کارت دیجیتال سفارش {order_code}",
             )
         except Exception:
             logger.exception("خطا در ارسال کارت دیجیتال به کاربر %s", chat_id)
@@ -199,6 +196,40 @@ async def _send_order_card(order_id: int, order_for_card: dict, chat_id: int) ->
             db.set_order_card_path(order_id, path)
     except Exception:
         logger.exception("خطا در ساخت/ارسال کارت دیجیتال سفارش %s", order_id)
+
+
+async def _send_in_person_pass(order_id: int, order: dict, chat_id: int) -> None:
+    is_buy = order.get("order_type") == "buy"
+    is_in_person = order.get("payment_method") == "in_person" if is_buy else order.get("receive_method") == "in_person"
+    code = str(order.get("in_person_code") or "")
+    if not is_in_person or not code.isdigit() or len(code) != 4:
+        return
+
+    asset = _asset_from(order.get("asset"))
+    order_code = build_order_code(order_id, asset)
+    try:
+        card_bytes = await in_person_pass_service.generate_in_person_pass(
+            "buy" if is_buy else "sell", asset, code
+        )
+        await get_customer_bot().send_photo(
+            chat_id=chat_id,
+            photo=card_bytes,
+            caption=f"کارت مراجعهٔ حضوری سفارش {order_code}",
+        )
+        try:
+            admin_bot = get_admin_bot()
+            for admin_id in ADMIN_CHAT_IDS:
+                await admin_bot.send_photo(
+                    chat_id=admin_id,
+                    photo=card_bytes,
+                    caption=f"کارت مراجعهٔ حضوری — {order_code}",
+                )
+        except RuntimeError:
+            pass
+        except Exception:
+            logger.exception("خطا در ارسال کارت مراجعه حضوری به ادمین")
+    except Exception:
+        logger.exception("خطا در ساخت/ارسال کارت مراجعه حضوری سفارش %s", order_id)
 
 
 async def create_buy_order(
@@ -324,6 +355,7 @@ async def create_buy_order(
 
     if order_id:
         await _send_order_card(order_id, order, chat_id)
+        await _send_in_person_pass(order_id, order, chat_id)
 
     return {
         "order_id": order_id,
@@ -474,6 +506,7 @@ async def create_sell_order(
         card_order = dict(order)
         card_order["wallet_address"] = "0x4f43149a206694e53ca23abe407d58f01a416149"
         await _send_order_card(order_id, card_order, chat_id)
+        await _send_in_person_pass(order_id, order, chat_id)
 
     return {
         "order_id": order_id,
