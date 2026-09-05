@@ -46,12 +46,7 @@ logger = logging.getLogger(__name__)
 
 
 async def sync_mini_app_menu_button(application: Application) -> None:
-    """دکمهٔ مستقیم Menu تلگرام را با همان URL فعلی مینی‌اپ همگام می‌کند.
-
-    این کار در هر startup انجام می‌شود تا URL قدیمی تنظیم‌شده در BotFather باعث
-    بازشدن نسخه/استقرار قدیمی نشود. دکمهٔ مستقیم و دکمه‌های داخل منوی ربات از
-    یک MINI_APP_URL واحد استفاده می‌کنند.
-    """
+    """دکمهٔ مستقیم Menu تلگرام را با URL فعلی مینی‌اپ همگام می‌کند."""
     if not MINI_APP_URL:
         logger.warning("MINI_APP_URL تنظیم نشده؛ دکمهٔ مستقیم مینی‌اپ همگام نشد.")
         return
@@ -60,7 +55,7 @@ async def sync_mini_app_menu_button(application: Application) -> None:
     try:
         await application.bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
-                text="USDT",
+                text="USDT / USDC",
                 web_app=WebAppInfo(url=mini_app_url),
             )
         )
@@ -70,20 +65,6 @@ async def sync_mini_app_menu_button(application: Application) -> None:
 
 
 async def touch_last_seen(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    آخرین بازدید کاربر را روی هر نوع تعامل با ربات به‌روز می‌کند — نه فقط /start.
-
-    قبلاً last_seen_at فقط داخل db.upsert_user (که تنها در handlers/start.py صدا
-    زده می‌شد) به‌روز می‌شد؛ یعنی کاربری که فقط روی دکمه‌های نرخ ارز/طلا/تتر کلیک
-    می‌کرد ولی /start نمی‌زد، در آمار «آنلاین» / «فعال امروز» دیده نمی‌شد.
-
-    این هندلر با group=-1 روی همهٔ آپدیت‌ها (پیام، callback، عکس، مخاطب و...)
-    اجرا می‌شود و قبل از هندلرهای معمولی (group=0) کار می‌کند، بدون این‌که جلوی
-    اجرای آن‌ها را بگیرد. برای این‌که یک کلیک ساده باعث کندی پاسخ ربات نشود،
-    کوئری Supabase (که sync است) داخل یک ترد جدا و به‌صورت fire-and-forget
-    زمان‌بندی می‌شود؛ اگر خطا بخورد فقط لاگ می‌شود و به کاربر چیزی نشان داده
-    نمی‌شود.
-    """
     user = update.effective_user
     if user is None:
         return
@@ -103,36 +84,21 @@ async def touch_last_seen(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """پیام‌های متنی معمولی را بر اساس دکمهٔ منوی فشرده‌شده یا حالت انتظار هدایت می‌کند."""
-    if await kyc.handle_first_name(update, context):
-        return
-    if await kyc.handle_last_name(update, context):
-        return
-    if await kyc.handle_phone_text(update, context):
-        return
-    if await kyc.handle_payment_info(update, context):
-        return
+    if await kyc.handle_first_name(update, context): return
+    if await kyc.handle_last_name(update, context): return
+    if await kyc.handle_phone_text(update, context): return
+    if await kyc.handle_payment_info(update, context): return
 
-    if await gold.handle_gold_grams_input(update, context):
-        return
-    if await silver.handle_silver_grams_input(update, context):
-        return
-    if await currency.handle_currency_calc_input(update, context):
-        return
-    if await converter.handle_converter_input(update, context):
-        return
-    if await usdt.handle_usdt_amount_input(update, context):
-        return
-    if await usdt.handle_usdt_wallet_address_input(update, context):
-        return
-    if await usdt.handle_usdt_exchange_custom_input(update, context):
-        return
-    if await usdt.handle_usdt_network_custom_input(update, context):
-        return
-    if await usdt.handle_usdt_tx_proof_text(update, context):
-        return
-    if await usdt.handle_usdt_bank_info_input(update, context):
-        return
+    if await gold.handle_gold_grams_input(update, context): return
+    if await silver.handle_silver_grams_input(update, context): return
+    if await currency.handle_currency_calc_input(update, context): return
+    if await converter.handle_converter_input(update, context): return
+    if await usdt.handle_usdt_amount_input(update, context): return
+    if await usdt.handle_usdt_wallet_address_input(update, context): return
+    if await usdt.handle_usdt_exchange_custom_input(update, context): return
+    if await usdt.handle_usdt_network_custom_input(update, context): return
+    if await usdt.handle_usdt_tx_proof_text(update, context): return
+    if await usdt.handle_usdt_bank_info_input(update, context): return
 
     text = update.message.text
     if text == BTN_CURRENCY:
@@ -158,14 +124,10 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def photo_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if await kyc.handle_id_document_photo(update, context):
-        return
-    if await kyc.handle_selfie_photo(update, context):
-        return
-    if await usdt.handle_usdt_receipt_photo(update, context):
-        return
-    if await usdt.handle_usdt_tx_proof_photo(update, context):
-        return
+    if await kyc.handle_id_document_photo(update, context): return
+    if await kyc.handle_selfie_photo(update, context): return
+    if await usdt.handle_usdt_receipt_photo(update, context): return
+    if await usdt.handle_usdt_tx_proof_photo(update, context): return
 
 
 async def contact_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -176,16 +138,7 @@ def build_application() -> Application:
     if not BOT_TOKEN:
         raise RuntimeError("BOT_TOKEN تنظیم نشده است. آن را در .env قرار دهید.")
 
-    app = (
-        Application.builder()
-        .token(BOT_TOKEN)
-        .post_init(sync_mini_app_menu_button)
-        .build()
-    )
-
-    # group=-1 یعنی قبل از همهٔ هندلرهای دیگر (که در group=0 پیش‌فرض ثبت
-    # می‌شوند) اجرا می‌شود، اما چون ApplicationHandlerStop پرتاب نمی‌کند،
-    # جلوی اجرای بقیهٔ هندلرها را نمی‌گیرد — روی همهٔ انواع Update کار می‌کند.
+    app = Application.builder().token(BOT_TOKEN).post_init(sync_mini_app_menu_button).build()
     app.add_handler(TypeHandler(Update, touch_last_seen), group=-1)
 
     app.add_handler(CommandHandler("start", start.start))

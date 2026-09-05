@@ -1,16 +1,13 @@
 """
-سرویس محاسبهٔ نرخ خرید و فروش تتر (USDT).
+سرویس محاسبهٔ نرخ خرید و فروش استیبل‌کوین‌های پشتیبانی‌شدهٔ صراف.
 
-مبنا: نرخ لحظه‌یی دالر در صرافی‌های محلی (rate_engine -> saraf_quote) که خودش
-از نرخ واقعی سرای شهزاده یا در نبود آن نرخ مرجع جهانی به‌دست می‌آید.
+در حال حاضر دو دارایی پشتیبانی می‌شوند:
+  - USDT (Tether)
+  - USDC (USD Coin)
 
-خرید تتر (کاربر تتر می‌خرد، افغانی/دالر پرداخت می‌کند):
-    مبنا = نرخ فروش دالر صرافی (saraf_quote.sell) + کارمزد پلکانی تخفیفی.
-    پله‌های اصلی از config خوانده می‌شوند و فعلاً ۰.۵ واحد درصد تخفیف روی هر پله
-    اعمال می‌شود؛ یعنی ۲.۵/۲/۱.۵ به ۲/۱.۵/۱ درصد تبدیل می‌شود.
-
-فروش تتر (کاربر تتر می‌فروشد، افغانی دریافت می‌کند):
-    مبنا = نرخ خرید دالر صرافی (saraf_quote.buy) — بدون کارمزد اضافه
+برای حفظ سازگاری با نسخه‌های قبلی، نام ماژول و تنظیمات USDT_* تغییر نکرده‌اند.
+هر دو دارایی با مدل قیمت‌گذاری فعلی صراف بر مبنای نرخ لحظه‌یی دالر محلی محاسبه
+می‌شوند و محدودیت مبلغ/پلکان کارمزد فعلی برای هر دو یکسان است.
 """
 import logging
 from decimal import Decimal
@@ -22,18 +19,38 @@ from services.money import D, to_float, quantize_afn, quantize_usd, quantize_rat
 logger = logging.getLogger(__name__)
 
 BUY_FEE_DISCOUNT_PERCENT = Decimal("0.5")
+SUPPORTED_ASSETS = ("USDT", "USDC")
+ASSET_NAMES_FA = {
+    "USDT": "تتر",
+    "USDC": "یو‌اس‌دی کوین",
+}
 
 
 class UsdtAmountError(ValueError):
+    """نام legacy برای سازگاری با کدهای موجود؛ برای USDT و USDC استفاده می‌شود."""
+
+
+class StablecoinAssetError(ValueError):
     pass
 
 
-def validate_amount(amount: float) -> None:
-    # مقایسهٔ کران‌ها روی مقدار خام کافی است (فقط validation، نه محاسبهٔ مالی)؛
-    # محاسبهٔ واقعی مبلغ همیشه با Decimal انجام می‌شود.
+def normalize_asset(asset: str | None) -> str:
+    value = str(asset or "USDT").strip().upper()
+    if value not in SUPPORTED_ASSETS:
+        raise StablecoinAssetError("دارایی انتخاب‌شده پشتیبانی نمی‌شود؛ فقط USDT و USDC قابل معامله‌اند.")
+    return value
+
+
+def asset_name_fa(asset: str | None) -> str:
+    normalized = normalize_asset(asset)
+    return ASSET_NAMES_FA[normalized]
+
+
+def validate_amount(amount: float, asset: str = "USDT") -> None:
+    asset = normalize_asset(asset)
     if amount is None or amount < USDT_MIN_AMOUNT or amount > USDT_MAX_AMOUNT:
         raise UsdtAmountError(
-            f"مقدار باید بین {USDT_MIN_AMOUNT:g} تا {USDT_MAX_AMOUNT:g} USDT باشد."
+            f"مقدار باید بین {USDT_MIN_AMOUNT:g} تا {USDT_MAX_AMOUNT:g} {asset} باشد."
         )
 
 
@@ -52,13 +69,10 @@ def get_buy_fee_percent(amount: float) -> float:
     return to_float(discounted)
 
 
-async def get_buy_quote(amount: float) -> dict:
-    """
-    تمام محاسبات پولی این تابع با Decimal انجام می‌شود (SARAF 2.0 Spec §13).
-    گرد کردن (rounding) فقط در انتها و روی هر فیلد با دقت مخصوص خودش انجام می‌شود؛
-    خروجی JSON/UI به float تبدیل می‌شود، اما همان مقدار Decimal quantize‌شده است.
-    """
-    validate_amount(amount)
+async def get_buy_quote(amount: float, asset: str = "USDT") -> dict:
+    """نرخ خرید USDT/USDC با محاسبات Decimal و خروجی quantize‌شده."""
+    asset = normalize_asset(asset)
+    validate_amount(amount, asset)
     quote = await rate_engine.get_full_quote("usd")
     usd_sell_rate: Decimal = D(quote["saraf_quote"]["sell"])
     amount_d: Decimal = D(amount)
@@ -70,6 +84,7 @@ async def get_buy_quote(amount: float) -> dict:
     total_afn = base_afn + fee_afn
 
     return {
+        "asset": asset,
         "amount": to_float(amount_d),
         "usd_rate": to_float(quantize_rate(usd_sell_rate)),
         "original_fee_percent": to_float(quantize_percent(original_fee_pct)),
@@ -82,14 +97,16 @@ async def get_buy_quote(amount: float) -> dict:
     }
 
 
-async def get_sell_quote(amount: float) -> dict:
-    validate_amount(amount)
+async def get_sell_quote(amount: float, asset: str = "USDT") -> dict:
+    asset = normalize_asset(asset)
+    validate_amount(amount, asset)
     quote = await rate_engine.get_full_quote("usd")
     usd_buy_rate: Decimal = D(quote["saraf_quote"]["buy"])
     amount_d: Decimal = D(amount)
     total_afn = amount_d * usd_buy_rate
 
     return {
+        "asset": asset,
         "amount": to_float(amount_d),
         "usd_rate": to_float(quantize_rate(usd_buy_rate)),
         "total_afn": to_float(quantize_afn(total_afn)),
