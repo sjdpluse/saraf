@@ -1314,3 +1314,67 @@ textarea.input {
   height: 100%;
   object-fit: cover;
 }
+
+
+/* ===== Stablecoin network selector ===== */
+.network-option-list { display: flex; flex-direction: column; gap: 8px; }
+.network-option { width: 100%; position: relative; border: 1px solid var(--color-border); background: var(--color-bg-elevated); border-radius: 16px; min-height: 70px; padding: 10px 12px; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer; font-family: inherit; transition: .16s ease; }
+.network-option.selected { border-color: var(--color-primary); background: var(--color-info-bg); box-shadow: 0 6px 18px rgba(0,113,227,.08); }
+.network-option-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; line-height: 1.25; }
+.network-option-code { color: var(--color-text); font-size: 17px; font-weight: 850; letter-spacing: -.01em; }
+.network-option-name { color: var(--color-text-muted); font-size: 12.5px; margin-top: 5px; }
+.network-option-check { position: absolute; right: 12px; color: var(--color-primary); }
+
+/* ===== In-person pass ===== */
+.inperson-pass-wrap { display: flex; flex-direction: column; gap: 10px; }
+.inperson-pass { overflow: hidden; border: 1px solid var(--color-border); border-radius: 22px; background: linear-gradient(145deg,#fff,#f3f8ff); box-shadow: var(--shadow-card); }
+.inperson-pass-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px; border-bottom:1px solid var(--color-border); }
+.inperson-brand-lockup,.inperson-asset-lockup { display:flex; align-items:center; gap:9px; }
+.inperson-brand-lockup img { width:38px; height:38px; border-radius:11px; object-fit:cover; }
+.inperson-brand-lockup div { display:flex; flex-direction:column; }
+.inperson-brand-lockup b { font-size:14px; }
+.inperson-brand-lockup span { color:var(--color-text-muted); font-size:10.5px; }
+.inperson-asset-lockup img { width:34px; height:34px; border-radius:50%; object-fit:contain; }
+.inperson-action { text-align:center; font-size:16px; font-weight:800; padding:18px 16px 8px; }
+.inperson-address { display:flex; align-items:flex-start; justify-content:center; gap:7px; padding:0 18px; text-align:center; color:var(--color-text-muted); font-size:12.5px; line-height:1.8; }
+.inperson-address svg { color:var(--color-primary); flex-shrink:0; margin-top:2px; }
+.inperson-code { margin:16px; border-radius:16px; background:#fff; border:1px solid var(--color-border); padding:13px; display:flex; align-items:center; justify-content:space-between; }
+.inperson-code span { color:var(--color-text-muted); font-size:12px; }
+.inperson-code strong { color:var(--color-primary); font-size:26px; letter-spacing:5px; }
+
+/* ===== Final review ===== */
+.review-stack { display:flex; flex-direction:column; gap:12px; }
+.review-hero { padding:16px; overflow:hidden; }
+.review-hero.buy { border-top:3px solid var(--color-buy); }
+.review-hero.sell { border-top:3px solid #1d1d1f; }
+.review-hero-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.review-asset-title { display:flex; align-items:center; gap:10px; min-width:0; }
+.review-asset-logo { width:44px; height:44px; border-radius:14px; background:#fff; display:grid; place-items:center; box-shadow:0 2px 10px rgba(0,0,0,.06); flex-shrink:0; }
+.review-asset-logo img { width:34px; height:34px; object-fit:contain; border-radius:50%; }
+.review-asset-title h2 { margin:0; font-size:16px; }
+.review-asset-title p { margin:3px 0 0; font-size:11px; color:var(--color-text-muted); }
+.review-type-pill { flex-shrink:0; border-radius:999px; background:var(--color-bg-elevated); padding:6px 9px; font-size:10.5px; font-weight:800; }
+.review-amount-block { margin-top:16px; padding:15px; border-radius:18px; background:var(--color-bg-elevated); }
+.review-amount-label { display:block; color:var(--color-text-muted); font-size:11px; margin-bottom:7px; }
+.review-amount-value { display:flex; align-items:center; gap:8px; }
+.review-amount-value img { width:24px; height:24px; border-radius:50%; }
+.review-amount-value strong { font-size:22px; }
+.review-money-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-top:10px; }
+.review-money-card { min-width:0; border:1px solid var(--color-border); border-radius:15px; background:#fff; padding:11px; display:flex; flex-direction:column; gap:4px; }
+.review-money-card svg { color:var(--color-primary); }
+.review-money-card span { color:var(--color-text-muted); font-size:10px; }
+.review-money-card strong { font-size:15px; overflow-wrap:anywhere; }
+.review-details-card { padding:15px; }
+.review-section-title { display:flex; align-items:center; gap:7px; font-weight:800; font-size:13px; margin-bottom:8px; }
+.review-detail-row { display:grid; grid-template-columns:minmax(95px,.8fr) minmax(0,1.6fr); gap:12px; padding:11px 0; border-bottom:1px solid var(--color-border); align-items:start; }
+.review-detail-row:last-child { border-bottom:none; }
+.review-detail-row span { color:var(--color-text-muted); font-size:11.5px; }
+.review-detail-row strong { font-size:12px; text-align:left; overflow-wrap:anywhere; }
+.review-preview-placeholder { min-height:180px; display:grid; place-items:center; background:var(--color-bg-elevated); border-radius:16px; }
+.review-card-preview { width:100%; display:block; border-radius:16px; border:1px solid var(--color-border); }
+
+/* ===== WhatsApp support ===== */
+.whatsapp-support-bar { position:sticky; bottom:8px; z-index:30; margin:10px auto 8px; width:min(calc(100% - 24px),520px); display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:7px; border:1px solid rgba(0,0,0,.08); border-radius:18px; background:rgba(255,255,255,.94); backdrop-filter:blur(14px); box-shadow:0 10px 30px rgba(0,0,0,.12); }
+.whatsapp-support-bar button { border:0; border-radius:13px; min-height:40px; padding:8px 7px; display:flex; align-items:center; justify-content:center; gap:6px; font-family:inherit; font-weight:700; font-size:11.5px; cursor:pointer; }
+.whatsapp-support-bar button:first-child { background:#eaf8ef; color:#16783a; }
+.whatsapp-support-bar button:last-child { background:var(--color-bg-elevated); color:var(--color-text); }

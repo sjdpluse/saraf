@@ -218,6 +218,7 @@ async def create_buy_order(
     idempotency_key: Optional[str] = None,
     quote_id: Optional[int] = None,
     asset: Optional[str] = None,
+    in_person_code: Optional[str] = None,
 ) -> dict:
     selected_asset = _asset_from(asset, quote)
     asset_fa = _asset_fa(selected_asset)
@@ -251,6 +252,7 @@ async def create_buy_order(
         "source": source,
         "risk_level": risk_level,
         "risk_reasons": "؛ ".join(risk_reasons) if risk_reasons else None,
+        "in_person_code": in_person_code if payment_method == "in_person" else None,
     }
     if idempotency_key:
         order["idempotency_key"] = idempotency_key
@@ -309,6 +311,7 @@ async def create_buy_order(
         f"مقدار: {amount:g} {selected_asset}\n"
         f"مبلغ: {quote['total_afn']:,.0f} افغانی (کارمزد {quote['fee_percent']}٪)\n"
         f"روش پرداخت: {_md_escape(payment_method)}\n"
+        f"کد مراجعه حضوری: {_md_escape(in_person_code) if payment_method == 'in_person' else '-'}\n"
         f"مقصد: {_md_escape(exchange_name)}\n"
         f"شبکه: {_md_escape(network)}\n"
         f"آدرس ولت: `{wallet_address}`\n"
@@ -348,6 +351,7 @@ async def create_sell_order(
     idempotency_key: Optional[str] = None,
     quote_id: Optional[int] = None,
     asset: Optional[str] = None,
+    in_person_code: Optional[str] = None,
 ) -> dict:
     selected_asset = _asset_from(asset, quote)
     asset_fa = _asset_fa(selected_asset)
@@ -383,6 +387,7 @@ async def create_sell_order(
         "source": source,
         "risk_level": risk_level,
         "risk_reasons": "؛ ".join(risk_reasons) if risk_reasons else None,
+        "in_person_code": in_person_code if receive_method == "in_person" else None,
     }
     if idempotency_key:
         order["idempotency_key"] = idempotency_key
@@ -455,6 +460,7 @@ async def create_sell_order(
         f"صرافی: {_md_escape(exchange_name)}\n"
         f"شبکه: {_md_escape(network)}\n"
         f"روش دریافت: {receive_label}\n"
+        f"کد مراجعه حضوری: {_md_escape(in_person_code) if receive_method == 'in_person' else '-'}\n"
         f"اثبات تراکنش: {proof_label}\n"
         f"اطلاعات پرداخت کاربر: {_md_escape(bank_info)}\n"
         f"منبع سفارش: {source}",

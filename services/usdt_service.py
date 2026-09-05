@@ -82,6 +82,7 @@ async def get_buy_quote(amount: float, asset: str = "USDT") -> dict:
     base_afn = amount_d * usd_sell_rate
     fee_afn = base_afn * fee_pct / D(100)
     total_afn = base_afn + fee_afn
+    payable_usd = total_afn / usd_sell_rate
 
     return {
         "asset": asset,
@@ -93,6 +94,7 @@ async def get_buy_quote(amount: float, asset: str = "USDT") -> dict:
         "fee_afn": to_float(quantize_afn(fee_afn)),
         "total_afn": to_float(quantize_afn(total_afn)),
         "total_usd": to_float(quantize_usd(amount_d)),
+        "payable_usd": to_float(quantize_usd(payable_usd)),
         "basis": quote["saraf_quote"]["basis"],
     }
 
@@ -104,6 +106,7 @@ async def get_sell_quote(amount: float, asset: str = "USDT") -> dict:
     usd_buy_rate: Decimal = D(quote["saraf_quote"]["buy"])
     amount_d: Decimal = D(amount)
     total_afn = amount_d * usd_buy_rate
+    receivable_usd = total_afn / usd_buy_rate
 
     return {
         "asset": asset,
@@ -111,5 +114,6 @@ async def get_sell_quote(amount: float, asset: str = "USDT") -> dict:
         "usd_rate": to_float(quantize_rate(usd_buy_rate)),
         "total_afn": to_float(quantize_afn(total_afn)),
         "total_usd": to_float(quantize_usd(amount_d)),
+        "receivable_usd": to_float(quantize_usd(receivable_usd)),
         "basis": quote["saraf_quote"]["basis"],
     }
