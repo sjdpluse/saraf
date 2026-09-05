@@ -1,11 +1,9 @@
 """
-لایهٔ مشترک Quote — SARAF 2.0 Spec §3 (Quote System) + §26 (حذف duplicate logic).
+لایهٔ مشترک Quote — منبع واحد نرخ موقت برای ربات و مینی‌اپ.
 
-قبلاً منطق ساخت/بارگذاری/مصرف Quote هم داخل usdt_api_guard.py (برای مینی‌اپ) پیاده
-شده بود و هم اصلاً برای ربات چت (handlers/usdt.py) وجود نداشت — یعنی نرخی که ربات
-به کاربر نشان می‌داد هرگز در دیتابیس ذخیره نمی‌شد و expiry آن فقط سمت کلاینت
-(context.user_data) چک می‌شد. این ماژول تنها منبع حقیقت برای Quote است؛ هم ربات و
-هم مینی‌اپ از همین توابع استفاده می‌کنند.
+نام جدول‌ها و فیلدهای usdt_* برای سازگاری عقب‌رو حفظ شده‌اند، اما هر Quote از این
+پس به asset مشخص (USDT یا USDC) متصل است تا نرخ یک دارایی نتواند برای دارایی دیگر
+مصرف شود.
 """
 from __future__ import annotations
 
@@ -21,10 +19,11 @@ from services.money import money_equal
 logger = logging.getLogger(__name__)
 
 _QUOTE_TTL_SECONDS = int(USDT_QUOTE_VALIDITY_MINUTES * 60)
+_SUPPORTED_ASSETS = {"USDT", "USDC"}
 
 
 class QuoteError(ValueError):
-    """خطای Quote با یک کد استاندارد (برای نگاشت به error code های API §16)."""
+    """خطای Quote با یک کد استاندارد برای نگاشت به API."""
 
     def __init__(self, code: str, message: str):
         self.code = code
@@ -32,10 +31,22 @@ class QuoteError(ValueError):
         super().__init__(message)
 
 
-def create_quote(chat_id: int, order_type: str, amount: float, quote: dict) -> dict:
-    """Quote محاسبه‌شده توسط usdt_service را در دیتابیس ذخیره می‌کند و quote_id +
-    expires_at را به آن اضافه می‌کند. amount/rate/fee/total دقیقاً همان چیزی است که
-    usdt_service محاسبه کرده — این تابع فقط persist می‌کند، دوباره محاسبه نمی‌کند."""
+def _normalize_asset(asset: Optional[str]) -> str:
+    value = str(asset or "USDT").strip().upper()
+    if value not in _SUPPORTED_ASSETS:
+        raise QuoteError("QUOTE_ASSET_INVALID", "دارایی انتخاب‌شده پشتیبانی نمی‌شود.")
+    return value
+
+
+def create_quote(
+    chat_id: int,
+    order_type: str,
+    amount: float,
+    quote: dict,
+    asset: Optional[str] = None,
+) -> dict:
+    """Quote محاسبه‌شده را ذخیره و به کاربر، نوع معامله و دارایی متصل می‌کند."""
+    asset = _normalize_asset(asset or quote.get("asset"))
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=_QUOTE_TTL_SECONDS)
     try:
         res = (
@@ -45,6 +56,7 @@ def create_quote(chat_id: int, order_type: str, amount: float, quote: dict) -> d
                 {
                     "chat_id": chat_id,
                     "order_type": order_type,
+                    "asset": asset,
                     "usdt_amount": amount,
                     "usd_rate": quote["usd_rate"],
                     "fee_percent": quote.get("fee_percent", 0),
@@ -57,7 +69,7 @@ def create_quote(chat_id: int, order_type: str, amount: float, quote: dict) -> d
             .execute()
         )
     except Exception:
-        logger.exception("خطا در ذخیرهٔ Quote")
+        logger.exception("خطا در ذخیرهٔ Quote برای %s", asset)
         res = None
 
     if not res or not res.data:
@@ -69,17 +81,27 @@ def create_quote(chat_id: int, order_type: str, amount: float, quote: dict) -> d
         entity="usdt_quote",
         entity_id=quote_id,
         actor=chat_id,
-        after={"order_type": order_type, "usdt_amount": amount, "total_afn": quote.get("total_afn")},
+        after={
+            "order_type": order_type,
+            "asset": asset,
+            "usdt_amount": amount,
+            "total_afn": quote.get("total_afn"),
+        },
     )
     result = dict(quote)
-    result.update({"quote_id": quote_id, "expires_at": expires_at.isoformat()})
+    result.update({"asset": asset, "quote_id": quote_id, "expires_at": expires_at.isoformat()})
     return result
 
 
-def load_and_validate(chat_id: int, quote_id: int, order_type: str, amount: float) -> dict:
-    """Quote را بارگذاری و طبق §3 اعتبارسنجی می‌کند: مالکیت (chat_id)، نوع
-    (buy/sell)، وضعیت (active)، انقضا، و تطابق amount. در هر شکست، QuoteError با
-    کد مناسب پرتاب می‌شود (نگاشت مستقیم به error code های استاندارد API)."""
+def load_and_validate(
+    chat_id: int,
+    quote_id: int,
+    order_type: str,
+    amount: float,
+    asset: Optional[str] = None,
+) -> dict:
+    """مالکیت، نوع معامله، دارایی، وضعیت، انقضا و amount یک Quote را بررسی می‌کند."""
+    asset = _normalize_asset(asset)
     res = (
         db.get_client()
         .table("usdt_quotes")
@@ -94,6 +116,12 @@ def load_and_validate(chat_id: int, quote_id: int, order_type: str, amount: floa
         raise QuoteError("QUOTE_NOT_FOUND", "نرخ انتخاب‌شده معتبر نیست.")
 
     q = res.data[0]
+    quote_asset = _normalize_asset(q.get("asset"))
+    if quote_asset != asset:
+        raise QuoteError(
+            "QUOTE_ASSET_MISMATCH",
+            f"این نرخ برای {quote_asset} صادر شده است؛ لطفاً برای {asset} نرخ جدید بگیرید.",
+        )
     if q.get("status") == "consumed":
         raise QuoteError("QUOTE_CONSUMED", "این نرخ قبلاً استفاده شده است.")
     if q.get("status") != "active":
@@ -111,6 +139,7 @@ def load_and_validate(chat_id: int, quote_id: int, order_type: str, amount: floa
     if not money_equal(q["usdt_amount"], amount):
         raise QuoteError("QUOTE_MISMATCH", "مقدار سفارش با نرخ انتخاب‌شده مطابقت ندارد.")
 
+    q["asset"] = quote_asset
     return q
 
 
@@ -125,9 +154,6 @@ def _mark_expired(quote_id: int, chat_id: Optional[int] = None) -> None:
 
 
 def consume(quote_id: Optional[int], *, chat_id: Optional[int] = None, order_id: Optional[int] = None) -> None:
-    """Quote را atomically مصرف می‌کند (status: active -> consumed). شرط
-    `.eq("status", "active")` تضمین می‌کند دو مصرف هم‌زمان یک Quote هر دو موفق
-    نشوند — فقط اولی که هنوز active می‌بیند ردیف را تغییر می‌دهد."""
     if not quote_id:
         return
     try:
@@ -135,7 +161,10 @@ def consume(quote_id: Optional[int], *, chat_id: Optional[int] = None, order_id:
             {"status": "consumed", "consumed_at": datetime.now(timezone.utc).isoformat()}
         ).eq("id", quote_id).eq("status", "active").execute()
         audit_service.record(
-            action="quote_consumed", entity="usdt_quote", entity_id=quote_id, actor=chat_id,
+            action="quote_consumed",
+            entity="usdt_quote",
+            entity_id=quote_id,
+            actor=chat_id,
             after={"order_id": order_id},
         )
     except Exception:
