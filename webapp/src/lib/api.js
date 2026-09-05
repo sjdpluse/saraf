@@ -175,6 +175,9 @@ export const api = {
 
   getMyOrders: () => request("/usdt/orders/me"),
   getStats: () => request("/usdt/stats"),
+  getReviews: (limit = 20, offset = 0) => request(`/reviews?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`),
+  createReview: (body) => request("/reviews", { method: "POST", body: { body } }),
+  replyToReview: (reviewId, body) => request(`/reviews/${reviewId}/reply`, { method: "POST", body: { body } }),
   getPaymentInfo: () => request("/usdt/payment-info"),
 
   rateOrder: (orderId, rating, comment) =>

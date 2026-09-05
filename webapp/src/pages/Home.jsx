@@ -11,6 +11,7 @@ import {
   Headset,
   Users,
   Star,
+  ChatCircleText,
 } from "@phosphor-icons/react";
 import { api } from "../lib/api";
 import { SARAF_LOGO_URL, TETHER_LOGO_URL, USDC_LOGO_URL, normalizeAsset } from "../lib/brand";
@@ -18,11 +19,13 @@ import AssetSelector from "../components/AssetSelector";
 
 export default function Home({ navigate, startTransaction, selectedAsset = "USDT", onSelectAsset }) {
   const [stats, setStats] = useState(null);
+  const [reviewsCount, setReviewsCount] = useState(null);
   const asset = normalizeAsset(selectedAsset);
 
   useEffect(() => {
     let mounted = true;
     api.getStats().then((s) => mounted && setStats(s)).catch(() => {});
+    api.getReviews(1, 0).then((r) => mounted && setReviewsCount(Number(r.total || 0))).catch(() => {});
     return () => { mounted = false; };
   }, []);
 
@@ -62,18 +65,23 @@ export default function Home({ navigate, startTransaction, selectedAsset = "USDT
 
       <AssetSelector value={asset} onChange={onSelectAsset} />
 
-      {stats && stats.completed_orders > 0 && (
-        <div className="stats-row animate-in" style={{ animationDelay: "0.06s" }}>
+      {stats && (
+        <div className="stats-row stats-row-three animate-in" style={{ animationDelay: "0.06s" }}>
           <div className="stat-box">
             <Users size={20} className="stat-icon" weight="fill" />
-            <div className="stat-value num">{stats.completed_orders.toLocaleString()}</div>
+            <div className="stat-value num">{Number(stats.completed_orders || 0).toLocaleString()}</div>
             <div className="stat-label">معاملهٔ تکمیل‌شده</div>
           </div>
           <div className="stat-box">
             <Star size={20} className="stat-icon" weight="fill" />
-            <div className="stat-value num">{stats.average_rating ? stats.average_rating.toFixed(1) : "—"}</div>
+            <div className="stat-value num">{stats.average_rating ? Number(stats.average_rating).toFixed(1) : "—"}</div>
             <div className="stat-label">میانگین امتیاز کاربران</div>
           </div>
+          <button type="button" className="stat-box stat-box-button" onClick={() => navigate("reviews")}>
+            <ChatCircleText size={20} className="stat-icon" weight="fill" />
+            <div className="stat-value num">{reviewsCount === null ? "—" : reviewsCount.toLocaleString()}</div>
+            <div className="stat-label">نظرات کاربران</div>
+          </button>
         </div>
       )}
 
