@@ -19,7 +19,9 @@ export default function OrderReview({
   network,
   walletAddress,
   paymentLabel,
+  paymentProofLabel,
   receiveLabel,
+  payoutInfo,
   proofLabel,
   cardPreviewUrl,
   previewLoading,
@@ -43,9 +45,7 @@ export default function OrderReview({
             </span>
             <div>
               <div style={{ fontWeight: 850, fontSize: 16 }}>بررسی نهایی درخواست</div>
-              <div style={{ color: "var(--color-text-muted)", fontSize: 11.5, marginTop: 2 }}>
-                پیش از ثبت، تمام معلومات را یک‌بار بررسی کنید
-              </div>
+              <div style={{ color: "var(--color-text-muted)", fontSize: 11.5, marginTop: 2 }}>پیش از ثبت، تمام معلومات را یک‌بار بررسی کنید</div>
             </div>
           </div>
           <span className="num" style={{ color: accent, background: isBuy ? "var(--color-buy-bg)" : "var(--color-sell-bg)", padding: "6px 10px", borderRadius: 999, fontWeight: 800, fontSize: 11.5 }}>
@@ -75,7 +75,9 @@ export default function OrderReview({
         <Row label="شبکه" value={network} mono />
         {walletAddress && <Row label={isBuy ? "آدرس دریافت" : "آدرس واریز صراف"} value={walletAddress} mono />}
         {isBuy && <Row label="روش پرداخت" value={paymentLabel} />}
+        {isBuy && paymentProofLabel && <Row label="وضعیت پرداخت / رسید" value={paymentProofLabel} />}
         {!isBuy && <Row label="روش دریافت" value={receiveLabel} />}
+        {!isBuy && payoutInfo && <Row label="معلومات حساب دریافت" value={payoutInfo} mono />}
         {!isBuy && proofLabel && <Row label="اثبات تراکنش" value={proofLabel} mono />}
         <Row label="نرخ دالر" value={`${Number(quote?.usd_rate || 0).toLocaleString()} افغانی`} mono />
         {isBuy && Number(quote?.fee_afn || 0) > 0 && <Row label="کارمزد" value={`${Number(quote.fee_afn).toLocaleString()} افغانی`} mono />}
@@ -86,17 +88,9 @@ export default function OrderReview({
           <ShieldCheck size={18} weight="fill" style={{ color: "var(--color-primary)" }} />
           پیش‌نمایش کارت مشتری
         </div>
-        {previewLoading && (
-          <div style={{ minHeight: 180, display: "grid", placeItems: "center", background: "var(--color-bg-elevated)", borderRadius: 16 }}>
-            <span className="spinner" />
-          </div>
-        )}
-        {!previewLoading && cardPreviewUrl && (
-          <img src={cardPreviewUrl} alt="پیش‌نمایش کارت مشتری" style={{ width: "100%", display: "block", borderRadius: 16, border: "1px solid var(--color-border)" }} />
-        )}
-        {!previewLoading && !cardPreviewUrl && (
-          <div className="notice warn"><Warning size={16} weight="fill" />پیش‌نمایش کارت در دسترس نیست. معلومات سفارش را بررسی کنید و دوباره تلاش نمایید.</div>
-        )}
+        {previewLoading && <div style={{ minHeight: 180, display: "grid", placeItems: "center", background: "var(--color-bg-elevated)", borderRadius: 16 }}><span className="spinner" /></div>}
+        {!previewLoading && cardPreviewUrl && <img src={cardPreviewUrl} alt="پیش‌نمایش کارت مشتری" style={{ width: "100%", display: "block", borderRadius: 16, border: "1px solid var(--color-border)" }} />}
+        {!previewLoading && !cardPreviewUrl && <div className="notice warn"><Warning size={16} weight="fill" />پیش‌نمایش کارت در دسترس نیست. معلومات سفارش را بررسی کنید و دوباره تلاش نمایید.</div>}
       </div>
 
       <div className="notice warn" style={{ alignItems: "flex-start" }}>
@@ -107,9 +101,7 @@ export default function OrderReview({
       <button className={`btn ${isBuy ? "btn-buy" : "btn-sell"}`} onClick={onConfirm} disabled={submitting || previewLoading || !cardPreviewUrl}>
         {submitting ? <span className="spinner" /> : <><CheckCircle size={18} weight="fill" /> تایید و درخواست {isBuy ? "خرید" : "فروش"} {selectedAsset}</>}
       </button>
-      <button className="btn btn-outline" onClick={onBack} disabled={submitting}>
-        <ArrowRight size={17} /> بازگشت و اصلاح معلومات
-      </button>
+      <button className="btn btn-outline" onClick={onBack} disabled={submitting}><ArrowRight size={17} /> بازگشت و اصلاح معلومات</button>
     </div>
   );
 }
