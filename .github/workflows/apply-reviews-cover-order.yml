@@ -1,0 +1,35 @@
+name: Apply reviews cover order
+
+on:
+  push:
+    branches:
+      - fix/reviews-cover-order
+    paths:
+      - '.github/scripts/trigger_reviews_cover_order.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply patch
+        run: python .github/scripts/apply_reviews_cover_order.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build Mini App
+        working-directory: webapp
+        run: npm ci && npm run build
+      - name: Commit generated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add webapp/src/pages/Reviews.jsx webapp/src/index.css webapp/dist
+          git diff --cached --quiet || git commit -m "Update reviews cover and ordering"
+          git push
