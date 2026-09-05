@@ -14,11 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import { api } from "../lib/api";
 import { SARAF_LOGO_URL, TETHER_LOGO_URL, USDC_LOGO_URL, normalizeAsset } from "../lib/brand";
-
-const ASSETS = [
-  { code: "USDT", name: "تتر", logo: TETHER_LOGO_URL },
-  { code: "USDC", name: "USD Coin", logo: USDC_LOGO_URL },
-];
+import AssetSelector from "../components/AssetSelector";
 
 export default function Home({ navigate, startTransaction, selectedAsset = "USDT", onSelectAsset }) {
   const [stats, setStats] = useState(null);
@@ -26,13 +22,8 @@ export default function Home({ navigate, startTransaction, selectedAsset = "USDT
 
   useEffect(() => {
     let mounted = true;
-    api
-      .getStats()
-      .then((s) => mounted && setStats(s))
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
+    api.getStats().then((s) => mounted && setStats(s)).catch(() => {});
+    return () => { mounted = false; };
   }, []);
 
   return (
@@ -41,48 +32,19 @@ export default function Home({ navigate, startTransaction, selectedAsset = "USDT
         <div className="hero-top">
           <div className="hero-row">
             <div className="hero-brand">
-              <div className="hero-logo">
-                <img src={SARAF_LOGO_URL} alt="صراف" />
-              </div>
+              <div className="hero-logo"><img src={SARAF_LOGO_URL} alt="صراف" /></div>
               <span className="hero-brand-name">صراف</span>
             </div>
+            <div className="num" style={{ position: "relative", zIndex: 1, fontSize: 11, fontWeight: 800, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.18)", padding: "6px 10px", borderRadius: 999 }}>
+              USDT / USDC
+            </div>
           </div>
 
-          <div className="hero-tagline">خرید و فروش USDT و USDC با نرخ منصفانه و پرداخت آسان</div>
+          <div className="hero-tagline">خرید و فروش استیبل‌کوین با روند روشن، بررسی دستی و پیگیری سفارش</div>
 
           <div className="hero-chip-row">
-            <div className="hero-chip">
-              <ShieldCheck size={13} weight="fill" />
-              بررسی دستی هر سفارش
-            </div>
-            <div className="hero-chip">
-              <Clock size={13} weight="fill" />
-              تحویل زیر ۱ ساعت
-            </div>
-          </div>
-        </div>
-
-        <div style={{ padding: "0 16px 14px" }}>
-          <div className="field-label" style={{ marginBottom: 8 }}>دارایی مورد نظر را انتخاب کنید</div>
-          <div className="choice-row">
-            {ASSETS.map((item) => (
-              <button
-                key={item.code}
-                className={`choice-btn ${asset === item.code ? "selected" : ""}`}
-                onClick={() => onSelectAsset?.(item.code)}
-                type="button"
-              >
-                <img
-                  src={item.logo}
-                  alt={item.code}
-                  style={{ width: 28, height: 28, objectFit: "contain", borderRadius: "50%" }}
-                />
-                <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.15 }}>
-                  <b>{item.code}</b>
-                  <small style={{ opacity: 0.65 }}>{item.name}</small>
-                </span>
-              </button>
-            ))}
+            <div className="hero-chip"><ShieldCheck size={13} weight="fill" /> بررسی دستی هر سفارش</div>
+            <div className="hero-chip"><Clock size={13} weight="fill" /> تحویل زیر ۱ ساعت</div>
           </div>
         </div>
 
@@ -97,6 +59,8 @@ export default function Home({ navigate, startTransaction, selectedAsset = "USDT
           </button>
         </div>
       </div>
+
+      <AssetSelector value={asset} onChange={onSelectAsset} />
 
       {stats && stats.completed_orders > 0 && (
         <div className="stats-row animate-in" style={{ animationDelay: "0.06s" }}>
@@ -133,22 +97,10 @@ export default function Home({ navigate, startTransaction, selectedAsset = "USDT
           چرا صراف؟
         </div>
         <div className="trust-list">
-          <div className="trust-item">
-            <ShieldCheck size={18} className="trust-icon" weight="fill" />
-            نرخ لحظه‌یی بازار برای تصمیم‌گیری روشن‌تر
-          </div>
-          <div className="trust-item">
-            <Clock size={18} className="trust-icon" weight="fill" />
-            هر سفارش پیش از اجرا توسط تیم ما به‌صورت دستی بررسی و تایید می‌شود
-          </div>
-          <div className="trust-item">
-            <HandCoins size={18} className="trust-icon" weight="fill" />
-            پرداخت حضوری یا آنلاین — هرکدام که برایتان آسان‌تر است
-          </div>
-          <div className="trust-item">
-            <Headset size={18} className="trust-icon" weight="fill" />
-            پشتیبانی مستقیم و پاسخ‌گو: @SJDPLUS
-          </div>
+          <div className="trust-item"><ShieldCheck size={18} className="trust-icon" weight="fill" /> نرخ لحظه‌یی بازار برای تصمیم‌گیری روشن‌تر</div>
+          <div className="trust-item"><Clock size={18} className="trust-icon" weight="fill" /> هر سفارش پیش از اجرا توسط تیم ما به‌صورت دستی بررسی و تایید می‌شود</div>
+          <div className="trust-item"><HandCoins size={18} className="trust-icon" weight="fill" /> پرداخت حضوری یا آنلاین — هرکدام که برایتان آسان‌تر است</div>
+          <div className="trust-item"><Headset size={18} className="trust-icon" weight="fill" /> پشتیبانی مستقیم و پاسخ‌گو: @SJDPLUS</div>
         </div>
       </div>
 
