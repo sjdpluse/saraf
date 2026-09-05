@@ -84,9 +84,6 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
     api.getStablecoinConfig().then(setStablecoinConfig).catch((e) => {
       showError(e instanceof ApiError ? e.message : "دریافت شبکه‌های پشتیبانی‌شده ناموفق بود.");
     });
-    return () => {
-      if (cardPreviewUrl) URL.revokeObjectURL(cardPreviewUrl);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -111,9 +108,13 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
   }
 
   function goBack() {
-    if (step === "review") clearPreview();
     if (stepIdx === 0) navigate("home");
     else setStepIdx((i) => i - 1);
+  }
+
+  function backFromReview() {
+    clearPreview();
+    setStepIdx(receiveMethod === "in_person" ? 6 : 7);
   }
 
   async function fetchQuote() {
@@ -157,7 +158,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
   }
 
   function continueCustomExchange() {
-    if (!exchangeCustom.trim()) return showError("نام صرافی را وارد کنید.");
+    if (!exchangeCustom.trim()) return showError("نام صرافی یا کیف پول را وارد کنید.");
     setStepIdx(3);
   }
 
@@ -213,7 +214,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
     const method = methodOverride || receiveMethod;
     const proof = txProofUrl || txProof.trim();
     if (!proof) return showError("لطفاً کد تراکنش (TxID) یا رسید تراکنش را وارد کنید.");
-    if (!finalExchange) return showError("نام صرافی الزامی است.");
+    if (!finalExchange) return showError("نام صرافی یا کیف پول الزامی است.");
     if (!finalNetwork || !walletForNetwork) return showError("یک شبکهٔ دریافت فعال را انتخاب کنید.");
     if (!method) return showError("روش دریافت مبلغ را انتخاب کنید.");
     if (method.startsWith("online_") && !bankInfo.trim()) {
@@ -346,10 +347,11 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
           network={networkLabel}
           walletAddress={walletForNetwork}
           receiveLabel={receiveLabel(receiveMethod)}
+          payoutInfo={receiveMethod?.startsWith("online_") ? bankInfo.trim() : null}
           proofLabel={proofLabel}
           cardPreviewUrl={cardPreviewUrl}
           previewLoading={previewLoading}
-          onBack={goBack}
+          onBack={backFromReview}
           onConfirm={submitOrder}
           submitting={submitting}
         />
