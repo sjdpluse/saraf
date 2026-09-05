@@ -31,6 +31,8 @@ jobs:
         run: npm ci && npm run build
       - name: Compile Python
         run: python -m compileall -q api.py bot.py config.py keyboards.py services
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
       - name: Validate pass token and renderer import
         env:
           BOT_TOKEN: test-token-for-ci-only
