@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CaretRight,
   TrendUp,
@@ -12,20 +12,21 @@ import {
   ChatCircleDots,
   Headset,
   ArrowRight,
+  MagnifyingGlass,
 } from "@phosphor-icons/react";
 import { api, ApiError } from "../lib/api";
 import { hapticSuccess, hapticError, openTelegramChat } from "../lib/telegram";
 import CopyRow from "../components/CopyRow";
+import OrderReview from "../components/OrderReview";
 import { assetLogo, ASSET_NAMES_FA, normalizeAsset } from "../lib/brand";
 import NetworkIcon from "../components/NetworkIcon";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
-const NETWORKS = ["TRC20", "ERC20", "BEP20"];
 const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
 const HESABPAY_LOGO_URL = "https://i.postimg.cc/63khhqcm/hesab.png";
 const HESABPAY_QR_URL = "https://i.postimg.cc/D058wYSQ/Hesab.jpg";
 const HESABPAY_PHONE = "0775146747";
-const STEPS = ["amount", "quote", "payment", "receipt", "exchange", "network", "wallet", "done"];
+const STEPS = ["amount", "quote", "payment", "receipt", "exchange", "network", "wallet", "review", "done"];
 
 const providerLogoStyle = {
   width: 34,
@@ -35,10 +36,24 @@ const providerLogoStyle = {
   background: "#fff",
 };
 
+function paymentLabel(method) {
+  if (method === "in_person") return "پرداخت حضوری";
+  if (method === "online_hesabpay") return "حساب‌پی";
+  if (method === "online_azizi") return "عزیزی بانک";
+  return "—";
+}
+
+function resolveNetwork(input, networks) {
+  const q = String(input || "").trim().toLowerCase();
+  if (!q) return null;
+  return networks.find((item) => item.code.toLowerCase() === q || item.label.toLowerCase() === q) || null;
+}
+
 export default function Buy({ asset = "USDT", navigate, showError, resumeState, onResumeConsumed, onNeedProfile, onNeedVerification }) {
   const selectedAsset = normalizeAsset(asset);
   const coinLogo = assetLogo(selectedAsset);
   const coinName = ASSET_NAMES_FA[selectedAsset];
+
   const [stepIdx, setStepIdx] = useState(0);
   const [amount, setAmount] = useState("");
   const [quote, setQuote] = useState(null);
@@ -55,10 +70,26 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
   const [network, setNetwork] = useState(null);
   const [networkCustom, setNetworkCustom] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
+  const [stablecoinConfig, setStablecoinConfig] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [cardPreviewUrl, setCardPreviewUrl] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [orderCode, setOrderCode] = useState(null);
 
   const step = STEPS[stepIdx];
+  const networks = stablecoinConfig?.[selectedAsset]?.buy_networks || [];
+  const finalExchange = exchange === "other" ? exchangeCustom.trim() : exchange;
+  const finalNetwork = network === "other" ? resolveNetwork(networkCustom, networks)?.code : network;
+
+  useEffect(() => {
+    api.getStablecoinConfig().then(setStablecoinConfig).catch((e) => {
+      showError(e instanceof ApiError ? e.message : "دریافت شبکه‌های پشتیبانی‌شده ناموفق بود.");
+    });
+    return () => {
+      if (cardPreviewUrl) URL.revokeObjectURL(cardPreviewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (resumeState?.amount && resumeState?.quote && normalizeAsset(resumeState.asset) === selectedAsset) {
@@ -70,7 +101,18 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const networkLabel = useMemo(() => {
+    const item = networks.find((n) => n.code === finalNetwork);
+    return item ? `${item.label} (${item.code})` : finalNetwork || "—";
+  }, [networks, finalNetwork]);
+
+  function clearPreview() {
+    if (cardPreviewUrl) URL.revokeObjectURL(cardPreviewUrl);
+    setCardPreviewUrl(null);
+  }
+
   function goBack() {
+    if (step === "review") clearPreview();
     if (stepIdx === 0) navigate("home");
     else setStepIdx((i) => i - 1);
   }
@@ -95,15 +137,9 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
     try {
       const profile = await api.getProfile();
       const resumeData = { asset: selectedAsset, amount: amt, quote: q };
-      if (!profile.has_basic_profile) {
-        onNeedProfile?.(resumeData);
-        return;
-      }
+      if (!profile.has_basic_profile) return onNeedProfile?.(resumeData);
       const threshold = profile.identity_verification_threshold_usd || 250;
-      if (amt > threshold && !profile.has_identity_verification) {
-        onNeedVerification?.(resumeData, threshold);
-        return;
-      }
+      if (amt > threshold && !profile.has_identity_verification) return onNeedVerification?.(resumeData, threshold);
       setStepIdx(2);
     } catch (e) {
       showError(e instanceof ApiError ? e.message : "خطا در بررسی وضعیت پروفایل.");
@@ -136,8 +172,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
     setPaymentMethod("online_azizi");
     setLoadingPaymentInfo(true);
     try {
-      const info = await api.getPaymentInfo();
-      setPaymentInfo(info);
+      setPaymentInfo(await api.getPaymentInfo());
       setStepIdx(3);
     } catch (err) {
       setPaymentMethod(null);
@@ -163,33 +198,75 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
 
   function chooseExchange(ex) {
     setExchange(ex);
+    if (ex === "other") {
+      setExchangeCustom("");
+      return;
+    }
     setStepIdx(5);
   }
 
-  function chooseNetwork(net) {
-    setNetwork(net);
+  function continueCustomExchange() {
+    if (!exchangeCustom.trim()) return showError("نام صرافی یا کیف پول را وارد کنید.");
+    setStepIdx(5);
+  }
+
+  function chooseNetwork(code) {
+    setNetwork(code);
+    if (code === "other") {
+      setNetworkCustom("");
+      return;
+    }
     setStepIdx(6);
   }
 
-  async function submitOrder() {
-    if (!walletAddress.trim()) return showError("لطفاً آدرس ولت را وارد کنید.");
-    const finalExchange = exchange === "other" ? exchangeCustom.trim() : exchange;
-    const finalNetwork = network === "other" ? networkCustom.trim() : network;
-    if (!finalNetwork) return showError("لطفاً شبکه را مشخص کنید.");
+  function continueCustomNetwork() {
+    if (!networkCustom.trim()) return showError("نام شبکه را وارد کنید.");
+    const resolved = resolveNetwork(networkCustom, networks);
+    if (!resolved) return showError(`شبکهٔ واردشده برای ${selectedAsset} پشتیبانی نمی‌شود.`);
+    setNetwork(resolved.code);
+    setStepIdx(6);
+  }
 
+  async function prepareReview() {
+    if (!finalExchange) return showError("نام صرافی یا کیف پول الزامی است.");
+    if (!finalNetwork) return showError("شبکهٔ معتبر را مشخص کنید.");
+    if (!walletAddress.trim()) return showError("آدرس ولت را وارد کنید.");
+
+    setPreviewLoading(true);
+    clearPreview();
+    try {
+      const blob = await api.getCardPreview({
+        action: "buy",
+        asset: selectedAsset,
+        amount: parseFloat(amount),
+        exchange_name: finalExchange,
+        network: finalNetwork,
+        wallet_address: walletAddress.trim(),
+      });
+      setCardPreviewUrl(URL.createObjectURL(blob));
+      setStepIdx(7);
+    } catch (err) {
+      showError(err instanceof ApiError ? err.message : "آماده‌سازی صفحهٔ بررسی ناموفق بود.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  async function submitOrder() {
     setSubmitting(true);
     try {
       const res = await api.createBuyOrder({
         asset: selectedAsset,
         amount: parseFloat(amount),
         payment_method: paymentMethod,
-        exchange_name: finalExchange || null,
+        exchange_name: finalExchange,
         network: finalNetwork,
         wallet_address: walletAddress.trim(),
         receipt_url: receiptUrl,
       });
+      clearPreview();
       setOrderCode(res.order_code);
-      setStepIdx(7);
+      setStepIdx(8);
       hapticSuccess();
     } catch (err) {
       hapticError();
@@ -233,13 +310,14 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
         <div className="card animate-in">
           <div className="quote-box">
             <div className="quote-row"><span>مقدار درخواستی</span><span className="value num" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><img src={coinLogo} alt="" className="tether-badge" style={{ borderRadius: "50%" }} />{Number(amount).toLocaleString()} {selectedAsset}</span></div>
-            <div className="quote-row"><span>نرخ دالر (صرافی محلی)</span><span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span></div>
+            <div className="quote-row"><span>ارزش دالری</span><span className="value num">${Number(quote.total_usd ?? amount).toLocaleString()}</span></div>
+            <div className="quote-row"><span>نرخ دالر</span><span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span></div>
             <div className="quote-row"><span>مبلغ پایه</span><span className="value num">{quote.base_afn.toLocaleString()} افغانی</span></div>
-            <div className="quote-row"><span>کارمزد تخفیفی (<span style={{ textDecoration: "line-through", opacity: 0.55 }}>{quote.original_fee_percent ?? Number(quote.fee_percent) + 0.5}٪</span><span style={{ marginInlineStart: 5, fontWeight: 800 }}>{quote.fee_percent}٪</span>)</span><span className="value num">{quote.fee_afn.toLocaleString()} افغانی</span></div>
+            <div className="quote-row"><span>کارمزد ({quote.fee_percent}٪)</span><span className="value num">{quote.fee_afn.toLocaleString()} افغانی</span></div>
             <div className="quote-total buy"><span className="label">مبلغ نهایی قابل پرداخت</span><span className="amount num">{quote.total_afn.toLocaleString()} ؋</span></div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
-            <button className="btn btn-buy" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>{checkingProfile ? <span className="spinner" /> : <>درخواست خرید {selectedAsset} <ArrowRight size={16} weight="bold" /></>}</button>
+            <button className="btn btn-buy" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>{checkingProfile ? <span className="spinner" /> : <>ادامهٔ درخواست خرید <ArrowRight size={16} weight="bold" /></>}</button>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، در مورد خرید و فروش ${selectedAsset} در Saraf معلومات بیشتر می‌خواهم.`)}><ChatCircleDots size={17} /> اطلاعات بیشتر</button>
               <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، برای خرید و فروش ${selectedAsset} در Saraf به پشتیبانی نیاز دارم.`)}><Headset size={17} /> پشتیبانی</button>
@@ -261,22 +339,57 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
 
       {step === "receipt" && (
         <div className="card animate-in">
-          {isHesabPay ? <><div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={{ ...providerLogoStyle, width: 54, height: 54 }} /></div><div className="info-box" style={{ marginBottom: 14, textAlign: "center" }}><img src={HESABPAY_QR_URL} alt="QR حساب‌پی" style={{ width: "min(100%, 260px)", borderRadius: 14, display: "block", margin: "0 auto 14px" }} /><CopyRow label="شماره حساب‌پی" value={HESABPAY_PHONE} /></div><div className="notice" style={{ marginBottom: 16 }}>مبلغ سفارش را از طریق QR یا شمارهٔ بالا در حساب‌پی پرداخت کنید، سپس تصویر رسید را بارگذاری نمایید.</div></> : <><div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={{ ...providerLogoStyle, width: 54, height: 54 }} /></div>{paymentInfo && <div className="info-box" style={{ marginBottom: 14 }}><CopyRow label="بانک" value={paymentInfo.bank_name} /><CopyRow label="صاحب حساب" value={paymentInfo.bank_account_holder} /><CopyRow label="شماره حساب" value={paymentInfo.bank_account_number} /></div>}<div className="notice" style={{ marginBottom: 16 }}>مبلغ سفارش را به حساب بالا واریز کنید، سپس تصویر رسید بانکی را بارگذاری نمایید.</div></>}
+          {isHesabPay ? <><div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={{ ...providerLogoStyle, width: 54, height: 54 }} /></div><div className="info-box" style={{ marginBottom: 14, textAlign: "center" }}><img src={HESABPAY_QR_URL} alt="QR حساب‌پی" style={{ width: "min(100%, 260px)", borderRadius: 14, display: "block", margin: "0 auto 14px" }} /><CopyRow label="شماره حساب‌پی" value={HESABPAY_PHONE} /></div></> : <><div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={{ ...providerLogoStyle, width: 54, height: 54 }} /></div>{paymentInfo && <div className="info-box" style={{ marginBottom: 14 }}><CopyRow label="بانک" value={paymentInfo.bank_name} /><CopyRow label="صاحب حساب" value={paymentInfo.bank_account_holder} /><CopyRow label="شماره حساب" value={paymentInfo.bank_account_number} /></div>}</>}
+          <div className="notice" style={{ marginBottom: 16 }}>پس از پرداخت، تصویر رسید را بارگذاری کنید.</div>
           <label className={`upload-box ${receiptUrl ? "has-file" : ""}`}><input type="file" accept="image/*" onChange={handleReceiptFile} />{receiptUploading ? <span className="spinner" /> : receiptUrl ? <CheckCircle size={22} weight="fill" /> : <UploadSimple size={22} />}<span>{receiptUploading ? "در حال آپلود..." : receiptUrl ? "رسید بارگذاری شد" : "انتخاب تصویر رسید"}</span></label>
           <button className="btn btn-buy" style={{ marginTop: 16 }} disabled={!receiptUrl || receiptUploading} onClick={() => setStepIdx(4)}>ادامه</button>
         </div>
       )}
 
       {step === "exchange" && (
-        <div className="card animate-in"><label className="field-label">{selectedAsset} را در کدام صرافی یا کیف پول می‌خواهید دریافت کنید؟</label><div className="choice-row" style={{ marginTop: 4 }}>{EXCHANGES.map((ex) => <button key={ex} className={`choice-btn ${exchange === ex ? "selected" : ""}`} onClick={() => chooseExchange(ex)}>{ex}</button>)}</div><div style={{ marginTop: 10 }}><button className={`choice-btn ${exchange === "other" ? "selected" : ""}`} style={{ width: "100%" }} onClick={() => chooseExchange("other")}>کیف پول شخصی / دیگر</button></div>{exchange === "other" && <input className="input" style={{ marginTop: 12 }} placeholder="نام صرافی یا کیف پول" value={exchangeCustom} onChange={(e) => setExchangeCustom(e.target.value)} />}</div>
+        <div className="card animate-in">
+          <label className="field-label">{selectedAsset} را در کدام صرافی یا کیف پول می‌خواهید دریافت کنید؟</label>
+          <div className="choice-row" style={{ marginTop: 4 }}>{EXCHANGES.map((ex) => <button key={ex} className={`choice-btn ${exchange === ex ? "selected" : ""}`} onClick={() => chooseExchange(ex)}>{ex}</button>)}</div>
+          <div style={{ marginTop: 10 }}><button className={`choice-btn ${exchange === "other" ? "selected" : ""}`} style={{ width: "100%" }} onClick={() => chooseExchange("other")}>کیف پول شخصی / صرافی دیگر</button></div>
+          {exchange === "other" && <><input className="input" style={{ marginTop: 12 }} placeholder="نام صرافی یا کیف پول" value={exchangeCustom} onChange={(e) => setExchangeCustom(e.target.value)} /><button className="btn btn-buy" style={{ marginTop: 12 }} onClick={continueCustomExchange} disabled={!exchangeCustom.trim()}>ادامه</button></>}
+        </div>
       )}
 
       {step === "network" && (
-        <div className="card animate-in"><label className="field-label">شبکهٔ مورد نظر برای دریافت {selectedAsset} را انتخاب کنید</label><div className="choice-row cols-3" style={{ marginTop: 4 }}>{NETWORKS.map((n) => <button key={n} className={`choice-btn ${network === n ? "selected" : ""}`} onClick={() => chooseNetwork(n)}><NetworkIcon network={n} size={18} />{n}</button>)}</div><div style={{ marginTop: 10 }}><button className={`choice-btn ${network === "other" ? "selected" : ""}`} style={{ width: "100%" }} onClick={() => chooseNetwork("other")}>شبکهٔ دیگر</button></div>{network === "other" && <input className="input" style={{ marginTop: 12 }} placeholder="نام شبکه" value={networkCustom} onChange={(e) => setNetworkCustom(e.target.value)} />}</div>
+        <div className="card animate-in">
+          <label className="field-label">شبکهٔ مورد نظر برای دریافت {selectedAsset}</label>
+          <div className="notice" style={{ marginBottom: 12 }}>فقط شبکه‌های پشتیبانی‌شده برای {selectedAsset} نمایش داده می‌شوند.</div>
+          <div className="choice-row cols-3" style={{ marginTop: 4 }}>{networks.map((item) => <button key={item.code} className={`choice-btn ${network === item.code ? "selected" : ""}`} onClick={() => chooseNetwork(item.code)}><NetworkIcon network={item.code} size={18} />{item.label}</button>)}</div>
+          <div style={{ marginTop: 10 }}><button className={`choice-btn ${network === "other" ? "selected" : ""}`} style={{ width: "100%" }} onClick={() => chooseNetwork("other")}><MagnifyingGlass size={16} /> وارد کردن نام شبکه</button></div>
+          {network === "other" && <><input className="input" style={{ marginTop: 12 }} placeholder="مثال: Ethereum یا Base" value={networkCustom} onChange={(e) => setNetworkCustom(e.target.value)} /><button className="btn btn-buy" style={{ marginTop: 12 }} onClick={continueCustomNetwork} disabled={!networkCustom.trim()}>بررسی و ادامه</button></>}
+        </div>
       )}
 
       {step === "wallet" && (
-        <div className="card animate-in"><div className="field"><label className="field-label">آدرس ولت دریافت {selectedAsset}</label><textarea className="input num" rows={3} placeholder="آدرس ولت را دقیق وارد کنید" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} /></div><div className="notice warn" style={{ marginBottom: 16 }}><Warning size={16} className="notice-icon" weight="fill" />آدرس و شبکه را دقیق بررسی کنید؛ انتقال بلاک‌چینی به آدرس یا شبکهٔ اشتباه قابل برگشت نیست.</div><button className="btn btn-buy" onClick={submitOrder} disabled={!walletAddress.trim() || submitting}>{submitting ? <span className="spinner" /> : `ثبت نهایی خرید ${selectedAsset}`}</button></div>
+        <div className="card animate-in">
+          <div className="field"><label className="field-label">آدرس ولت دریافت {selectedAsset}</label><textarea className="input num" rows={3} placeholder="آدرس ولت را دقیق وارد کنید" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} /></div>
+          <div className="notice" style={{ marginBottom: 12 }}>شبکه: <b>{networkLabel}</b></div>
+          <div className="notice warn" style={{ marginBottom: 16 }}><Warning size={16} className="notice-icon" weight="fill" />آدرس و شبکه را دقیق بررسی کنید؛ انتقال بلاک‌چینی به آدرس یا شبکهٔ اشتباه قابل برگشت نیست.</div>
+          <button className="btn btn-buy" onClick={prepareReview} disabled={!walletAddress.trim() || previewLoading}>{previewLoading ? <span className="spinner" /> : <>بررسی درخواست <ArrowRight size={16} weight="bold" /></>}</button>
+        </div>
+      )}
+
+      {step === "review" && quote && (
+        <OrderReview
+          action="buy"
+          asset={selectedAsset}
+          amount={amount}
+          quote={quote}
+          exchange={finalExchange}
+          network={networkLabel}
+          walletAddress={walletAddress.trim()}
+          paymentLabel={paymentLabel(paymentMethod)}
+          cardPreviewUrl={cardPreviewUrl}
+          previewLoading={previewLoading}
+          onBack={goBack}
+          onConfirm={submitOrder}
+          submitting={submitting}
+        />
       )}
 
       {step === "done" && (
