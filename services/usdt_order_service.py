@@ -21,7 +21,7 @@ from config import (
     USDT_CARDS_BUCKET,
 )
 from services import supabase_service as db
-from services import risk_engine, card_service, quote_service, audit_service, usdt_service
+from services import risk_engine, stablecoin_card_service as card_service, quote_service, audit_service, usdt_service
 
 logger = logging.getLogger(__name__)
 
