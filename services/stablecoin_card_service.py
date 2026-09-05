@@ -17,8 +17,6 @@ _preview_ctx: contextvars.ContextVar[bool] = contextvars.ContextVar("card_previe
 
 _ASSET_FA = {"USDT": "تتر", "USDC": "USD Coin"}
 
-# Keep original helpers once. The wrappers are installed once and are contextvar
-# aware, so concurrent USDT/USDC renders cannot leak values into each other.
 if not getattr(card_service, "_stablecoin_asset_patch_installed", False):
     _original_rtl = card_service._rtl
     _original_fit_text = card_service._fit_text
@@ -27,11 +25,15 @@ if not getattr(card_service, "_stablecoin_asset_patch_installed", False):
     def _replace_asset_text(value) -> str:
         text = str(value)
         asset = _asset_ctx.get()
+
+        # Preview applies to both assets. The visual card stays identical; only
+        # the not-yet-created order code is replaced with a neutral placeholder.
+        if _preview_ctx.get():
+            text = text.replace("USDT-00000", "PREVIEW")
+
         if asset == "USDT":
             return text
 
-        # Replace only the product identity vocabulary; all layout, values,
-        # labels and visual geometry remain owned by card_service.py.
         text = text.replace("USDT", asset)
         text = text.replace("تتر", _ASSET_FA[asset])
         if _preview_ctx.get():
@@ -74,10 +76,8 @@ async def _render(order: dict, profile: dict, *, preview: bool) -> Optional[byte
 
 
 async def generate_order_card(order: dict, profile: dict) -> Optional[bytes]:
-    """Generate the final card using the unchanged original visual design."""
     return await _render(order, profile, preview=False)
 
 
 async def generate_order_card_preview(order: dict, profile: dict) -> Optional[bytes]:
-    """Generate the same card design before an order row is created."""
     return await _render(order, profile, preview=True)
