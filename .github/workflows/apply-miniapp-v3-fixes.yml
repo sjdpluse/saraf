@@ -32,6 +32,8 @@ jobs:
       - name: Compile Python
         run: python -m compileall -q api.py bot.py config.py keyboards.py services
       - name: Validate pass token and renderer import
+        env:
+          BOT_TOKEN: test-token-for-ci-only
         run: |
           python - <<'PY'
           import asyncio
