@@ -5,6 +5,7 @@ on:
     branches: [fix/miniapp-orders-download-cache-v3]
     paths:
       - '.github/scripts/apply_miniapp_v3_fixes.py'
+      - '.github/scripts/trigger_miniapp_v3.txt'
 
 permissions:
   contents: write
