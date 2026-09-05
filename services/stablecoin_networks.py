@@ -17,8 +17,6 @@ from services import usdt_service
 
 logger = logging.getLogger(__name__)
 
-# User-facing, deliberately curated network set. Codes are stable API values;
-# labels are presentation metadata.
 _NETWORKS = {
     "USDT": [
         {"code": "TRC20", "label": "Tron (TRC20)", "family": "tron"},
@@ -60,7 +58,6 @@ def _load_usdc_deposit_wallets() -> dict[str, str]:
 
 
 def get_buy_networks(asset: Optional[str]) -> list[dict]:
-    """Networks Saraf may send the selected asset to for a buy order."""
     return [dict(item) for item in _NETWORKS[_asset(asset)]]
 
 
@@ -80,10 +77,13 @@ def get_deposit_wallets(asset: Optional[str]) -> dict[str, str]:
 
 
 def get_sell_networks(asset: Optional[str]) -> list[dict]:
-    """Only networks with an explicitly configured Saraf deposit wallet."""
     selected = _asset(asset)
     wallets = get_deposit_wallets(selected)
-    return [dict(item) for item in _NETWORKS[selected] if item["code"] in wallets]
+    return [
+        {**dict(item), "deposit_address": wallets[item["code"]]}
+        for item in _NETWORKS[selected]
+        if item["code"] in wallets
+    ]
 
 
 def get_deposit_wallet(asset: Optional[str], network: Optional[str]) -> Optional[str]:
