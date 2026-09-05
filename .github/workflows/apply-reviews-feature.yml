@@ -1,0 +1,47 @@
+name: Apply reviews feature
+
+on:
+  push:
+    branches: [feat/reviews-and-order-tracking-rules]
+    paths:
+      - '.github/scripts/apply_reviews_feature.py'
+      - '.github/scripts/trigger_reviews_feature.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/reviews-and-order-tracking-rules
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply patch
+        run: python .github/scripts/apply_reviews_feature.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build Mini App
+        working-directory: webapp
+        run: npm ci && npm run build
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Compile Python
+        run: python -m compileall -q api.py bot.py config.py keyboards.py services
+      - name: Run test suite
+        env:
+          BOT_TOKEN: test-token-for-ci-only
+        run: pytest -q
+      - name: Commit generated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add webapp services supabase
+          git diff --cached --quiet && exit 0
+          git commit -m "Add Mini App reviews and pending-only order tracking"
+          git push origin HEAD:feat/reviews-and-order-tracking-rules
