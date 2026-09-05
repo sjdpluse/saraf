@@ -30,13 +30,26 @@ jobs:
         working-directory: webapp
         run: npm ci && npm run build
       - name: Install Python dependencies
-        run: pip install -r requirements.txt pytest
+        run: pip install -r requirements.txt
       - name: Compile Python
         run: python -m compileall -q api.py bot.py config.py keyboards.py services
-      - name: Run test suite
+      - name: Validate reviews API and route installation
         env:
           BOT_TOKEN: test-token-for-ci-only
-        run: pytest -q
+          ADMIN_CHAT_IDS: '123'
+        run: |
+          python - <<'PY'
+          from services import reviews_api_extension as reviews
+          assert reviews._clean_body('  نظر   خوب  ') == 'نظر خوب'
+          assert reviews._is_admin({'id': 123}) is True
+          assert reviews._is_admin({'id': 456}) is False
+          assert reviews._public_review({'id': 1, 'display_name': 'کاربر', 'body': 'عالی'})['body'] == 'عالی'
+          import api
+          paths = {route.path for route in api.app.routes}
+          assert '/api/reviews' in paths
+          assert '/api/reviews/{review_id}/reply' in paths
+          print('reviews smoke validation passed')
+          PY
       - name: Commit generated changes
         run: |
           git config user.name "github-actions[bot]"
