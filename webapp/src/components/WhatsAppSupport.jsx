@@ -1,21 +1,56 @@
-import { ChatCircleDots, MagnifyingGlass } from "@phosphor-icons/react";
+import { WhatsappLogo } from "@phosphor-icons/react";
+import { normalizeAsset } from "../lib/brand";
 
 const WHATSAPP_QR_URL = "https://wa.me/qr/25MA3IJZTGQPE1";
-const SUPPORT_TEXT = "سلام، برای استفاده از خدمات خرید و فروش USDT / USDC در Saraf به پشتیبانی نیاز دارم.";
-const TRACK_TEXT = "سلام، برای رهگیری سفارش Saraf پیام می‌دهم. لطفاً وضعیت سفارش من را بررسی کنید. کد سفارش: ";
 
-function openWhatsApp(text) {
-  // لینک QR داده‌شده مستقیماً چت را باز می‌کند؛ متن آماده در کلیپ‌بورد قرار می‌گیرد
-  // تا حتی روی کلاینت‌هایی که query text را برای لینک QR پشتیبانی نمی‌کنند قابل استفاده باشد.
-  navigator.clipboard?.writeText(text).catch(() => {});
-  window.open(WHATSAPP_QR_URL, "_blank", "noopener,noreferrer");
+function preparedText(mode, asset, orderCode) {
+  if (mode === "tracking") {
+    return `سلام، برای رهگیری سفارش Saraf پیام می‌دهم. کد سفارش: ${orderCode || ""}`.trim();
+  }
+  return `سلام، برای خرید و فروش ${normalizeAsset(asset)} در Saraf به پشتیبانی واتسپ نیاز دارم.`;
 }
 
-export default function WhatsAppSupport() {
+async function copyText(text) {
+  try {
+    await navigator.clipboard?.writeText(text);
+    return;
+  } catch (_) {}
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  } catch (_) {}
+}
+
+async function openWhatsApp(text) {
+  await copyText(text);
+  const wa = window.Telegram?.WebApp;
+  if (wa?.openLink) {
+    wa.openLink(WHATSAPP_QR_URL);
+  } else {
+    window.open(WHATSAPP_QR_URL, "_blank", "noopener,noreferrer");
+  }
+}
+
+export function WhatsAppActionButton({
+  mode = "support",
+  asset = "USDT",
+  orderCode = "",
+  label,
+  className = "btn btn-outline whatsapp-action-btn",
+}) {
+  const text = preparedText(mode, asset, orderCode);
+  const resolvedLabel = label || (mode === "tracking" ? "رهگیری واتسپ" : "پشتیبانی واتسپ");
   return (
-    <div className="whatsapp-support-bar" aria-label="پشتیبانی واتسپ">
-      <button type="button" onClick={() => openWhatsApp(SUPPORT_TEXT)}><ChatCircleDots size={17} weight="fill" /> پشتیبانی واتسپ</button>
-      <button type="button" onClick={() => openWhatsApp(TRACK_TEXT)}><MagnifyingGlass size={17} weight="bold" /> رهگیری سفارش</button>
-    </div>
+    <button type="button" className={className} onClick={() => openWhatsApp(text)}>
+      <WhatsappLogo size={18} weight="fill" /> {resolvedLabel}
+    </button>
   );
 }

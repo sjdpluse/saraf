@@ -21,6 +21,8 @@ import OrderReview from "../components/OrderReview";
 import { assetLogo, ASSET_NAMES_FA, normalizeAsset } from "../lib/brand";
 import NetworkOption from "../components/NetworkOption";
 import InPersonPass from "../components/InPersonPass";
+import { WhatsAppActionButton } from "../components/WhatsAppSupport";
+import { generateInPersonCode } from "../lib/inPerson";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
@@ -67,7 +69,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
   const [txProofUrl, setTxProofUrl] = useState(null);
   const [receiveMethod, setReceiveMethod] = useState(null);
   const [showInPersonPass, setShowInPersonPass] = useState(false);
-  const [inPersonCode] = useState(() => String(Math.floor(1000 + Math.random() * 9000)));
+  const [inPersonCode] = useState(() => generateInPersonCode());
   const [showOnlineProviders, setShowOnlineProviders] = useState(false);
   const [bankInfo, setBankInfo] = useState("");
   const [stablecoinConfig, setStablecoinConfig] = useState(null);
@@ -302,7 +304,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
       {step === "quote" && quote && (
         <div className="card animate-in">
           <div className="quote-box"><div className="quote-row"><span>مقدار درخواستی</span><span className="value num" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><img src={coinLogo} alt="" className="tether-badge" style={{ borderRadius: "50%" }} />{Number(amount).toLocaleString()} {selectedAsset}</span></div><div className="quote-row"><span>مبلغ قابل دریافت به دالر</span><span className="value num">${Number(quote.receivable_usd ?? quote.total_usd ?? amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div><div className="quote-row"><span>نرخ دالر</span><span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span></div><div className="quote-total sell"><span className="label">مبلغ قابل دریافت</span><span className="amount num">{quote.total_afn.toLocaleString()} ؋</span></div></div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}><button className="btn btn-sell" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>{checkingProfile ? <span className="spinner" /> : <>ادامهٔ درخواست فروش <ArrowRight size={16} weight="bold" /></>}</button><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}><button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، در مورد خرید و فروش ${selectedAsset} در Saraf معلومات بیشتر می‌خواهم.`)}><ChatCircleDots size={17} /> اطلاعات بیشتر</button><button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، برای خرید و فروش ${selectedAsset} در Saraf به پشتیبانی نیاز دارم.`)}><Headset size={17} /> پشتیبانی</button></div></div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}><button className="btn btn-sell" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>{checkingProfile ? <span className="spinner" /> : <>ادامهٔ درخواست فروش <ArrowRight size={16} weight="bold" /></>}</button><div className="help-actions-grid"><button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، در مورد خرید و فروش ${selectedAsset} در Saraf معلومات بیشتر می‌خواهم.`)}><ChatCircleDots size={17} /> اطلاعات بیشتر</button><button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، برای خرید و فروش ${selectedAsset} در Saraf به پشتیبانی نیاز دارم.`)}><Headset size={17} /> پشتیبانی</button><WhatsAppActionButton mode="support" asset={selectedAsset} /></div></div>
         </div>
       )}
 
@@ -344,7 +346,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
           <label className="field-label">می‌خواهید مبلغ فروش را چگونه دریافت کنید؟</label>
           <div className="choice-row" style={{ marginTop: 4 }}><button className="choice-btn" onClick={() => chooseReceive("in_person")} disabled={previewLoading}><Buildings size={16} /> حضوری</button><button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => chooseReceive("online")} disabled={previewLoading}><Bank size={16} /> آنلاین</button></div>
           {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش دریافت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}><button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")}><img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} /> عزیزی بانک</button><button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div></div>}
-          {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="sell" asset={selectedAsset} code={inPersonCode} buttonClass="btn-sell" onContinue={() => { setShowInPersonPass(false); prepareReview("in_person"); }} /></div>}
+          {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="sell" asset={selectedAsset} code={inPersonCode} buttonClass="btn-sell" showError={showError} onContinue={() => { setShowInPersonPass(false); prepareReview("in_person"); }} /></div>}
         </div>
       )}
 

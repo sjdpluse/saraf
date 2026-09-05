@@ -75,3 +75,38 @@ export function openTelegramChat(username, draftText = "") {
     window.open(url, "_blank");
   }
 }
+
+export function downloadTelegramFile(url, fileName) {
+  const wa = getWebApp();
+  if (wa?.downloadFile) {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeoutId);
+        resolve(Boolean(value));
+      };
+      const timeoutId = window.setTimeout(() => finish(false), 30000);
+      try {
+        wa.downloadFile({ url, file_name: fileName }, (accepted) => finish(accepted));
+      } catch (_) {
+        finish(false);
+      }
+    });
+  }
+
+  try {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return Promise.resolve(true);
+  } catch (_) {
+    return Promise.resolve(false);
+  }
+}

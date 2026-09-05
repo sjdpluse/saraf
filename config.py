@@ -66,6 +66,13 @@ MINI_APP_URL = os.getenv(
     "",
 )
 
+MINI_APP_VERSION = (
+    os.getenv("MINI_APP_VERSION")
+    or os.getenv("RAILWAY_GIT_COMMIT_SHA")
+    or os.getenv("RAILWAY_DEPLOYMENT_ID")
+    or "20260905-v3"
+).strip()
+
 
 # ============================================================
 # Supabase

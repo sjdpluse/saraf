@@ -1378,3 +1378,127 @@ textarea.input {
 .whatsapp-support-bar button { border:0; border-radius:13px; min-height:40px; padding:8px 7px; display:flex; align-items:center; justify-content:center; gap:6px; font-family:inherit; font-weight:700; font-size:11.5px; cursor:pointer; }
 .whatsapp-support-bar button:first-child { background:#eaf8ef; color:#16783a; }
 .whatsapp-support-bar button:last-child { background:var(--color-bg-elevated); color:var(--color-text); }
+
+
+/* ===== Mini App v3: cache/download/support/order tracking fixes ===== */
+.help-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.help-actions-grid .btn { min-width: 0; padding: 12px 7px; font-size: 12px; line-height: 1.35; }
+.whatsapp-action-btn svg { color: #25d366; flex-shrink: 0; }
+
+/* Asset logos must preserve their original square/circular aspect ratio. */
+.review-amount-value img {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  object-fit: contain;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+}
+.review-asset-logo img {
+  object-fit: contain;
+  aspect-ratio: 1 / 1;
+}
+.asset-inline-logo {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 21px;
+  object-fit: contain;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+}
+
+/* Cyber-style 4-slot visit code animation. */
+.inperson-code { align-items: center; gap: 12px; }
+.cyber-code {
+  direction: ltr;
+  display: grid;
+  grid-template-columns: repeat(4, 42px);
+  gap: 7px;
+}
+.cyber-code span {
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  border: 1px solid rgba(0, 113, 227, 0.22);
+  background: linear-gradient(180deg, #f7fbff, #eef6ff);
+  color: var(--color-primary);
+  font-weight: 900;
+  font-size: 22px;
+  box-shadow: inset 0 0 14px rgba(0, 113, 227, 0.06);
+  text-shadow: 0 0 12px rgba(0, 113, 227, 0.22);
+}
+.inperson-contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  padding: 0 16px 16px;
+}
+.inperson-contact-item {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 7px;
+  align-items: center;
+}
+.inperson-contact-item svg { color: var(--color-primary); grid-row: 1 / span 2; }
+.inperson-contact-item span { color: var(--color-text-muted); font-size: 10px; }
+.inperson-contact-item strong { font-size: 12.5px; overflow-wrap: anywhere; }
+
+/* Order code is visible directly inside the buy/sell label. */
+.order-card .type-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-width: 75%;
+}
+.order-list-code {
+  border-inline-start: 1px solid currentColor;
+  padding-inline-start: 6px;
+  opacity: 0.72;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+.order-tracking-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+.order-track-btn {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  background: #fff;
+  min-height: 40px;
+  padding: 8px 9px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.order-track-btn.whatsapp svg { color: #25d366; }
+.order-track-btn.telegram svg { color: #229ed9; }
+.order-tracking-card .order-tracking-actions { border-top: 0; padding-top: 2px; }
+
+@media (max-width: 390px) {
+  .help-actions-grid { grid-template-columns: 1fr 1fr; }
+  .help-actions-grid .whatsapp-action-btn { grid-column: 1 / -1; }
+  .cyber-code { grid-template-columns: repeat(4, 36px); gap: 5px; }
+  .cyber-code span { height: 44px; font-size: 20px; }
+  .inperson-contact-grid { grid-template-columns: 1fr; }
+}

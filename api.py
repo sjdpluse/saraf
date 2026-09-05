@@ -110,6 +110,10 @@ async def _log_requests(request: Request, call_next):
         )
         if response is not None:
             response.headers["X-Request-Id"] = request_id
+            if request.url.path.startswith("/miniapp"):
+                response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
 
 # پاسخ خطای استاندارد (§16) — success/error در کنار detail قدیمی، بدون شکستن
 # فرانت‌اند فعلی.

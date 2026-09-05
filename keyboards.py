@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 
-from config import TRACKED_CURRENCIES, GOLD_KARATS, CURRENCY_FLAGS, USDT_NETWORKS, USDT_EXCHANGES, MINI_APP_URL, SUPPORT_CHAT_URL
+from config import TRACKED_CURRENCIES, GOLD_KARATS, CURRENCY_FLAGS, USDT_NETWORKS, USDT_EXCHANGES, MINI_APP_URL, MINI_APP_VERSION, SUPPORT_CHAT_URL
 
 BTN_CURRENCY = "💵 نرخ ارزها"
 BTN_GOLD = "🥇 نرخ طلا"
@@ -23,6 +23,18 @@ def _flag_label(code: str, name: str) -> str:
 
 def _support_chat_url(text: str) -> str:
     return f"{SUPPORT_CHAT_URL}?{urlencode({'text': text})}"
+
+
+def mini_app_web_url(action: str | None = None, asset: str | None = None) -> str:
+    if not MINI_APP_URL:
+        return ""
+    params = {"v": MINI_APP_VERSION}
+    if action in ("buy", "sell"):
+        params["action"] = action
+    if asset:
+        params["asset"] = str(asset).upper()
+    base = f"{MINI_APP_URL.rstrip('/')}/miniapp/"
+    return f"{base}?{urlencode(params)}"
 
 
 def main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
@@ -128,16 +140,15 @@ def usdt_menu_keyboard() -> InlineKeyboardMarkup:
     """منوی legacy-name برای خدمات هر دو استیبل‌کوین."""
     rows = []
     if MINI_APP_URL:
-        base = f"{MINI_APP_URL.rstrip('/')}/miniapp/"
-        rows.append([InlineKeyboardButton("🚀 باز کردن اپلیکیشن USDT / USDC", web_app=WebAppInfo(url=base))])
+        rows.append([InlineKeyboardButton("🚀 باز کردن اپلیکیشن USDT / USDC", web_app=WebAppInfo(url=mini_app_web_url()))])
         rows.extend([
             [
-                InlineKeyboardButton("🟢 خرید USDT", web_app=WebAppInfo(url=f"{base}?action=buy&asset=USDT")),
-                InlineKeyboardButton("🔴 فروش USDT", web_app=WebAppInfo(url=f"{base}?action=sell&asset=USDT")),
+                InlineKeyboardButton("🟢 خرید USDT", web_app=WebAppInfo(url=mini_app_web_url("buy", "USDT"))),
+                InlineKeyboardButton("🔴 فروش USDT", web_app=WebAppInfo(url=mini_app_web_url("sell", "USDT"))),
             ],
             [
-                InlineKeyboardButton("🔵 خرید USDC", web_app=WebAppInfo(url=f"{base}?action=buy&asset=USDC")),
-                InlineKeyboardButton("🔷 فروش USDC", web_app=WebAppInfo(url=f"{base}?action=sell&asset=USDC")),
+                InlineKeyboardButton("🔵 خرید USDC", web_app=WebAppInfo(url=mini_app_web_url("buy", "USDC"))),
+                InlineKeyboardButton("🔷 فروش USDC", web_app=WebAppInfo(url=mini_app_web_url("sell", "USDC"))),
             ],
         ])
     else:
