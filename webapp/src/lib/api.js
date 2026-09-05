@@ -178,6 +178,7 @@ export const api = {
   getReviews: (limit = 20, offset = 0) => request(`/reviews?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`),
   createReview: (body) => request("/reviews", { method: "POST", body: { body } }),
   replyToReview: (reviewId, body) => request(`/reviews/${reviewId}/reply`, { method: "POST", body: { body } }),
+  voteReview: (reviewId, vote) => request(`/reviews/${reviewId}/vote`, { method: "POST", body: { vote } }),
   getPaymentInfo: () => request("/usdt/payment-info"),
 
   rateOrder: (orderId, rating, comment) =>
