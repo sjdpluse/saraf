@@ -27,6 +27,7 @@ import { generateInPersonCode } from "../lib/inPerson";
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
 const HESABPAY_LOGO_URL = "https://i.postimg.cc/63khhqcm/hesab.png";
+const AZIZI_MIN_AMOUNT = 500;
 const STEPS = ["amount", "quote", "exchange", "network", "deposit", "txproof", "receive", "bank", "review", "done"];
 
 const providerLogoStyle = {
@@ -84,6 +85,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
   const finalNetwork = network === "other" ? resolveNetwork(networkCustom, networks)?.code : network;
   const selectedNetworkInfo = networks.find((item) => item.code === finalNetwork) || null;
   const walletForNetwork = selectedNetworkInfo?.deposit_address || null;
+  const canUseAzizi = Number(amount) > AZIZI_MIN_AMOUNT;
 
   useEffect(() => {
     api.getStablecoinConfig().then(setStablecoinConfig).catch((e) => {
@@ -216,6 +218,10 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
   }
 
   function chooseOnlineProvider(provider) {
+    if (provider === "azizi" && !canUseAzizi) {
+      showError(`عزیزی بانک فقط برای معاملات بیشتر از ${AZIZI_MIN_AMOUNT} ${selectedAsset} فعال است.`);
+      return;
+    }
     setBankInfo("");
     setReceiveMethod(provider === "hesabpay" ? "online_hesabpay" : "online_azizi");
     setStepIdx(7);
@@ -345,7 +351,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
         <div className="card animate-in">
           <label className="field-label">می‌خواهید مبلغ فروش را چگونه دریافت کنید؟</label>
           <div className="choice-row" style={{ marginTop: 4 }}><button className="choice-btn" onClick={() => chooseReceive("in_person")} disabled={previewLoading}><Buildings size={16} /> حضوری</button><button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => chooseReceive("online")} disabled={previewLoading}><Bank size={16} /> آنلاین</button></div>
-          {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش دریافت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}><button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")}><img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} /> عزیزی بانک</button><button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div></div>}
+          {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش دریافت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}>{canUseAzizi && <button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")}><img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} /> عزیزی بانک</button>}<button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div>{!canUseAzizi && <div className="notice" style={{ marginTop: 10 }}>برای معاملات تا ۵۰۰ {selectedAsset}، دریافت آنلاین فقط از طریق حساب‌پی انجام می‌شود. عزیزی بانک برای مبالغ بیشتر از ۵۰۰ {selectedAsset} فعال است.</div>}</div>}
           {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="sell" asset={selectedAsset} code={inPersonCode} buttonClass="btn-sell" showError={showError} onContinue={() => { setShowInPersonPass(false); prepareReview("in_person"); }} /></div>}
         </div>
       )}

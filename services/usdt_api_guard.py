@@ -1,8 +1,8 @@
 """Stablecoin Mini App API hardening.
 
 Legacy /api/usdt/* paths remain for compatibility. The guard reads `asset` from
-raw request bodies, binds quotes to that asset, and validates the transfer network
-before api.py can create an order.
+raw request bodies, binds quotes to that asset, validates transfer networks, and
+enforces payment-provider rules before api.py can create an order.
 """
 from __future__ import annotations
 
@@ -27,6 +27,9 @@ from services.api_errors import ApiError
 
 _quote_context: contextvars.ContextVar[Optional[dict]] = contextvars.ContextVar("saraf_quote_context", default=None)
 _order_context: contextvars.ContextVar[Optional[dict]] = contextvars.ContextVar("saraf_order_context", default=None)
+
+AZIZI_MIN_STABLECOIN_AMOUNT = 500
+_ALLOWED_ONLINE_PROVIDERS = {"hesabpay", "azizi"}
 
 _QUOTE_ERROR_STATUS = {
     "QUOTE_NOT_FOUND": 400,
@@ -62,6 +65,38 @@ def _normalize_asset(raw: Optional[str]) -> str:
         return usdt_service.normalize_asset(raw)
     except usdt_service.StablecoinAssetError as exc:
         raise ApiError(status_code=400, code="ASSET_NOT_SUPPORTED", message=str(exc))
+
+
+def _validate_online_provider(payload: dict, action: str, amount: float) -> Optional[str]:
+    """Validate the concrete online provider from the raw body.
+
+    api.py intentionally keeps the legacy public vocabulary (``online``), so the
+    provider-specific value is validated here before Pydantic discards extra
+    fields. This makes the Azizi threshold a server-side rule rather than merely
+    a UI condition.
+    """
+    method_key = "payment_method" if action == "buy" else "receive_method"
+    provider_key = "payment_provider" if action == "buy" else "receive_provider"
+    method = str(payload.get(method_key) or "").strip()
+
+    if method != "online":
+        return None
+
+    provider = str(payload.get(provider_key) or "").strip().lower()
+    if provider not in _ALLOWED_ONLINE_PROVIDERS:
+        raise ApiError(
+            status_code=400,
+            code="ONLINE_PROVIDER_REQUIRED",
+            message="روش پرداخت/دریافت آنلاین مشخص نیست؛ لطفاً حساب‌پی یا عزیزی بانک را انتخاب کنید.",
+        )
+
+    if provider == "azizi" and amount <= AZIZI_MIN_STABLECOIN_AMOUNT:
+        raise ApiError(
+            status_code=400,
+            code="AZIZI_MIN_AMOUNT",
+            message=f"عزیزی بانک فقط برای معاملات بیشتر از {AZIZI_MIN_STABLECOIN_AMOUNT} فعال است. برای این مبلغ از حساب‌پی استفاده کنید.",
+        )
+    return provider
 
 
 async def _json_body(request: Request) -> dict:
@@ -103,6 +138,7 @@ async def _guard_order(
 
     asset = _normalize_asset(payload.get("asset"))
     action = "buy" if request.url.path.endswith("/buy") else "sell"
+    provider = _validate_online_provider(payload, action, float(amount))
     try:
         quote_row = quote_service.load_and_validate(user["id"], quote_id, action, amount, asset=asset)
     except quote_service.QuoteError as exc:
@@ -131,6 +167,7 @@ async def _guard_order(
             "quote": quote_row,
             "asset": asset,
             "network": network,
+            "online_provider": provider,
         }
     )
 

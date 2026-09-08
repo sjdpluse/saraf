@@ -29,6 +29,7 @@ const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
 const HESABPAY_LOGO_URL = "https://i.postimg.cc/63khhqcm/hesab.png";
 const HESABPAY_QR_URL = "https://i.postimg.cc/D058wYSQ/Hesab.jpg";
 const HESABPAY_PHONE = "0775146747";
+const AZIZI_MIN_AMOUNT = 500;
 const STEPS = ["amount", "quote", "payment", "receipt", "exchange", "network", "wallet", "review", "done"];
 
 const providerLogoStyle = {
@@ -85,6 +86,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
   const networks = stablecoinConfig?.[selectedAsset]?.buy_networks || [];
   const finalExchange = exchange === "other" ? exchangeCustom.trim() : exchange;
   const finalNetwork = network === "other" ? resolveNetwork(networkCustom, networks)?.code : network;
+  const canUseAzizi = Number(amount) > AZIZI_MIN_AMOUNT;
 
   useEffect(() => {
     api.getStablecoinConfig().then(setStablecoinConfig).catch((e) => {
@@ -180,6 +182,10 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
       setPaymentMethod("online_hesabpay");
       setPaymentInfo(null);
       setStepIdx(3);
+      return;
+    }
+    if (!canUseAzizi) {
+      showError(`عزیزی بانک فقط برای معاملات بیشتر از ${AZIZI_MIN_AMOUNT} ${selectedAsset} فعال است.`);
       return;
     }
     setPaymentMethod("online_azizi");
@@ -348,7 +354,7 @@ export default function Buy({ asset = "USDT", navigate, showError, resumeState, 
             <button className="choice-btn" onClick={() => choosePayment("in_person")} disabled={loadingPaymentInfo}><Buildings size={16} /> حضوری</button>
             <button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => choosePayment("online")} disabled={loadingPaymentInfo}><Bank size={16} /> آنلاین</button>
           </div>
-          {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش پرداخت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}><button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")} disabled={loadingPaymentInfo}>{loadingPaymentInfo ? <span className="spinner" /> : <img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} />} عزیزی بانک</button><button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")} disabled={loadingPaymentInfo}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div></div>}
+          {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش پرداخت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}>{canUseAzizi && <button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")} disabled={loadingPaymentInfo}>{loadingPaymentInfo ? <span className="spinner" /> : <img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} />} عزیزی بانک</button>}<button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")} disabled={loadingPaymentInfo}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div>{!canUseAzizi && <div className="notice" style={{ marginTop: 10 }}>برای معاملات تا ۵۰۰ {selectedAsset}، پرداخت آنلاین فقط از طریق حساب‌پی انجام می‌شود. عزیزی بانک برای مبالغ بیشتر از ۵۰۰ {selectedAsset} فعال است.</div>}</div>}
           {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="buy" asset={selectedAsset} code={inPersonCode} buttonClass="btn-buy" showError={showError} onContinue={() => { setShowInPersonPass(false); setStepIdx(4); }} /></div>}
         </div>
       )}

@@ -76,6 +76,12 @@ function retryKey(action, asset, quoteId) {
   return orderRetryKeys.get(key);
 }
 
+function onlineProvider(method) {
+  if (method === "online_hesabpay") return "hesabpay";
+  if (method === "online_azizi") return "azizi";
+  return null;
+}
+
 function onlineProviderLabel(method) {
   if (method === "online_hesabpay") return "حساب‌پی";
   if (method === "online_azizi") return "عزیزی بانک";
@@ -134,9 +140,10 @@ export const api = {
   createBuyOrder: async (payload) => {
     const asset = normalizeAsset(payload.asset);
     const q = quoteFor("buy", payload.amount, asset);
-    const provider = onlineProviderLabel(payload.payment_method);
-    const exchangeName = provider
-      ? `${payload.exchange_name || "-"} | پرداخت: ${provider}`
+    const provider = onlineProvider(payload.payment_method);
+    const providerLabel = onlineProviderLabel(payload.payment_method);
+    const exchangeName = providerLabel
+      ? `${payload.exchange_name || "-"} | پرداخت: ${providerLabel}`
       : payload.exchange_name;
 
     return request("/usdt/orders/buy", {
@@ -145,6 +152,7 @@ export const api = {
         ...payload,
         asset,
         payment_method: provider ? "online" : payload.payment_method,
+        payment_provider: provider,
         exchange_name: exchangeName,
         quote_id: q.quote_id,
       },
@@ -155,9 +163,10 @@ export const api = {
   createSellOrder: async (payload) => {
     const asset = normalizeAsset(payload.asset);
     const q = quoteFor("sell", payload.amount, asset);
-    const provider = onlineProviderLabel(payload.receive_method);
-    const bankInfo = provider
-      ? `${provider} — ${payload.bank_info || ""}`.trim()
+    const provider = onlineProvider(payload.receive_method);
+    const providerLabel = onlineProviderLabel(payload.receive_method);
+    const bankInfo = providerLabel
+      ? `${providerLabel} — ${payload.bank_info || ""}`.trim()
       : payload.bank_info;
 
     return request("/usdt/orders/sell", {
@@ -166,6 +175,7 @@ export const api = {
         ...payload,
         asset,
         receive_method: provider ? "online" : payload.receive_method,
+        receive_provider: provider,
         bank_info: bankInfo,
         quote_id: q.quote_id,
       },
