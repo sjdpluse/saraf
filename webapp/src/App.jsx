@@ -131,7 +131,8 @@ export default function App() {
           <Remittance
             navigate={navigate}
             showError={showError}
-            onNeedProfile={() => requestBasicProfile("remittance", { asset })}
+            onNeedProfile={(state) => requestBasicProfile("remittance", state)}
+            onNeedVerification={(state, thresholdUsd) => requestIdentityVerification("remittance", state, thresholdUsd)}
           />
         )}
         {page === "orders" && <Orders navigate={navigate} showError={showError} />}
