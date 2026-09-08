@@ -1,0 +1,34 @@
+name: Test remittance Python
+
+on:
+  push:
+    branches:
+      - feature/international-remittance-v1
+    paths:
+      - 'services/remittance_*.py'
+      - 'api_remittance.py'
+      - 'admin_bot_remittance.py'
+      - '.github/workflows/test-remittance-python.yml'
+  pull_request:
+    paths:
+      - 'services/remittance_*.py'
+      - 'api_remittance.py'
+      - 'admin_bot_remittance.py'
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile remittance modules
+        run: |
+          python -m py_compile \
+            services/remittance_service.py \
+            services/remittance_api_router.py \
+            services/remittance_admin.py \
+            services/remittance_wallet_config.py \
+            api_remittance.py \
+            admin_bot_remittance.py
