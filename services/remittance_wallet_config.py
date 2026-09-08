@@ -2,7 +2,7 @@ import json
 import os
 
 from config import USDT_DEPOSIT_WALLETS
-from services.remittance_asset_registry import ASSETS, network_label, normalize_asset, normalize_network
+from services.remittance_asset_registry import ASSETS, normalize_asset, normalize_network
 
 SUPPORTED = {asset: tuple(meta["networks"]) for asset, meta in ASSETS.items()}
 
@@ -21,8 +21,6 @@ def get_wallet(asset: str, network: str) -> str:
     selected_network = normalize_network(selected_asset, network)
 
     wallet = str(_json_wallets().get(selected_asset, {}).get(selected_network) or "").strip()
-
-    # Backward compatibility with V1 variables.
     if not wallet:
         env_key = f"REMITTANCE_{selected_asset}_{selected_network}_WALLET"
         wallet = os.getenv(env_key, "").strip()
@@ -41,7 +39,7 @@ def configured_assets() -> list[dict]:
         for network in networks:
             try:
                 get_wallet(asset, network)
-                available.append({"code": network, "label": network_label(network)})
+                available.append(network)
             except ValueError:
                 pass
         if available:
