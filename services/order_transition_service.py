@@ -46,9 +46,13 @@ def transition_order_status(
     *,
     changed_by: Optional[int] = None,
     reason: Optional[str] = None,
+    **extra_fields,
 ) -> dict:
     """وضعیت یک سفارش تتر را با اعتبارسنجی state machine تغییر می‌دهد، تاریخچه را
     attribute می‌کند و در audit_log عمومی ثبت می‌کند. سفارش به‌روزشده را برمی‌گرداند.
+
+    ``extra_fields`` برای metadata همان transition است؛ مثلاً هنگام تکمیل سفارش
+    Transaction Details / Tx Hash همراه با تغییر وضعیت در همان update ذخیره می‌شود.
 
     Raises:
         OrderNotFoundError: سفارش یافت نشد.
@@ -65,13 +69,13 @@ def transition_order_status(
         # no-op idempotent — سفارش را بدون نوشتن دوبارهٔ تاریخچه برمی‌گرداند
         return order
 
-    extra_fields = {}
+    status_fields = dict(extra_fields)
     ts_field = _TIMESTAMP_FIELD.get(to_status)
     if ts_field:
-        extra_fields[ts_field] = _now_iso()
+        status_fields[ts_field] = _now_iso()
 
     db.update_usdt_order_status_audited(
-        order_id, to_status, changed_by=changed_by, reason=reason, **extra_fields
+        order_id, to_status, changed_by=changed_by, reason=reason, **status_fields
     )
 
     audit_service.record(
@@ -80,8 +84,8 @@ def transition_order_status(
         entity_id=order_id,
         actor=changed_by,
         before={"status": from_status},
-        after={"status": to_status},
+        after={"status": to_status, **status_fields},
         reason=reason,
     )
 
-    return {**order, "status": to_status, **extra_fields}
+    return {**order, "status": to_status, **status_fields}
