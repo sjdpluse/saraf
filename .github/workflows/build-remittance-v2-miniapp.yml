@@ -1,0 +1,45 @@
+name: Build remittance V2 Mini App
+
+on:
+  push:
+    branches:
+      - feature/remittance-assets-networks-v2
+    paths:
+      - 'webapp/src/**'
+      - 'webapp/package.json'
+      - 'webapp/package-lock.json'
+      - '.github/workflows/build-remittance-v2-miniapp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: ${{ !contains(github.event.head_commit.message, '[skip remittance v2 build]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/remittance-assets-networks-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install dependencies
+        working-directory: webapp
+        run: npm ci
+      - name: Build Mini App
+        working-directory: webapp
+        run: npm run build
+      - name: Commit built assets
+        run: |
+          if git diff --quiet -- webapp/dist; then
+            echo 'No dist changes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f webapp/dist
+          git commit -m 'Build remittance V2 Mini App [skip remittance v2 build]'
+          git push origin HEAD:feature/remittance-assets-networks-v2
