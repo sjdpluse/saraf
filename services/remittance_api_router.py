@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from config import BOT_TOKEN
 from services import rate_limiter, remittance_service, supabase_service as db, webapp_auth
+from services.remittance_wallet_config import configured_assets
 
 router = APIRouter(prefix="/api/remittances", tags=["remittances"])
 
@@ -52,13 +53,7 @@ class TxRequest(BaseModel):
 
 @router.get("/config")
 async def config(user: dict = Depends(_authenticate)):
-    return {
-        "assets": [
-            {"asset": asset, "networks": list(networks)}
-            for asset, networks in remittance_service.SUPPORTED_NETWORKS.items()
-        ],
-        "fee_percent": _fee_percent(),
-    }
+    return {"assets": configured_assets(), "fee_percent": _fee_percent()}
 
 
 @router.post("/quote")
