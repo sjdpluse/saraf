@@ -12,6 +12,7 @@ import {
   Users,
   Star,
   ChatCircleText,
+  GlobeHemisphereWest,
 } from "@phosphor-icons/react";
 import { api } from "../lib/api";
 import { SARAF_LOGO_URL, TETHER_LOGO_URL, USDC_LOGO_URL, normalizeAsset } from "../lib/brand";
@@ -64,6 +65,17 @@ export default function Home({ navigate, startTransaction, selectedAsset = "USDT
       </div>
 
       <AssetSelector value={asset} onChange={onSelectAsset} />
+
+      <div className="card card-tappable animate-in" style={{ animationDelay: "0.05s" }} onClick={() => navigate("remittance")}>
+        <div className="list-row">
+          <div className="row-icon"><GlobeHemisphereWest size={22} weight="fill" /></div>
+          <div className="row-text">
+            <div className="row-title">حواله بین‌المللی</div>
+            <div className="row-subtitle">ارسال کریپتو از خارج؛ دریافت نقدی خانواده در افغانستان</div>
+          </div>
+          <div className="row-chevron"><CaretLeft size={18} /></div>
+        </div>
+      </div>
 
       {stats && (
         <div className="stats-row stats-row-three animate-in" style={{ animationDelay: "0.06s" }}>

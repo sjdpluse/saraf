@@ -6,6 +6,7 @@ import Orders from "./pages/Orders";
 import Reviews from "./pages/Reviews";
 import Terms from "./pages/Terms";
 import Kyc from "./pages/Kyc";
+import Remittance from "./pages/Remittance";
 import Toast from "./components/Toast";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
 import { SARAF_LOGO_URL, normalizeAsset } from "./lib/brand";
@@ -25,6 +26,7 @@ export default function App() {
     const requestedAsset = normalizeAsset(params.get("asset"));
     setAsset(requestedAsset);
     if (action === "buy" || action === "sell") setPage(action);
+    if (action === "remittance") setPage("remittance");
   }, []);
 
   function navigate(p) {
@@ -85,7 +87,7 @@ export default function App() {
           </div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>این صفحه فقط داخل تلگرام کار می‌کند</div>
           <div className="notice" style={{ justifyContent: "center" }}>
-            لطفاً از طریق ربات صراف دکمهٔ «خرید و فروش | USDT / USDC» را بزنید تا مینی‌اپ به‌درستی باز شود.
+            لطفاً از طریق ربات صراف مینی‌اپ را باز کنید.
           </div>
         </div>
       </div>
@@ -123,6 +125,14 @@ export default function App() {
             onResumeConsumed={clearResume}
             onNeedProfile={(state) => requestBasicProfile("sell", state)}
             onNeedVerification={(state, thresholdUsd) => requestIdentityVerification("sell", state, thresholdUsd)}
+          />
+        )}
+        {page === "remittance" && (
+          <Remittance
+            navigate={navigate}
+            showError={showError}
+            onNeedProfile={(state) => requestBasicProfile("remittance", state)}
+            onNeedVerification={(state, thresholdUsd) => requestIdentityVerification("remittance", state, thresholdUsd)}
           />
         )}
         {page === "orders" && <Orders navigate={navigate} showError={showError} />}

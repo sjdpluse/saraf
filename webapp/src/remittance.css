@@ -1,0 +1,56 @@
+.remit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.remit-order-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.remit-order-row + .remit-order-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.remit-order-row .row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.remit-order-row .row-title {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 3px;
+}
+
+.remit-order-row .row-subtitle {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.remit-pickup {
+  margin-top: 6px;
+  display: inline-flex;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-buy-bg);
+  color: var(--color-buy);
+  font-size: 11.5px;
+}
+
+@media (max-width: 360px) {
+  .remit-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .remit-order-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
