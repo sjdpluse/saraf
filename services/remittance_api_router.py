@@ -70,6 +70,8 @@ async def config(user: dict = Depends(_authenticate)):
         "assets": configured_assets(),
         "fee_percent": _fee_percent(),
         "identity_verification_threshold_usd": USDT_IDENTITY_VERIFICATION_THRESHOLD_USD,
+        "min_usd": float(os.getenv("REMITTANCE_MIN_USD", "10")),
+        "max_usd": float(os.getenv("REMITTANCE_MAX_USD", "10000")),
     }
 
 
@@ -98,12 +100,26 @@ async def create_remittance(
     rate_limiter.enforce("order", request, identity=str(user["id"]))
     if not db.has_basic_profile(user["id"]):
         raise ApiError(403, "BASIC_PROFILE_REQUIRED", "ابتدا پروفایل خود را تکمیل کنید.")
-    if payload.amount > USDT_IDENTITY_VERIFICATION_THRESHOLD_USD and not db.has_identity_verification(user["id"]):
+
+    try:
+        preview = await remittance_service.quote(
+            amount=payload.amount,
+            asset=payload.asset,
+            network=payload.network,
+            fee_percent=_fee_percent(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        raise HTTPException(status_code=503, detail="محاسبهٔ حواله در حال حاضر ممکن نیست.")
+
+    if preview["usd_value"] > USDT_IDENTITY_VERIFICATION_THRESHOLD_USD and not db.has_identity_verification(user["id"]):
         raise ApiError(
             403,
             "IDENTITY_VERIFICATION_REQUIRED",
-            f"برای حواله‌های بالای {USDT_IDENTITY_VERIFICATION_THRESHOLD_USD:g} دالر، احراز هویت کامل الزامی است.",
+            f"برای حواله‌های با ارزش بیشتر از {USDT_IDENTITY_VERIFICATION_THRESHOLD_USD:g} دالر، احراز هویت کامل الزامی است.",
         )
+
     profile = db.get_user_profile(user["id"]) or {}
     key = (idempotency_key or "").strip()
     if not key:
