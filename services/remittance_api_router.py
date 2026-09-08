@@ -83,7 +83,7 @@ async def create_remittance(
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     user: dict = Depends(_authenticate),
 ):
-    rate_limiter.enforce("order_create", request, identity=str(user["id"]))
+    rate_limiter.enforce("order", request, identity=str(user["id"]))
     if not db.has_basic_profile(user["id"]):
         raise HTTPException(status_code=403, detail="ابتدا پروفایل خود را تکمیل کنید.")
     profile = db.get_user_profile(user["id"]) or {}
