@@ -38,4 +38,4 @@ jobs:
             api_remittance.py \
             admin_bot_remittance.py
       - name: Test asset registry
-        run: python tests/test_remittance_registry.py
+        run: PYTHONPATH=. python tests/test_remittance_registry.py
