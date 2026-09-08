@@ -3,7 +3,7 @@ name: Test remittance Python
 on:
   push:
     branches:
-      - feature/international-remittance-v1
+      - feature/remittance-assets-networks-v2
     paths:
       - 'services/remittance_*.py'
       - 'api_remittance.py'
@@ -30,5 +30,8 @@ jobs:
             services/remittance_api_router.py \
             services/remittance_admin.py \
             services/remittance_wallet_config.py \
+            services/remittance_asset_registry.py \
+            services/remittance_price_service.py \
+            services/remittance_v2.py \
             api_remittance.py \
             admin_bot_remittance.py
