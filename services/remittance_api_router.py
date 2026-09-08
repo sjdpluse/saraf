@@ -4,7 +4,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, USDT_IDENTITY_VERIFICATION_THRESHOLD_USD
+from services.api_errors import ApiError
 from services import rate_limiter, remittance_service, supabase_service as db, webapp_auth
 from services.remittance_wallet_config import configured_assets
 
@@ -25,6 +26,18 @@ def _fee_percent() -> float:
     except ValueError:
         value = 0.0
     return max(0.0, min(value, 25.0))
+
+
+def _client_order(row: dict) -> dict:
+    data = dict(row)
+    for key in (
+        "idempotency_key", "admin_note", "crypto_confirmed_by", "paid_by",
+        "sender_phone", "sender_name",
+    ):
+        data.pop(key, None)
+    if data.get("status") not in ("payout_ready", "completed"):
+        data.pop("pickup_code", None)
+    return data
 
 
 class QuoteRequest(BaseModel):
@@ -53,7 +66,11 @@ class TxRequest(BaseModel):
 
 @router.get("/config")
 async def config(user: dict = Depends(_authenticate)):
-    return {"assets": configured_assets(), "fee_percent": _fee_percent()}
+    return {
+        "assets": configured_assets(),
+        "fee_percent": _fee_percent(),
+        "identity_verification_threshold_usd": USDT_IDENTITY_VERIFICATION_THRESHOLD_USD,
+    }
 
 
 @router.post("/quote")
@@ -80,7 +97,13 @@ async def create_remittance(
 ):
     rate_limiter.enforce("order", request, identity=str(user["id"]))
     if not db.has_basic_profile(user["id"]):
-        raise HTTPException(status_code=403, detail="ابتدا پروفایل خود را تکمیل کنید.")
+        raise ApiError(403, "BASIC_PROFILE_REQUIRED", "ابتدا پروفایل خود را تکمیل کنید.")
+    if payload.amount > USDT_IDENTITY_VERIFICATION_THRESHOLD_USD and not db.has_identity_verification(user["id"]):
+        raise ApiError(
+            403,
+            "IDENTITY_VERIFICATION_REQUIRED",
+            f"برای حواله‌های بالای {USDT_IDENTITY_VERIFICATION_THRESHOLD_USD:g} دالر، احراز هویت کامل الزامی است.",
+        )
     profile = db.get_user_profile(user["id"]) or {}
     key = (idempotency_key or "").strip()
     if not key:
@@ -104,7 +127,7 @@ async def create_remittance(
             idempotency_key=key,
             fee_percent=_fee_percent(),
         )
-        return order
+        return _client_order(order)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception:
@@ -114,9 +137,9 @@ async def create_remittance(
 @router.post("/{order_id}/tx")
 async def submit_transaction(order_id: int, payload: TxRequest, user: dict = Depends(_authenticate)):
     try:
-        return await remittance_service.submit_tx_hash(
+        return _client_order(await remittance_service.submit_tx_hash(
             chat_id=user["id"], order_id=order_id, tx_hash=payload.tx_hash
-        )
+        ))
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:
@@ -127,4 +150,4 @@ async def submit_transaction(order_id: int, payload: TxRequest, user: dict = Dep
 
 @router.get("/me")
 async def my_remittances(user: dict = Depends(_authenticate)):
-    return remittance_service.get_my_orders(user["id"])
+    return [_client_order(row) for row in remittance_service.get_my_orders(user["id"])]
