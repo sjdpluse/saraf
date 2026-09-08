@@ -14,10 +14,33 @@ alter table public.remittance_orders
     add column if not exists usd_value numeric(30,8);
 
 update public.remittance_orders
-set asset_price_usd = coalesce(asset_price_usd, 1),
-    usd_value = coalesce(usd_value, crypto_amount)
-where asset in ('USDT','USDC')
-  and (asset_price_usd is null or usd_value is null);
+set usd_value = coalesce(usd_value, gross_afn / nullif(usd_rate, 0)),
+    asset_price_usd = coalesce(
+        asset_price_usd,
+        (gross_afn / nullif(usd_rate, 0)) / nullif(crypto_amount, 0)
+    )
+where asset_price_usd is null or usd_value is null;
+
+create or replace function public.set_remittance_asset_valuation()
+returns trigger
+language plpgsql
+as $$
+begin
+    if new.usd_value is null and new.usd_rate > 0 then
+        new.usd_value := new.gross_afn / new.usd_rate;
+    end if;
+    if new.asset_price_usd is null and new.crypto_amount > 0 and new.usd_value is not null then
+        new.asset_price_usd := new.usd_value / new.crypto_amount;
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_remittance_asset_valuation on public.remittance_orders;
+create trigger trg_remittance_asset_valuation
+before insert or update of crypto_amount, usd_rate, gross_afn, usd_value, asset_price_usd
+on public.remittance_orders
+for each row execute function public.set_remittance_asset_valuation();
 
 alter table public.remittance_orders
     add constraint remittance_orders_asset_price_usd_positive
