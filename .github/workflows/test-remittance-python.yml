@@ -8,12 +8,14 @@ on:
       - 'services/remittance_*.py'
       - 'api_remittance.py'
       - 'admin_bot_remittance.py'
+      - 'tests/test_remittance_registry.py'
       - '.github/workflows/test-remittance-python.yml'
   pull_request:
     paths:
       - 'services/remittance_*.py'
       - 'api_remittance.py'
       - 'admin_bot_remittance.py'
+      - 'tests/test_remittance_registry.py'
 
 jobs:
   syntax:
@@ -35,3 +37,5 @@ jobs:
             services/remittance_v2.py \
             api_remittance.py \
             admin_bot_remittance.py
+      - name: Test asset registry
+        run: python -m unittest tests.test_remittance_registry
