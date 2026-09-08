@@ -13,6 +13,10 @@ const STATUS_LABELS = {
   cancelled: "لغو شده",
 };
 
+function formatUsd(value) {
+  return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
 export default function Remittance({ navigate, showError, onNeedProfile, onNeedVerification }) {
   const [config, setConfig] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -125,9 +129,10 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
         <div className="section-title">اطلاعات حواله</div>
         {!config?.assets?.length && config && <div className="notice warn">برای فعال‌شدن حواله، حداقل یک آدرس دریافت در تنظیمات سرور اضافه کنید.</div>}
         <div className="field"><label className="field-label">کشور فرستنده</label><select className="input" value={form.sender_country} onChange={(e) => setField("sender_country", e.target.value)}>{COUNTRIES.map((x) => <option key={x}>{x}</option>)}</select></div>
-        <div className="field"><label className="field-label">مقدار</label><input className="input num" type="number" min="10" value={form.amount} onChange={(e) => setField("amount", e.target.value)} placeholder="مثلاً 500" /></div>
+        <div className="field"><label className="field-label">مقدار {form.asset}</label><input className="input num" type="number" min="0" step="any" value={form.amount} onChange={(e) => setField("amount", e.target.value)} placeholder={form.asset === "BTC" ? "مثلاً 0.01" : form.asset === "ETH" ? "مثلاً 0.2" : "مثلاً 500"} /></div>
+        <div className="notice">محدوده حواله بر اساس ارزش دلاری محاسبه می‌شود: {config?.min_usd || 10} تا {config?.max_usd || 10000} USD.</div>
         <div className="remit-grid">
-          <div className="field"><label className="field-label">دارایی</label><select className="input" value={form.asset} onChange={(e) => setField("asset", e.target.value)}>{(config?.assets || []).map((x) => <option key={x.asset}>{x.asset}</option>)}</select></div>
+          <div className="field"><label className="field-label">دارایی</label><select className="input" value={form.asset} onChange={(e) => setField("asset", e.target.value)}>{(config?.assets || []).map((x) => <option key={x.asset} value={x.asset}>{x.asset} — {x.name_fa || x.asset}</option>)}</select></div>
           <div className="field"><label className="field-label">شبکه</label><select className="input" value={form.network} onChange={(e) => setField("network", e.target.value)}>{(assetConfig?.networks || []).map((x) => <option key={x}>{x}</option>)}</select></div>
         </div>
 
@@ -145,8 +150,10 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
         <div className="section-title"><Receipt size={20} /> بررسی نهایی</div>
         <div className="quote-box">
           <div className="quote-row"><span>ارسال</span><span className="value num">{quote.crypto_amount} {quote.asset}</span></div>
+          <div className="quote-row"><span>قیمت {quote.asset}</span><span className="value num">${formatUsd(quote.asset_price_usd)}</span></div>
+          <div className="quote-row"><span>ارزش حواله</span><span className="value num">${formatUsd(quote.usd_value)}</span></div>
           <div className="quote-row"><span>نرخ دالر</span><span className="value num">{Number(quote.usd_rate).toLocaleString()} AFN</span></div>
-          <div className="quote-row"><span>کارمزد</span><span className="value num">{quote.fee_percent}%</span></div>
+          <div className="quote-row"><span>کارمزد خدمت</span><span className="value num">{quote.fee_percent}%</span></div>
           <div className="quote-total buy"><span className="label">دریافت خانواده</span><span className="amount num">{Number(quote.payout_afn).toLocaleString()} AFN</span></div>
         </div>
         <div style={{ height: 12 }} />
@@ -171,7 +178,7 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
       {orders.length > 0 && <div className="card animate-in">
         <div className="section-title">حواله‌های من</div>
         {orders.slice(0, 8).map((o) => <div key={o.id} className="remit-order-row">
-          <div className="row-text"><div className="row-title num">{o.order_code}</div><div className="row-subtitle">{o.beneficiary_full_name} · {Number(o.payout_afn).toLocaleString()} AFN</div>{o.status === "payout_ready" && o.pickup_code && <div className="remit-pickup">کد دریافت: <strong className="num">{o.pickup_code}</strong></div>}</div>
+          <div className="row-text"><div className="row-title num">{o.order_code}</div><div className="row-subtitle">{o.beneficiary_full_name} · {Number(o.payout_afn).toLocaleString()} AFN · {o.crypto_amount} {o.asset}</div>{o.status === "payout_ready" && o.pickup_code && <div className="remit-pickup">کد دریافت: <strong className="num">{o.pickup_code}</strong></div>}</div>
           <div className={`status-badge status-${o.status === "completed" ? "completed" : o.status === "cancelled" ? "cancelled" : o.status === "payout_ready" ? "confirmed" : "pending"}`}>{STATUS_LABELS[o.status] || o.status}</div>
         </div>)}
       </div>}
