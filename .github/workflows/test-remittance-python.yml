@@ -2,10 +2,9 @@ name: Test remittance Python
 
 on:
   push:
-    branches:
-      - feature/remittance-assets-networks-v2
     paths:
       - 'services/remittance_*.py'
+      - 'remittance_watcher.py'
       - 'api_remittance.py'
       - 'admin_bot_remittance.py'
       - 'tests/test_remittance_registry.py'
@@ -13,9 +12,11 @@ on:
   pull_request:
     paths:
       - 'services/remittance_*.py'
+      - 'remittance_watcher.py'
       - 'api_remittance.py'
       - 'admin_bot_remittance.py'
       - 'tests/test_remittance_registry.py'
+      - '.github/workflows/test-remittance-python.yml'
 
 jobs:
   syntax:
@@ -35,6 +36,9 @@ jobs:
             services/remittance_asset_registry.py \
             services/remittance_price_service.py \
             services/remittance_v2.py \
+            services/remittance_chain_config.py \
+            services/remittance_chain_verifier.py \
+            remittance_watcher.py \
             api_remittance.py \
             admin_bot_remittance.py
       - name: Test asset registry
