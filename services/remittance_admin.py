@@ -1,7 +1,8 @@
 import logging
+import secrets
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackQueryHandler, ContextTypes
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from config import ADMIN_CHAT_IDS
 from services import remittance_service
@@ -23,8 +24,7 @@ def remittance_keyboard(order_id: int, status: str) -> InlineKeyboardMarkup | No
         ])
     if status == "payout_ready":
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton("💵 پول به گیرنده پرداخت شد", callback_data=f"remit_complete:{order_id}")],
-            [InlineKeyboardButton("⏸ توقف", callback_data=f"remit_hold:{order_id}")],
+            [InlineKeyboardButton("⏸ توقف پرداخت", callback_data=f"remit_hold:{order_id}")],
         ])
     return None
 
@@ -47,7 +47,6 @@ async def remittance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         "remit_ready": "payout_ready",
         "remit_hold": "on_hold",
         "remit_cancel": "cancelled",
-        "remit_complete": "completed",
     }.get(action)
     if not target:
         return
@@ -71,15 +70,60 @@ async def remittance_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         "payout_ready": "✅ آماده پرداخت نقدی",
         "on_hold": "⏸ متوقف برای بررسی",
         "cancelled": "❌ لغو شد",
-        "completed": "💵 پرداخت و تکمیل شد",
     }
     await query.answer(labels[target])
     try:
         await query.edit_message_reply_markup(reply_markup=remittance_keyboard(order_id, updated["status"]))
     except Exception:
         pass
-    await query.message.reply_text(f"{labels[target]} — {updated['order_code']}")
+
+    extra = ""
+    if target == "payout_ready":
+        extra = (
+            "\n\nبرای تکمیل پرداخت، پس از تطبیق مدرک هویت گیرنده، کد ۶ رقمی دریافت را از او بگیرید و ارسال کنید:\n"
+            f"/remitpay {order_id} CODE"
+        )
+    await query.message.reply_text(f"{labels[target]} — {updated['order_code']}{extra}")
+
+
+async def remitpay_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update.effective_user or update.effective_user.id not in ADMIN_CHAT_IDS or not update.message:
+        return
+    if len(context.args) != 2:
+        await update.message.reply_text("استفاده: /remitpay <order_id> <pickup_code>")
+        return
+    try:
+        order_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("شناسه حواله نامعتبر است.")
+        return
+    supplied = str(context.args[1]).strip()
+    order = remittance_service.get_order(order_id)
+    if not order:
+        await update.message.reply_text("حواله یافت نشد.")
+        return
+    if order.get("status") != "payout_ready":
+        await update.message.reply_text("این حواله در وضعیت آمادهٔ پرداخت نیست.")
+        return
+    expected = str(order.get("pickup_code") or "")
+    if not expected or not secrets.compare_digest(expected, supplied):
+        await update.message.reply_text("❌ کد دریافت اشتباه است؛ پرداخت را انجام ندهید.")
+        return
+
+    try:
+        updated = await remittance_service.transition(
+            order_id,
+            "completed",
+            admin_id=update.effective_user.id,
+            note="Pickup code verified; beneficiary identity checked by payout operator",
+        )
+    except Exception:
+        logger.exception("Completing remittance after pickup verification failed: %s", order_id)
+        await update.message.reply_text("تکمیل حواله ناموفق بود؛ وضعیت را دوباره بررسی کنید.")
+        return
+    await update.message.reply_text(f"💵 پرداخت تایید و حواله {updated['order_code']} تکمیل شد.")
 
 
 def register(app) -> None:
-    app.add_handler(CallbackQueryHandler(remittance_callback, pattern=r"^remit_(ready|hold|cancel|complete):\d+$"))
+    app.add_handler(CommandHandler("remitpay", remitpay_command))
+    app.add_handler(CallbackQueryHandler(remittance_callback, pattern=r"^remit_(ready|hold|cancel):\d+$"))
