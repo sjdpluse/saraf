@@ -1,25 +1,36 @@
+import json
 import os
 
 from config import USDT_DEPOSIT_WALLETS
+from services.remittance_asset_registry import ASSETS, network_label, normalize_asset, normalize_network
 
-SUPPORTED = {
-    "USDT": ("TRC20", "BEP20", "ERC20"),
-    "USDC": ("BEP20", "ERC20"),
-}
+SUPPORTED = {asset: tuple(meta["networks"]) for asset, meta in ASSETS.items()}
+
+
+def _json_wallets() -> dict:
+    raw = os.getenv("REMITTANCE_WALLETS_JSON", "{}").strip() or "{}"
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("REMITTANCE_WALLETS_JSON معتبر نیست.") from exc
+    return data if isinstance(data, dict) else {}
 
 
 def get_wallet(asset: str, network: str) -> str:
-    asset = str(asset or "").upper()
-    network = str(network or "").upper()
-    if asset not in SUPPORTED or network not in SUPPORTED[asset]:
-        raise ValueError("دارایی یا شبکهٔ حواله پشتیبانی نمی‌شود.")
+    selected_asset = normalize_asset(asset)
+    selected_network = normalize_network(selected_asset, network)
 
-    env_key = f"REMITTANCE_{asset}_{network}_WALLET"
-    wallet = os.getenv(env_key, "").strip()
-    if not wallet and asset == "USDT":
-        wallet = str((USDT_DEPOSIT_WALLETS or {}).get(network) or "").strip()
+    wallet = str(_json_wallets().get(selected_asset, {}).get(selected_network) or "").strip()
+
+    # Backward compatibility with V1 variables.
     if not wallet:
-        raise ValueError(f"آدرس دریافت {asset} روی شبکهٔ {network} هنوز تنظیم نشده است.")
+        env_key = f"REMITTANCE_{selected_asset}_{selected_network}_WALLET"
+        wallet = os.getenv(env_key, "").strip()
+    if not wallet and selected_asset == "USDT":
+        wallet = str((USDT_DEPOSIT_WALLETS or {}).get(selected_network) or "").strip()
+
+    if not wallet:
+        raise ValueError(f"آدرس دریافت {selected_asset} روی شبکهٔ {selected_network} هنوز تنظیم نشده است.")
     return wallet
 
 
@@ -30,9 +41,13 @@ def configured_assets() -> list[dict]:
         for network in networks:
             try:
                 get_wallet(asset, network)
-                available.append(network)
+                available.append({"code": network, "label": network_label(network)})
             except ValueError:
                 pass
         if available:
-            items.append({"asset": asset, "networks": available})
+            items.append({
+                "asset": asset,
+                "name_fa": ASSETS[asset]["name_fa"],
+                "networks": available,
+            })
     return items
