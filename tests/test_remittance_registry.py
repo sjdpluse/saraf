@@ -1,6 +1,16 @@
+import importlib.util
+import pathlib
 import unittest
 
-from services.remittance_asset_registry import ASSETS, normalize_network, pricing_asset
+MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / "services" / "remittance_asset_registry.py"
+spec = importlib.util.spec_from_file_location("remittance_asset_registry_standalone", MODULE_PATH)
+registry = importlib.util.module_from_spec(spec)
+assert spec and spec.loader
+spec.loader.exec_module(registry)
+
+ASSETS = registry.ASSETS
+normalize_network = registry.normalize_network
+pricing_asset = registry.pricing_asset
 
 
 class RemittanceRegistryTests(unittest.TestCase):
