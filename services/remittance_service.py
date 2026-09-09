@@ -4,9 +4,14 @@ from decimal import Decimal
 from typing import Optional
 
 from telegram import Bot
-from telegram.constants import ParseMode
 
-from config import ADMIN_CHAT_IDS, ADMIN_BOT_TOKEN, BOT_TOKEN, SUPPORT_TELEGRAM_USERNAME
+from config import (
+    ADMIN_CHAT_IDS,
+    ADMIN_BOT_TOKEN,
+    BOT_TOKEN,
+    SUPPORT_TELEGRAM_USERNAME,
+    USDT_KYC_DOCS_BUCKET,
+)
 from services import audit_service, rate_engine, supabase_service as db, usdt_service
 from services.money import D, quantize_afn, quantize_percent, quantize_rate, to_float
 
@@ -46,9 +51,6 @@ def _deposit_wallet(asset: str, network: str) -> str:
     selected_network = str(network or "").upper()
     if selected_network not in SUPPORTED_NETWORKS[selected_asset]:
         raise ValueError("شبکهٔ انتخاب‌شده برای این دارایی پشتیبانی نمی‌شود.")
-
-    # Current config only exposes the legacy USDT wallet map. V1 intentionally
-    # refuses unsupported combinations instead of inventing addresses.
     wallet = (USDT_DEPOSIT_WALLETS or {}).get(selected_network)
     if not wallet:
         raise ValueError(f"آدرس دریافت {selected_asset} روی شبکهٔ {selected_network} هنوز تنظیم نشده است.")
@@ -113,16 +115,15 @@ def _existing(chat_id: int, idempotency_key: str) -> Optional[dict]:
 async def create_order(
     *,
     chat_id: int,
-    sender_name: Optional[str],
+    sender_name: str,
     sender_phone: Optional[str],
     sender_country: str,
     beneficiary_full_name: str,
     beneficiary_phone: str,
     beneficiary_province: str,
     beneficiary_city: str,
-    beneficiary_address: Optional[str],
-    relationship: str,
-    purpose: str,
+    beneficiary_address: str,
+    beneficiary_id_document_path: str,
     amount: float,
     asset: str,
     network: str,
@@ -141,15 +142,16 @@ async def create_order(
         "chat_id": chat_id,
         "idempotency_key": idempotency_key,
         "sender_country": _validate_text(sender_country, "کشور فرستنده"),
-        "sender_name": (sender_name or "").strip() or None,
+        "sender_name": _validate_text(sender_name, "نام کامل فرستنده", 3, 160),
         "sender_phone": (sender_phone or "").strip() or None,
-        "beneficiary_full_name": _validate_text(beneficiary_full_name, "نام گیرنده"),
-        "beneficiary_phone": _validate_text(beneficiary_phone, "شمارهٔ گیرنده", 7, 40),
+        "beneficiary_full_name": _validate_text(beneficiary_full_name, "نام کامل گیرنده", 3, 160),
+        "beneficiary_phone": _validate_text(beneficiary_phone, "شماره تماس گیرنده", 7, 40),
         "beneficiary_province": _validate_text(beneficiary_province, "ولایت گیرنده"),
         "beneficiary_city": _validate_text(beneficiary_city, "شهر گیرنده"),
-        "beneficiary_address": (beneficiary_address or "").strip()[:300] or None,
-        "relationship": _validate_text(relationship, "نسبت با گیرنده"),
-        "purpose": _validate_text(purpose, "هدف حواله"),
+        "beneficiary_address": _validate_text(beneficiary_address, "آدرس گیرنده", 3, 300),
+        "beneficiary_id_document_path": _validate_text(beneficiary_id_document_path, "تذکره گیرنده", 10, 500),
+        "relationship": None,
+        "purpose": None,
         "asset": q["asset"],
         "network": q["network"],
         "crypto_amount": q["crypto_amount"],
@@ -167,10 +169,15 @@ async def create_order(
         raise RuntimeError("ثبت حواله ناموفق بود.")
     order = result.data[0]
     db.get_client().table("remittance_status_history").insert({
-        "order_id": order["id"], "from_status": None, "to_status": "awaiting_transfer", "changed_by": chat_id
+        "order_id": order["id"],
+        "from_status": None,
+        "to_status": "awaiting_transfer",
+        "changed_by": chat_id,
+        "note": "Order created; waiting for blockchain transfer",
     }).execute()
     audit_service.record(action="remittance_created", entity="remittance", entity_id=order["id"], actor=chat_id)
-    await notify_admins(order)
+    # The admin is intentionally not notified here. The request becomes operational
+    # only after the sender submits a transaction hash.
     return {**order, "order_code": remittance_code(order["id"]), "duplicate": False}
 
 
@@ -187,7 +194,7 @@ async def submit_tx_hash(*, chat_id: int, order_id: int, tx_hash: str) -> dict:
     result = (
         db.get_client()
         .table("remittance_orders")
-        .update({"tx_hash": cleaned, "status": "transfer_submitted"})
+        .update({"tx_hash": cleaned, "status": "transfer_submitted", "verification_status": "pending"})
         .eq("id", order_id)
         .eq("chat_id", chat_id)
         .execute()
@@ -199,9 +206,10 @@ async def submit_tx_hash(*, chat_id: int, order_id: int, tx_hash: str) -> dict:
         "from_status": current["status"],
         "to_status": "transfer_submitted",
         "changed_by": chat_id,
-        "note": "Tx Hash submitted by sender",
+        "note": "Tx Hash submitted by sender; sent to admin and blockchain watcher",
     }).execute()
-    await notify_admins(result.data[0], tx_submitted=True)
+    audit_service.record(action="remittance_tx_submitted", entity="remittance", entity_id=order_id, actor=chat_id)
+    await notify_admins(result.data[0], event="tx_submitted")
     return {**result.data[0], "order_code": remittance_code(order_id)}
 
 
@@ -241,7 +249,6 @@ async def transition(order_id: int, to_status: str, *, admin_id: int, note: Opti
     elif to_status == "completed":
         fields.update({"paid_by": admin_id, "paid_at": "now()"})
 
-    # Supabase/PostgREST does not evaluate now() strings as SQL; timestamps are set below.
     from datetime import datetime, timezone
     if "crypto_confirmed_at" in fields:
         fields["crypto_confirmed_at"] = datetime.now(timezone.utc).isoformat()
@@ -264,29 +271,58 @@ async def transition(order_id: int, to_status: str, *, admin_id: int, note: Opti
     return {**updated, "order_code": remittance_code(order_id)}
 
 
-async def notify_admins(order: dict, tx_submitted: bool = False) -> None:
+async def notify_admins(order: dict, event: Optional[str] = None) -> None:
     if not ADMIN_CHAT_IDS:
         return
+    status = str(order.get("status") or "")
+    if event is None:
+        event = "payout_ready" if status == "payout_ready" else "status_update"
+
+    title = {
+        "tx_submitted": "🔎 حواله جدید — تراکنش ثبت شد",
+        "payout_ready": "✅ بلاکچین تایید شد — آماده پرداخت",
+    }.get(event, "🌍 به‌روزرسانی حواله")
+
     code = remittance_code(order["id"])
-    tx_line = f"\n🔎 Tx: `{order.get('tx_hash')}`" if order.get("tx_hash") else ""
-    title = "🔎 تراکنش حواله ثبت شد" if tx_submitted else "🌍 حواله بین‌المللی جدید"
+    tx_line = f"\nTx Hash: {order.get('tx_hash')}" if order.get("tx_hash") else ""
+    verification_line = ""
+    if order.get("verification_status"):
+        verification_line = f"\nتایید بلاکچین: {order.get('verification_status')}"
+        if order.get("chain_confirmations") is not None:
+            verification_line += f" — {order.get('chain_confirmations')} confirmations"
+
     text = (
         f"{title}\n\n"
-        f"کد: `{code}`\n"
-        f"فرستنده: {order.get('sender_name') or '-'} — {order.get('sender_country')}\n"
-        f"گیرنده: {order['beneficiary_full_name']} — {order['beneficiary_phone']}\n"
-        f"مقصد: {order['beneficiary_province']} / {order['beneficiary_city']}\n"
-        f"دارایی: {order['crypto_amount']} {order['asset']} ({order['network']})\n"
-        f"پرداخت نقدی: {float(order['payout_afn']):,.0f} AFN\n"
-        f"وضعیت: {order['status']}"
-        f"{tx_line}"
+        f"کد حواله: {code}\n"
+        f"فرستنده: {order.get('sender_name') or '—'}\n"
+        f"کشور فرستنده: {order.get('sender_country') or '—'}\n"
+        f"دارایی: {order.get('crypto_amount')} {order.get('asset')}\n"
+        f"شبکه: {order.get('network')}\n"
+        f"گیرنده: {order.get('beneficiary_full_name') or '—'}\n"
+        f"شماره تماس: {order.get('beneficiary_phone') or '—'}\n"
+        f"موقعیت: {order.get('beneficiary_province') or '—'} / {order.get('beneficiary_city') or '—'}\n"
+        f"آدرس: {order.get('beneficiary_address') or '—'}\n"
+        f"مبلغ قابل پرداخت: {float(order.get('payout_afn') or 0):,.0f} AFN\n"
+        f"کارمزد خدمت: {float(order.get('fee_percent') or 0):g}%\n"
+        f"وضعیت: {status}"
+        f"{verification_line}{tx_line}"
     )
+
     try:
         bot = _admin()
         from keyboards import admin_remittance_keyboard
-        markup = admin_remittance_keyboard(order["id"], order["status"])
+        markup = admin_remittance_keyboard(order["id"], status)
+        document_bytes = None
+        if event == "tx_submitted" and order.get("beneficiary_id_document_path"):
+            document_bytes = db.download_private_file(USDT_KYC_DOCS_BUCKET, order["beneficiary_id_document_path"])
         for admin_id in ADMIN_CHAT_IDS:
-            await bot.send_message(chat_id=admin_id, text=text, parse_mode=ParseMode.MARKDOWN, reply_markup=markup)
+            if document_bytes:
+                await bot.send_photo(
+                    chat_id=admin_id,
+                    photo=document_bytes,
+                    caption=f"🪪 تذکره گیرنده — {order.get('beneficiary_full_name') or code}",
+                )
+            await bot.send_message(chat_id=admin_id, text=text, reply_markup=markup)
     except Exception:
         logger.exception("ارسال اعلان حواله به مدیر ناموفق بود")
 
@@ -300,7 +336,7 @@ async def notify_customer(order: dict) -> None:
             f"گیرنده: {order['beneficiary_full_name']}\n"
             f"مبلغ قابل دریافت: {float(order['payout_afn']):,.0f} افغانی\n"
             f"کد دریافت: {order['pickup_code']}\n\n"
-            "کد دریافت را فقط با گیرنده شریک کنید. گیرنده هنگام دریافت باید مدرک هویت همراه داشته باشد."
+            "کد دریافت را فقط با گیرنده شریک کنید. گیرنده هنگام دریافت باید تذکره همراه داشته باشد."
         )
     elif status == "completed":
         text = f"✅ حوالهٔ شما ({code}) با موفقیت به گیرنده پرداخت و تکمیل شد."

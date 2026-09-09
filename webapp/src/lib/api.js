@@ -65,7 +65,15 @@ function retryKey(action, asset, quoteId) {
   return orderRetryKeys.get(key);
 }
 function remittanceRetryKey(payload) {
-  const key = JSON.stringify([payload.sender_country, payload.beneficiary_phone, payload.amount, payload.asset, payload.network]);
+  const key = JSON.stringify([
+    payload.sender_full_name,
+    payload.sender_country,
+    payload.beneficiary_phone,
+    payload.beneficiary_id_document_path,
+    payload.amount,
+    payload.asset,
+    payload.network,
+  ]);
   if (!remittanceRetryKeys.has(key)) remittanceRetryKeys.set(key, newIdempotencyKey());
   return remittanceRetryKeys.get(key);
 }
@@ -137,6 +145,11 @@ export const api = {
 
   getRemittanceConfig: () => request("/remittances/config"),
   getRemittanceQuote: (payload) => request("/remittances/quote", { method: "POST", body: payload }),
+  uploadRemittanceBeneficiaryId: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/remittances/upload-beneficiary-id", { method: "POST", body: form, isForm: true });
+  },
   createRemittance: (payload) => request("/remittances", { method: "POST", body: payload, headers: { "Idempotency-Key": remittanceRetryKey(payload) } }),
   submitRemittanceTx: (orderId, txHash) => request(`/remittances/${orderId}/tx`, { method: "POST", body: { tx_hash: txHash } }),
   getMyRemittances: () => request("/remittances/me"),

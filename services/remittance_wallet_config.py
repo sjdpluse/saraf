@@ -2,7 +2,7 @@ import json
 import os
 
 from config import USDT_DEPOSIT_WALLETS
-from services.remittance_asset_registry import ASSETS, normalize_asset, normalize_network
+from services.remittance_asset_registry import ASSETS, NETWORK_LABELS, normalize_asset, normalize_network
 
 SUPPORTED = {asset: tuple(meta["networks"]) for asset, meta in ASSETS.items()}
 LEGACY_ASSETS = {"USDT", "USDC"}
@@ -53,13 +53,14 @@ def configured_assets() -> list[dict]:
         for network in networks:
             try:
                 get_wallet(asset, network)
-                available.append(network)
+                available.append({"code": network, "label": NETWORK_LABELS.get(network, network)})
             except ValueError:
                 pass
         if available:
             items.append({
                 "asset": asset,
-                "name_fa": ASSETS[asset]["name_fa"],
+                "name": ASSETS[asset]["name"],
+                "logo_url": ASSETS[asset]["logo_url"],
                 "networks": available,
             })
     return items

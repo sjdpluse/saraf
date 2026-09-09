@@ -1,32 +1,47 @@
 """Canonical asset/network registry for international remittances."""
 
+_ICON_BASE = "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color"
+
+
+def _icon(symbol: str) -> str:
+    return f"{_ICON_BASE}/{symbol.lower()}.png"
+
+
 ASSETS = {
-    "USDT": {"name_fa": "تتر", "networks": ("BEP20", "TRC20", "ERC20", "ARBITRUM", "BASE", "POLYGON", "SOL")},
-    "USDC": {"name_fa": "یو‌اس‌دی کوین", "networks": ("BEP20", "ERC20", "ARBITRUM", "BASE", "POLYGON", "SOL")},
-    "DAI": {"name_fa": "دای", "networks": ("ERC20", "ARBITRUM", "BASE", "POLYGON")},
-    "TUSD": {"name_fa": "ترو یو‌اس‌دی", "networks": ("BEP20", "ERC20", "ARBITRUM", "POLYGON")},
-    "TRX": {"name_fa": "ترون", "networks": ("TRC20",)},
-    "BNB": {"name_fa": "بی‌ان‌بی", "networks": ("BEP20",)},
-    "ETH": {"name_fa": "اتریوم", "networks": ("ERC20", "ARBITRUM", "BASE")},
-    "SOL": {"name_fa": "سولانا", "networks": ("SOL",)},
-    "WBTC": {"name_fa": "رپد بیت‌کوین", "networks": ("ERC20", "ARBITRUM", "POLYGON")},
-    "PAXG": {"name_fa": "پکس گلد", "networks": ("ERC20",)},
-    "PYUSD": {"name_fa": "پی‌پل یو‌اس‌دی", "networks": ("ERC20",)},
-    "WETH": {"name_fa": "رپد اتریوم", "networks": ("BEP20", "ERC20")},
-    "BTCB": {"name_fa": "بیت‌کوین BEP20", "networks": ("BEP20",)},
-    "POL": {"name_fa": "پالیگان", "networks": ("POLYGON",)},
-    "BTC": {"name_fa": "بیت‌کوین", "networks": ("BITCOIN",)},
+    "USDT": {
+        "name": "Tether USD",
+        "logo_url": "https://i.postimg.cc/250WhXsF/tether.png",
+        "networks": ("BEP20", "TRC20", "ERC20", "ARBITRUM", "BASE", "POLYGON", "SOL"),
+    },
+    "USDC": {
+        "name": "USD Coin",
+        "logo_url": "https://i.postimg.cc/0QndtT7N/usd-coin-usdc-logo.jpg",
+        "networks": ("BEP20", "ERC20", "ARBITRUM", "BASE", "POLYGON", "SOL"),
+    },
+    "DAI": {"name": "Dai", "logo_url": _icon("DAI"), "networks": ("ERC20", "ARBITRUM", "BASE", "POLYGON")},
+    "TUSD": {"name": "TrueUSD", "logo_url": _icon("TUSD"), "networks": ("BEP20", "ERC20", "ARBITRUM", "POLYGON")},
+    "TRX": {"name": "TRON", "logo_url": _icon("TRX"), "networks": ("TRC20",)},
+    "BNB": {"name": "BNB", "logo_url": _icon("BNB"), "networks": ("BEP20",)},
+    "ETH": {"name": "Ethereum", "logo_url": _icon("ETH"), "networks": ("ERC20", "ARBITRUM", "BASE")},
+    "SOL": {"name": "Solana", "logo_url": _icon("SOL"), "networks": ("SOL",)},
+    "WBTC": {"name": "Wrapped Bitcoin", "logo_url": _icon("WBTC"), "networks": ("ERC20", "ARBITRUM", "POLYGON")},
+    "PAXG": {"name": "PAX Gold", "logo_url": _icon("PAXG"), "networks": ("ERC20",)},
+    "PYUSD": {"name": "PayPal USD", "logo_url": _icon("PYUSD"), "networks": ("ERC20",)},
+    "WETH": {"name": "Wrapped Ether", "logo_url": _icon("WETH"), "networks": ("BEP20", "ERC20")},
+    "BTCB": {"name": "Bitcoin BEP20", "logo_url": _icon("BTCB"), "networks": ("BEP20",)},
+    "POL": {"name": "Polygon Ecosystem Token", "logo_url": _icon("POL"), "networks": ("POLYGON",)},
+    "BTC": {"name": "Bitcoin", "logo_url": _icon("BTC"), "networks": ("BITCOIN",)},
 }
 
 NETWORK_LABELS = {
-    "BEP20": "BNB Smart Chain (BEP20)",
-    "TRC20": "Tron (TRC20)",
-    "ERC20": "Ethereum (ERC20)",
-    "ARBITRUM": "Arbitrum One",
+    "BEP20": "BNB Smart Chain (BSC)",
+    "TRC20": "Tron (TRX)",
+    "ERC20": "Ethereum (ETH)",
+    "ARBITRUM": "Arbitrum One (ARB)",
     "BASE": "Base",
-    "POLYGON": "Polygon",
-    "SOL": "Solana",
-    "BITCOIN": "Bitcoin",
+    "POLYGON": "Polygon (POL)",
+    "SOL": "Solana (SOL)",
+    "BITCOIN": "Bitcoin (BTC)",
 }
 
 _STABLECOINS = {"USDT", "USDC", "DAI", "TUSD", "PYUSD"}
@@ -50,8 +65,12 @@ def normalize_network(asset: str, network: str | None) -> str:
     return value
 
 
-def asset_name_fa(asset: str) -> str:
-    return ASSETS[normalize_asset(asset)]["name_fa"]
+def asset_name(asset: str) -> str:
+    return ASSETS[normalize_asset(asset)]["name"]
+
+
+def asset_logo(asset: str) -> str:
+    return ASSETS[normalize_asset(asset)]["logo_url"]
 
 
 def is_stablecoin(asset: str) -> bool:
