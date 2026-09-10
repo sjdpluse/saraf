@@ -28,70 +28,55 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 
 .afghanistan-dots { background:#c7c7cc; opacity:.66; }
 .map-stage { aspect-ratio:3/2; overflow:visible; margin-top:-18px; margin-bottom:-8px; -webkit-mask-image:none; mask-image:none; }
-.map-market-flow { position:absolute; inset:0; z-index:4; pointer-events:none; }
+.map-market-flow { position:absolute; inset:0; z-index:5; pointer-events:none; }
 
-/* Exact ADM1 geometry is fitted to the same 3:2 stage and the original dotted
-   map image is re-drawn only inside the active province. */
+/* Active province: only the existing dotted texture is recoloured. No border. */
 .province-boundary-overlay { position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; overflow:visible; }
-.province-dot-image { opacity:.9; filter:brightness(1.35) saturate(1.15); animation:province-dot-focus .42s cubic-bezier(.22,1,.36,1) both; }
-.province-boundary-line { fill:rgba(0,102,204,.035); stroke:rgba(0,102,204,.42); stroke-width:1.05; vector-effect:non-scaling-stroke; animation:province-boundary-focus .42s cubic-bezier(.22,1,.36,1) both; }
-@keyframes province-dot-focus { from{opacity:0;filter:brightness(1)} to{opacity:.92;filter:brightness(1.42) saturate(1.15)} }
-@keyframes province-boundary-focus { from{opacity:0} to{opacity:1} }
+.province-dot-image { opacity:.30; animation:province-dot-focus .36s cubic-bezier(.22,1,.36,1) both; }
+.province-boundary-line { display:none !important; }
+@keyframes province-dot-focus { from{opacity:0} to{opacity:.30} }
 
-/* Four-slot scheduler: one marker is replaced every 300ms and each marker lives
-   for 1.2s. This mathematically caps the field at four mounted markers while
-   keeping the stream continuous. There is no master timeline and therefore no
-   global all-hidden phase. */
-.map-floater { position:absolute; width:0; height:0; opacity:0; transform-origin:center; animation:market-marker-life 1.2s cubic-bezier(.22,1,.36,1) both; will-change:transform,opacity; }
-.map-token { position:absolute; left:0; top:0; display:flex; flex-direction:column; align-items:center; gap:3px; transform:translate(-50%,-50%) scale(var(--float-scale)); white-space:nowrap; }
-.map-coin-shell { position:relative; width:22px; height:22px; display:grid; place-items:center; }
-.map-coin-shell::before,.map-coin-shell::after { content:""; position:absolute; inset:1px; border:1px solid color-mix(in srgb,var(--coin-accent) 58%,transparent); border-radius:50%; opacity:0; transform:scale(.72); pointer-events:none; }
-.map-coin-shell::before { animation:map-coin-ripple 1.2s ease-out both; }
-.map-coin-shell::after { animation:map-coin-ripple-secondary 1.2s ease-out both; }
-.map-coin { width:18px; height:18px; flex:0 0 18px; border:0; border-radius:50%; background:transparent; box-shadow:0 1px 5px rgba(29,29,31,.11); display:grid; place-items:center; position:relative; z-index:2; opacity:0; transform:scale(.8); animation:map-logo-life 1.2s cubic-bezier(.22,1,.36,1) both; }
-.map-coin img { width:100%; height:100%; border-radius:50%; object-fit:contain; }
+/* Three rotating slots. The parent marker is always visible; only its content
+   animates. One slot is replaced every 420ms, so there is no all-hidden phase. */
+.map-floater { position:absolute; width:0; height:0; opacity:1 !important; visibility:visible !important; transform-origin:center; z-index:5; }
+.map-token { position:absolute; left:0; top:0; display:flex; flex-direction:column; align-items:center; gap:3px; transform:translate(-50%,-50%) scale(var(--float-scale)); white-space:nowrap; opacity:0; animation:map-token-life 1.26s cubic-bezier(.22,1,.36,1) both; will-change:opacity,transform,filter; }
+.map-coin-shell { position:relative; width:24px; height:24px; display:grid; place-items:center; }
+.map-coin-shell::before,.map-coin-shell::after { content:""; position:absolute; inset:1px; border:1px solid color-mix(in srgb,var(--coin-accent) 55%,transparent); border-radius:50%; opacity:0; transform:scale(.72); pointer-events:none; }
+.map-coin-shell::before { animation:map-coin-ripple 1.26s ease-out both; }
+.map-coin-shell::after { animation:map-coin-ripple-secondary 1.26s ease-out both; }
+.map-coin { width:20px; height:20px; flex:0 0 20px; border:0; border-radius:50%; background:transparent; box-shadow:0 1px 5px rgba(29,29,31,.11); display:grid; place-items:center; position:relative; z-index:2; }
+.map-coin img { width:100%; height:100%; border-radius:50%; object-fit:contain; display:block; }
 .map-coin-fallback { font-size:.48rem; color:#1d1d1f; font-weight:700; }
-.map-change { margin:0; padding:0; border:0; background:transparent; box-shadow:none; color:var(--coin-accent); font-size:.49rem; line-height:1; font-weight:300; letter-spacing:.01em; text-shadow:0 1px 4px rgba(255,255,255,.9); display:inline-flex; align-items:baseline; gap:1px; direction:ltr; opacity:0; animation:map-value-life 1.2s cubic-bezier(.22,1,.36,1) both; }
-.map-change-sign { display:inline-block; font-weight:300; opacity:0; animation:map-sign-rise 1.2s cubic-bezier(.22,1,.36,1) both; }
+.map-change { margin:0; padding:0; border:0; background:transparent; box-shadow:none; color:var(--coin-accent); font-size:.52rem; line-height:1; font-weight:300; letter-spacing:.01em; text-shadow:0 1px 4px rgba(255,255,255,.92); display:inline-flex; align-items:baseline; gap:1px; direction:ltr; min-height:.58rem; }
+.map-change-sign { display:inline-block; font-weight:300; opacity:0; transform:translateY(7px); animation:map-sign-rise 1.26s cubic-bezier(.22,1,.36,1) both; }
 .map-change-value { font-weight:300; }
+.map-change.is-waiting { opacity:.42; }
 
-@keyframes market-marker-life {
-  0% { opacity:0; transform:scale(.84); }
-  15% { opacity:1; transform:scale(1); }
-  82% { opacity:1; transform:scale(1); }
-  100% { opacity:0; transform:scale(.96); }
-}
-@keyframes map-logo-life {
-  0% { opacity:0; transform:scale(.76); filter:blur(1.25px); }
-  18% { opacity:1; transform:scale(1); filter:blur(0); }
-  82% { opacity:1; transform:scale(1); filter:blur(0); }
-  100% { opacity:0; transform:scale(.94); filter:blur(.7px); }
-}
-@keyframes map-value-life {
-  0%,10% { opacity:0; transform:translateY(4px); }
-  24% { opacity:1; transform:translateY(0); }
-  82% { opacity:1; transform:translateY(0); }
-  100% { opacity:0; transform:translateY(-2px); }
+@keyframes map-token-life {
+  0% { opacity:0; transform:translate(-50%,-50%) scale(calc(var(--float-scale) * .78)); filter:blur(1.2px); }
+  14% { opacity:1; transform:translate(-50%,-50%) scale(var(--float-scale)); filter:blur(0); }
+  82% { opacity:1; transform:translate(-50%,-50%) scale(var(--float-scale)); filter:blur(0); }
+  100% { opacity:0; transform:translate(-50%,-50%) scale(calc(var(--float-scale) * .96)); filter:blur(.45px); }
 }
 @keyframes map-sign-rise {
-  0%,13% { opacity:0; transform:translateY(8px); }
-  28% { opacity:1; transform:translateY(0); }
+  0%,10% { opacity:0; transform:translateY(8px); }
+  26% { opacity:1; transform:translateY(0); }
   82% { opacity:1; transform:translateY(0); }
-  100% { opacity:0; transform:translateY(-2px); }
+  100% { opacity:0; transform:translateY(-1px); }
 }
 @keyframes map-coin-ripple {
-  0%,13% { opacity:0; transform:scale(.72); }
-  20% { opacity:.34; transform:scale(.82); }
-  50% { opacity:0; transform:scale(2.05); }
+  0%,12% { opacity:0; transform:scale(.72); }
+  19% { opacity:.30; transform:scale(.82); }
+  46% { opacity:0; transform:scale(2.05); }
   100% { opacity:0; transform:scale(2.05); }
 }
 @keyframes map-coin-ripple-secondary {
   0%,22% { opacity:0; transform:scale(.72); }
-  29% { opacity:.18; transform:scale(.82); }
-  57% { opacity:0; transform:scale(1.7); }
+  29% { opacity:.16; transform:scale(.82); }
+  54% { opacity:0; transform:scale(1.7); }
   100% { opacity:0; transform:scale(1.7); }
 }
-.market-map.is-paused .map-floater,.market-map.is-paused .map-coin,.market-map.is-paused .map-change,.market-map.is-paused .map-change-sign,.market-map.is-paused .map-coin-shell::before,.market-map.is-paused .map-coin-shell::after { animation-play-state:paused; }
+.market-map.is-paused .map-token,.market-map.is-paused .map-change-sign,.market-map.is-paused .map-coin-shell::before,.market-map.is-paused .map-coin-shell::after { animation-play-state:paused; }
 .market-map figcaption,.map-motion-button,.map-pulse,.map-anchor,.province-highlight { display:none !important; }
 
 .trade-panel { border-color:rgba(0,113,227,.14); }
@@ -109,13 +94,14 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
   .home-location-word { font-size:clamp(.68rem,3.15vw,.84rem); }
   .map-stage { margin-top:-16px; margin-bottom:-6px; }
   .map-token { gap:2px; }
-  .map-coin-shell { width:20px; height:20px; }
-  .map-coin { width:16px; height:16px; flex-basis:16px; }
-  .map-change { font-size:.46rem; }
+  .map-coin-shell { width:22px; height:22px; }
+  .map-coin { width:18px; height:18px; flex-basis:18px; }
+  .map-change { font-size:.49rem; }
 }
 @media (prefers-reduced-motion:reduce) {
-  .home-location-word,.province-dot-image,.province-boundary-line,.map-floater,.map-coin,.map-change,.map-change-sign,.map-coin-shell::before,.map-coin-shell::after { animation:none !important; }
+  .home-location-word,.province-dot-image,.map-token,.map-change-sign,.map-coin-shell::before,.map-coin-shell::after { animation:none !important; }
   .home-location-word { opacity:1; transform:none; }
-  .province-dot-image { opacity:.9; }
-  .map-floater,.map-coin,.map-change,.map-change-sign { opacity:1; transform:none; }
+  .province-dot-image { opacity:.30; }
+  .map-token { opacity:1; filter:none; transform:translate(-50%,-50%) scale(var(--float-scale)); }
+  .map-change-sign { opacity:1; transform:none; }
 }
