@@ -5,8 +5,8 @@ import { TETHER_LOGO_URL, USDC_LOGO_URL } from "../lib/brand";
 import afghanistanMap from "../assets/afghanistan-dots.webp";
 
 const ICON_BASE = "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color";
-const SLOT_INTERVAL_MS = 300;
-const ACTIVE_SLOTS = 4;
+const SLOT_INTERVAL_MS = 420;
+const ACTIVE_SLOTS = 3;
 const PROVINCE_DATA_URL = "https://raw.githubusercontent.com/periodo/periodo-places/1563735c333174952541241c7c9640b346387533/gazetteers/afghan-provinces.json";
 
 const COINS = [
@@ -94,6 +94,7 @@ function geometryPolygons(geometry) {
 function buildProvincePaths(data) {
   const features = Array.isArray(data?.features) ? data.features : [];
   let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+
   features.forEach((feature) => {
     geometryPolygons(feature.geometry).forEach((polygon) => {
       walkCoordinates(polygon, (lon, lat) => {
@@ -102,6 +103,7 @@ function buildProvincePaths(data) {
       });
     });
   });
+
   if (![minLon, maxLon, minLat, maxLat].every(Number.isFinite) || maxLon === minLon || maxLat === minLat) return {};
 
   const width = 1000, height = 666.6667;
@@ -143,9 +145,20 @@ function ProvinceOverlay({ activeLocation }) {
 
   return (
     <svg className="province-boundary-overlay" viewBox="0 0 1000 666.6667" preserveAspectRatio="none" aria-hidden="true">
-      <defs><clipPath id="active-province-clip"><path d={path} /></clipPath></defs>
-      <image href={afghanistanMap} x="0" y="0" width="1000" height="666.6667" preserveAspectRatio="none" clipPath="url(#active-province-clip)" className="province-dot-image" />
-      <path d={path} className="province-boundary-line" />
+      <defs>
+        <clipPath id="active-province-clip"><path d={path} /></clipPath>
+        <filter id="province-blue-filter" colorInterpolationFilters="sRGB">
+          <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0.4  0 0 0 0 0.8  0 0 0 1 0" />
+        </filter>
+      </defs>
+      <image
+        href={afghanistanMap}
+        x="0" y="0" width="1000" height="666.6667"
+        preserveAspectRatio="none"
+        clipPath="url(#active-province-clip)"
+        filter="url(#province-blue-filter)"
+        className="province-dot-image"
+      />
     </svg>
   );
 }
@@ -217,17 +230,16 @@ export default function MarketMap({ activeLocation }) {
             const coin = COINS[marker.coin];
             const change = marketChange(snapshot, coin.symbol, now);
             const rounded = change === null ? null : Number(change.toFixed(2));
-            const sign = rounded === null ? null : rounded > 0 ? "+" : rounded < 0 ? "−" : "";
+            const sign = rounded === null ? "" : rounded > 0 ? "+" : rounded < 0 ? "−" : "";
             const value = rounded === null ? null : Math.abs(rounded).toFixed(2);
+
             return (
               <div className="map-floater" key={instance} style={{ left: `${marker.x}%`, top: `${marker.y}%`, "--float-scale": marker.scale, "--coin-accent": coin.accent }}>
                 <div className="map-token">
-                  {value !== null && (
-                    <span className="map-change num">
-                      <span className="map-change-sign">{sign}</span>
-                      <span className="map-change-value">{value}</span>
-                    </span>
-                  )}
+                  <span className={`map-change num ${value === null ? "is-waiting" : ""}`}>
+                    <span className="map-change-sign">{sign}</span>
+                    <span className="map-change-value">{value ?? "··"}</span>
+                  </span>
                   <span className="map-coin-shell"><span className="map-coin"><CoinLogo coin={coin} /></span></span>
                 </div>
               </div>
