@@ -56,15 +56,15 @@ const MARKERS = [
 ];
 
 const PROVINCE_NAME_MAP = {
-  "کابل": "Kabul", "بامیان": "Bamyan", "مزار شریف": "Balkh", "بلخ": "Balkh",
-  "هرات": "Herat", "کندهار": "Kandahar", "ننگرهار": "Nangarhar", "کندز": "Kunduz",
-  "بدخشان": "Badakhshan", "غزنی": "Ghazni", "هلمند": "Helmand", "فراه": "Farah",
-  "تخار": "Takhar", "بغلان": "Baghlan", "پروان": "Parwan", "پنجشیر": "Panjshir",
-  "دایکندی": "Daykundi", "غور": "Ghor", "فاریاب": "Faryab", "جوزجان": "Jowzjan",
-  "سمنگان": "Samangan", "سرپل": "Sar-e Pol", "بادغیس": "Badghis", "نیمروز": "Nimruz",
-  "زابل": "Zabul", "پکتیا": "Paktia", "پکتیکا": "Paktika", "خوست": "Khost",
-  "لغمان": "Laghman", "نورستان": "Nuristan", "کنر": "Kunar", "کاپیسا": "Kapisa",
-  "میدان وردک": "Wardak", "لوگر": "Logar", "ارزگان": "Urozgan",
+  "کابل": ["Kabul"], "بامیان": ["Bamyan", "Bamiyan"], "مزار شریف": ["Balkh"], "بلخ": ["Balkh"],
+  "هرات": ["Herat", "Hirat"], "کندهار": ["Kandahar"], "ننگرهار": ["Nangarhar"], "کندز": ["Kunduz"],
+  "بدخشان": ["Badakhshan"], "غزنی": ["Ghazni"], "هلمند": ["Helmand", "Hilmand"], "فراه": ["Farah"],
+  "تخار": ["Takhar"], "بغلان": ["Baghlan"], "پروان": ["Parwan", "Parvan"], "پنجشیر": ["Panjshir", "Panjshīr"],
+  "دایکندی": ["Daykundi", "Daykundi Province", "Daikundi"], "غور": ["Ghor"], "فاریاب": ["Faryab"], "جوزجان": ["Jowzjan", "Jawzjan"],
+  "سمنگان": ["Samangan"], "سرپل": ["Sar-e Pol", "Sar-e Pul", "Sari Pul"], "بادغیس": ["Badghis"], "نیمروز": ["Nimruz", "Nimroz"],
+  "زابل": ["Zabul"], "پکتیا": ["Paktia", "Paktya"], "پکتیکا": ["Paktika"], "خوست": ["Khost"],
+  "لغمان": ["Laghman"], "نورستان": ["Nuristan"], "کنر": ["Kunar"], "کاپیسا": ["Kapisa"],
+  "میدان وردک": ["Wardak", "Maidan Wardak"], "لوگر": ["Logar"], "ارزگان": ["Urozgan", "Uruzgan", "Oruzgan"],
 };
 
 function CoinLogo({ coin }) {
@@ -87,20 +87,22 @@ function geometryPolygons(geometry) {
   if (!geometry) return [];
   if (geometry.type === "Polygon") return [geometry.coordinates];
   if (geometry.type === "MultiPolygon") return geometry.coordinates;
-  if (geometry.type === "GeometryCollection") {
-    return (geometry.geometries || []).flatMap(geometryPolygons);
-  }
+  if (geometry.type === "GeometryCollection") return (geometry.geometries || []).flatMap(geometryPolygons);
   return [];
 }
 
 function buildProvincePaths(data) {
   const features = Array.isArray(data?.features) ? data.features : [];
   let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
-  features.forEach((feature) => walkCoordinates(feature.geometry?.coordinates || feature.geometry?.geometries, (lon, lat) => {
-    minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon);
-    minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
-  }));
-  if (![minLon, maxLon, minLat, maxLat].every(Number.isFinite)) return {};
+  features.forEach((feature) => {
+    geometryPolygons(feature.geometry).forEach((polygon) => {
+      walkCoordinates(polygon, (lon, lat) => {
+        minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon);
+        minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+      });
+    });
+  });
+  if (![minLon, maxLon, minLat, maxLat].every(Number.isFinite) || maxLon === minLon || maxLat === minLat) return {};
 
   const width = 1000, height = 666.6667;
   const project = ([lon, lat]) => [
@@ -134,22 +136,15 @@ function ProvinceOverlay({ activeLocation }) {
     return () => { cancelled = true; };
   }, []);
 
-  const sourceName = PROVINCE_NAME_MAP[activeLocation];
+  const aliases = PROVINCE_NAME_MAP[activeLocation] || [];
+  const sourceName = aliases.find((name) => provincePaths[name]);
   const path = sourceName ? provincePaths[sourceName] : null;
   if (!path) return null;
 
   return (
     <svg className="province-boundary-overlay" viewBox="0 0 1000 666.6667" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <clipPath id="active-province-clip"><path d={path} /></clipPath>
-      </defs>
-      <image
-        href={afghanistanMap}
-        x="0" y="0" width="1000" height="666.6667"
-        preserveAspectRatio="none"
-        clipPath="url(#active-province-clip)"
-        className="province-dot-image"
-      />
+      <defs><clipPath id="active-province-clip"><path d={path} /></clipPath></defs>
+      <image href={afghanistanMap} x="0" y="0" width="1000" height="666.6667" preserveAspectRatio="none" clipPath="url(#active-province-clip)" className="province-dot-image" />
       <path d={path} className="province-boundary-line" />
     </svg>
   );
@@ -225,11 +220,7 @@ export default function MarketMap({ activeLocation }) {
             const sign = rounded === null ? null : rounded > 0 ? "+" : rounded < 0 ? "−" : "";
             const value = rounded === null ? null : Math.abs(rounded).toFixed(2);
             return (
-              <div
-                className="map-floater"
-                key={instance}
-                style={{ left: `${marker.x}%`, top: `${marker.y}%`, "--float-scale": marker.scale, "--coin-accent": coin.accent }}
-              >
+              <div className="map-floater" key={instance} style={{ left: `${marker.x}%`, top: `${marker.y}%`, "--float-scale": marker.scale, "--coin-accent": coin.accent }}>
                 <div className="map-token">
                   {value !== null && (
                     <span className="map-change num">
@@ -237,9 +228,7 @@ export default function MarketMap({ activeLocation }) {
                       <span className="map-change-value">{value}</span>
                     </span>
                   )}
-                  <span className="map-coin-shell">
-                    <span className="map-coin"><CoinLogo coin={coin} /></span>
-                  </span>
+                  <span className="map-coin-shell"><span className="map-coin"><CoinLogo coin={coin} /></span></span>
                 </div>
               </div>
             );
