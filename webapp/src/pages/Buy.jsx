@@ -251,18 +251,10 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
     if (!finalExchange) return showError("نام صرافی یا کیف پول الزامی است.");
     if (!finalNetwork) return showError("شبکهٔ معتبر را مشخص کنید.");
     if (!walletAddress.trim()) return showError("آدرس ولت را وارد کنید.");
-
     setPreviewLoading(true);
     clearPreview();
     try {
-      const blob = await api.getCardPreview({
-        action: "buy",
-        asset: selectedAsset,
-        amount: parseFloat(amount),
-        exchange_name: finalExchange,
-        network: finalNetwork,
-        wallet_address: walletAddress.trim(),
-      });
+      const blob = await api.getCardPreview({ action: "buy", asset: selectedAsset, amount: parseFloat(amount), exchange_name: finalExchange, network: finalNetwork, wallet_address: walletAddress.trim() });
       setCardPreviewUrl(URL.createObjectURL(blob));
       setStepIdx(7);
     } catch (err) {
@@ -275,16 +267,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
   async function submitOrder() {
     setSubmitting(true);
     try {
-      const res = await api.createBuyOrder({
-        asset: selectedAsset,
-        amount: parseFloat(amount),
-        payment_method: paymentMethod,
-        exchange_name: finalExchange,
-        network: finalNetwork,
-        wallet_address: walletAddress.trim(),
-        receipt_url: receiptUrl,
-        in_person_code: paymentMethod === "in_person" ? inPersonCode : null,
-      });
+      const res = await api.createBuyOrder({ asset: selectedAsset, amount: parseFloat(amount), payment_method: paymentMethod, exchange_name: finalExchange, network: finalNetwork, wallet_address: walletAddress.trim(), receipt_url: receiptUrl, in_person_code: paymentMethod === "in_person" ? inPersonCode : null });
       clearPreview();
       setOrderCode(res.order_code);
       setStepIdx(8);
@@ -335,7 +318,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
             <div className="quote-row"><span>مبلغ قابل پرداخت به دالر</span><span className="value num">${Number(quote.payable_usd ?? quote.total_usd ?? amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
             <div className="quote-row"><span>نرخ دالر</span><span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span></div>
             <div className="quote-row"><span>مبلغ پایه</span><span className="value num">{quote.base_afn.toLocaleString()} افغانی</span></div>
-            <div className="quote-row"><span>کارمزد ({quote.fee_percent}٪)</span><span className="value num">{quote.fee_afn.toLocaleString()} افغانی</span></div>
+            <div className="quote-row"><span>کارمزد صراف</span><span className="value num">${Number(quote.saraf_profit_usd || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} • {Number(quote.saraf_profit_afn || 0).toLocaleString()} افغانی</span></div>
             <div className="quote-total buy"><span className="label">مبلغ نهایی قابل پرداخت</span><span className="amount num">{quote.total_afn.toLocaleString()} ؋</span></div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
@@ -399,22 +382,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
       )}
 
       {step === "review" && quote && (
-        <OrderReview
-          action="buy"
-          asset={selectedAsset}
-          amount={amount}
-          quote={quote}
-          exchange={finalExchange}
-          network={networkLabel}
-          walletAddress={walletAddress.trim()}
-          paymentLabel={paymentLabel(paymentMethod)}
-          inPersonCode={paymentMethod === "in_person" ? inPersonCode : null}
-          cardPreviewUrl={cardPreviewUrl}
-          previewLoading={previewLoading}
-          onBack={goBack}
-          onConfirm={submitOrder}
-          submitting={submitting}
-        />
+        <OrderReview action="buy" asset={selectedAsset} amount={amount} quote={quote} exchange={finalExchange} network={networkLabel} walletAddress={walletAddress.trim()} paymentLabel={paymentLabel(paymentMethod)} inPersonCode={paymentMethod === "in_person" ? inPersonCode : null} cardPreviewUrl={cardPreviewUrl} previewLoading={previewLoading} onBack={goBack} onConfirm={submitOrder} submitting={submitting} />
       )}
 
       {step === "done" && (
