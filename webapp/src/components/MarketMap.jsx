@@ -4,30 +4,33 @@ import { marketChange } from "../lib/market";
 import { TETHER_LOGO_URL, USDC_LOGO_URL } from "../lib/brand";
 import afghanistanMap from "../assets/afghanistan-dots.webp";
 
+const MARKER_CYCLE_SECONDS = 4.8;
+
 const COINS = [
-  { symbol: "USDT", name: "تتر", logo: TETHER_LOGO_URL },
-  { symbol: "USDC", name: "یو‌اس‌دی کوین", logo: USDC_LOGO_URL },
-  { symbol: "BTC", name: "بیت‌کوین", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/btc.png" },
-  { symbol: "SOL", name: "سولانا", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/sol.png" },
-  { symbol: "BNB", name: "بی‌ان‌بی", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/bnb.png" },
-  { symbol: "XRP", name: "ایکس‌آرپی", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/xrp.png" },
-  { symbol: "TON", name: "تون", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/ton.png" },
+  { symbol: "USDT", name: "تتر", logo: TETHER_LOGO_URL, accent: "#26a17b" },
+  { symbol: "USDC", name: "یو‌اس‌دی کوین", logo: USDC_LOGO_URL, accent: "#2775ca" },
+  { symbol: "BTC", name: "بیت‌کوین", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/btc.png", accent: "#f7931a" },
+  { symbol: "SOL", name: "سولانا", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/sol.png", accent: "#8b5cf6" },
+  { symbol: "BNB", name: "بی‌ان‌بی", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/bnb.png", accent: "#d59b00" },
+  { symbol: "XRP", name: "ایکس‌آرپی", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/xrp.png", accent: "#23292f" },
+  { symbol: "TON", name: "تون", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/ton.png", accent: "#0098ea" },
 ];
 
-// A deliberately staggered field instead of one random token every 500ms.
-// Multiple compact tickers can coexist, creating the continuous market-flow
-// effect used by modern exchange hero maps without covering the map itself.
+// Fixed map anchors with one shared master cycle. Each marker fades/scales in at
+// its own anchor, emits a subtle ripple, stays readable briefly, and fades out.
+// Delays are intentionally irregular so 2-4 markers can overlap without the
+// mechanical cadence of a carousel.
 const FLOATERS = [
-  { coin: 0, x: 18, y: 68, delay: -0.4, duration: 5.4, scale: 0.92 },
-  { coin: 2, x: 28, y: 48, delay: -2.7, duration: 5.8, scale: 0.84 },
-  { coin: 1, x: 38, y: 72, delay: -4.1, duration: 6.1, scale: 0.88 },
-  { coin: 3, x: 47, y: 42, delay: -1.5, duration: 5.2, scale: 0.78 },
-  { coin: 4, x: 56, y: 63, delay: -3.6, duration: 5.9, scale: 0.9 },
-  { coin: 5, x: 66, y: 48, delay: -0.9, duration: 6.3, scale: 0.8 },
-  { coin: 6, x: 76, y: 66, delay: -4.8, duration: 5.6, scale: 0.86 },
-  { coin: 2, x: 82, y: 38, delay: -2.2, duration: 6.4, scale: 0.74 },
-  { coin: 0, x: 43, y: 56, delay: -5.1, duration: 6.6, scale: 0.72 },
-  { coin: 1, x: 62, y: 76, delay: -1.9, duration: 6.0, scale: 0.76 },
+  { coin: 0, x: 20, y: 66, delay: -0.18, scale: 0.98 },
+  { coin: 2, x: 29, y: 46, delay: -0.66, scale: 0.92 },
+  { coin: 1, x: 38, y: 71, delay: -1.17, scale: 0.96 },
+  { coin: 3, x: 47, y: 40, delay: -1.73, scale: 0.9 },
+  { coin: 4, x: 56, y: 61, delay: -2.12, scale: 0.94 },
+  { coin: 5, x: 66, y: 47, delay: -2.71, scale: 0.9 },
+  { coin: 6, x: 75, y: 65, delay: -3.23, scale: 0.94 },
+  { coin: 2, x: 81, y: 37, delay: -3.69, scale: 0.86 },
+  { coin: 0, x: 44, y: 55, delay: -4.08, scale: 0.88 },
+  { coin: 1, x: 62, y: 75, delay: -4.55, scale: 0.9 },
 ];
 
 function CoinLogo({ coin }) {
@@ -35,11 +38,6 @@ function CoinLogo({ coin }) {
   return failed
     ? <span className="map-coin-fallback">{coin.symbol}</span>
     : <img src={coin.logo} alt="" onError={() => setFailed(true)} />;
-}
-
-function changeClass(value) {
-  if (value === null || value === 0) return "neutral";
-  return value > 0 ? "positive" : "negative";
 }
 
 export default function MarketMap() {
@@ -109,17 +107,20 @@ export default function MarketMap() {
                   left: `${floater.x}%`,
                   top: `${floater.y}%`,
                   "--float-delay": `${floater.delay}s`,
-                  "--float-duration": `${floater.duration}s`,
+                  "--float-duration": `${MARKER_CYCLE_SECONDS}s`,
                   "--float-scale": floater.scale,
+                  "--coin-accent": coin.accent,
                 }}
               >
                 <div className="map-token">
-                  <span className="map-coin"><CoinLogo coin={coin} /></span>
                   {rounded !== null && (
-                    <span className={`map-change num ${changeClass(rounded)}`}>
+                    <span className="map-change num">
                       {(rounded > 0 ? "+" : "") + rounded.toFixed(2) + "%"}
                     </span>
                   )}
+                  <span className="map-coin-shell">
+                    <span className="map-coin"><CoinLogo coin={coin} /></span>
+                  </span>
                 </div>
               </div>
             );
