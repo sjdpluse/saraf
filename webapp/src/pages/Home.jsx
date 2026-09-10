@@ -6,41 +6,41 @@ import AppMenu from "../components/AppMenu";
 import MarketMap from "../components/MarketMap";
 
 const LOCATIONS = [
-  ["افغانستان", 2000],
-  ["کابل", 1000],
-  ["بامیان", 1000],
-  ["مزار شریف", 1000],
-  ["هرات", 1000],
-  ["کندهار", 1000],
-  ["ننگرهار", 1000],
-  ["کندز", 1000],
-  ["بدخشان", 1000],
-  ["غزنی", 1000],
-  ["هلمند", 1000],
-  ["فراه", 1000],
-  ["تخار", 1000],
-  ["بغلان", 1000],
-  ["پروان", 1000],
-  ["پنجشیر", 1000],
-  ["دایکندی", 1000],
-  ["غور", 1000],
-  ["فاریاب", 1000],
-  ["جوزجان", 1000],
-  ["سمنگان", 1000],
-  ["سرپل", 1000],
-  ["بادغیس", 1000],
-  ["نیمروز", 1000],
-  ["زابل", 1000],
-  ["پکتیا", 1000],
-  ["پکتیکا", 1000],
-  ["خوست", 1000],
-  ["لغمان", 1000],
-  ["نورستان", 1000],
-  ["کنر", 1000],
-  ["کاپیسا", 1000],
-  ["میدان وردک", 1000],
-  ["لوگر", 1000],
-  ["ارزگان", 1000],
+  ["افغانستان", 2200],
+  ["کابل", 1700],
+  ["بامیان", 1700],
+  ["مزار شریف", 1900],
+  ["هرات", 1700],
+  ["کندهار", 1700],
+  ["ننگرهار", 1800],
+  ["کندز", 1700],
+  ["بدخشان", 1800],
+  ["غزنی", 1700],
+  ["هلمند", 1700],
+  ["فراه", 1700],
+  ["تخار", 1700],
+  ["بغلان", 1700],
+  ["پروان", 1700],
+  ["پنجشیر", 1800],
+  ["دایکندی", 1800],
+  ["غور", 1700],
+  ["فاریاب", 1700],
+  ["جوزجان", 1700],
+  ["سمنگان", 1700],
+  ["سرپل", 1700],
+  ["بادغیس", 1700],
+  ["نیمروز", 1700],
+  ["زابل", 1700],
+  ["پکتیا", 1700],
+  ["پکتیکا", 1700],
+  ["خوست", 1700],
+  ["لغمان", 1700],
+  ["نورستان", 1800],
+  ["کنر", 1700],
+  ["کاپیسا", 1700],
+  ["میدان وردک", 1900],
+  ["لوگر", 1700],
+  ["ارزگان", 1700],
 ];
 
 export default function Home({ navigate, startTransaction }) {
@@ -70,11 +70,19 @@ export default function Home({ navigate, startTransaction }) {
         <div className="home-brand"><img src={SARAF_LOGO_URL} alt="صراف" /></div>
       </header>
       <section className="home-intro" aria-labelledby="home-title">
-        <h1 id="home-title">
-          <span className="home-title-copy">مرجع مطمئن خرید و فروش رمز ارز</span>
-          <span className="home-location-line">در <span className="home-location-window"><span key={locationIndex} className="home-location-word" style={{ "--location-duration": `${locationDuration}ms` }}>{location}</span></span></span>
-        </h1>
         <MarketMap />
+        <h1 id="home-title">
+          <span className="home-title-copy">مرجع خرید و فروش رمز ارز در</span>
+          <span className="home-location-window">
+            <span
+              key={locationIndex}
+              className="home-location-word"
+              style={{ "--location-duration": `${locationDuration}ms` }}
+            >
+              {location}
+            </span>
+          </span>
+        </h1>
       </section>
       <section className="trade-panel" aria-labelledby="trade-title">
         <div className="trade-panel-heading"><div><h2 id="trade-title">خرید و فروش</h2><p>تتر و یو‌اس‌دی کوین <bdi>USDT / USDC</bdi></p></div><ArrowsLeftRight size={23} /></div>
