@@ -15,6 +15,8 @@ export default function OrderReview({ action, asset, amount, quote, exchange, ne
   const isBuy = action === "buy";
   const afn = Number(quote?.total_afn || 0);
   const dollarAmount = Number(isBuy ? (quote?.payable_usd ?? quote?.total_usd ?? amount ?? 0) : (quote?.receivable_usd ?? quote?.total_usd ?? amount ?? 0));
+  const sarafFeeUsd = Number(quote?.saraf_profit_usd || 0);
+  const sarafFeeAfn = Number(quote?.saraf_profit_afn || 0);
   const resolvedPaymentProof = paymentProofLabel || (isBuy ? (paymentLabel === "پرداخت حضوری" ? "پرداخت حضوری — بدون رسید آنلاین" : "رسید پرداخت بارگذاری‌شده") : null);
 
   return (
@@ -52,7 +54,7 @@ export default function OrderReview({ action, asset, amount, quote, exchange, ne
         {!isBuy && proofLabel && <DetailRow label="اثبات تراکنش" value={proofLabel} mono />}
         {inPersonCode && <DetailRow label="کد مراجعهٔ حضوری" value={inPersonCode} mono />}
         <DetailRow label="نرخ دالر" value={`${Number(quote?.usd_rate || 0).toLocaleString()} افغانی`} mono />
-        {isBuy && Number(quote?.fee_afn || 0) > 0 && <DetailRow label="کارمزد" value={`${Number(quote.fee_afn).toLocaleString()} افغانی`} mono />}
+        {isBuy && <DetailRow label="کارمزد صراف" value={`$${sarafFeeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}  •  ${sarafFeeAfn.toLocaleString()} افغانی`} mono />}
       </div>
 
       <div className="card" style={{ padding: 14 }}>
