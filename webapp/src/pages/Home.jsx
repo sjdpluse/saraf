@@ -69,7 +69,7 @@ export default function Home({ navigate, startTransaction }) {
         <div className="home-brand"><img src={SARAF_LOGO_URL} alt="صراف" /></div>
       </header>
       <section className="home-intro" aria-labelledby="home-title">
-        <MarketMap />
+        <MarketMap activeLocation={location} />
         <h1 id="home-title" className="home-title-stack">
           <span className="home-title-copy">مرجع خرید و فروش رمز ارز در</span>
           <span className="home-afghanistan-line" aria-label={`افغانستان، ${location}`}>
