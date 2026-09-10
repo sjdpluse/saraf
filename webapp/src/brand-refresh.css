@@ -27,67 +27,77 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
   box-shadow: none;
   object-fit: contain;
 }
-.home-intro { padding-top: 4px; }
-.home-intro h1 {
-  margin: -3px 0 4px;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
+
+/* Pull the visual hero upward while keeping the transaction cards untouched. */
+.home-intro {
+  padding-top: 0;
+  margin-top: -12px;
+}
+.home-title-stack {
+  margin: -13px 0 4px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  line-height: 1.55;
+  gap: 1px !important;
+  line-height: 1.42 !important;
   position: relative;
   z-index: 3;
 }
 .home-title-copy {
+  display: block;
   color: #1d1d1f !important;
+  font-size: clamp(.96rem, 4.1vw, 1.16rem);
   font-weight: 800;
+  line-height: 1.65;
+}
+.home-afghanistan-line {
+  direction: rtl;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  max-width: 100%;
+  white-space: nowrap;
+  line-height: 1;
+}
+.home-afghanistan-prefix,
+.home-afghanistan-suffix {
+  color: #1d1d1f !important;
+  font-size: clamp(.54rem, 2.35vw, .68rem);
+  font-weight: 400;
+  letter-spacing: -.02em;
+  line-height: 1;
 }
 .home-location-window {
   display: inline-grid;
-  min-width: 102px;
-  height: 1.55em;
-  overflow: visible;
+  place-items: center;
+  min-width: 64px;
+  height: 30px;
+  overflow: hidden;
   vertical-align: middle;
   position: relative;
-  isolation: isolate;
+  margin-inline: -1px;
 }
 .home-location-word {
   grid-area: 1 / 1;
   position: relative;
   color: #0066cc !important;
-  font-weight: 900;
+  font-size: clamp(.72rem, 3.25vw, .9rem);
+  font-weight: 300;
   white-space: nowrap;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   animation: home-location-cycle var(--location-duration) cubic-bezier(.22,1,.36,1) both;
-  text-shadow:
-    0 0 5px rgba(0, 102, 204, .24),
-    0 0 13px rgba(0, 102, 204, .16),
-    0 0 26px rgba(0, 102, 204, .08);
+  text-shadow: none !important;
+  filter: none !important;
 }
-.home-location-word::after {
-  content: "";
-  position: absolute;
-  inset: 24% -10% 12%;
-  z-index: -1;
-  border-radius: 999px;
-  background: radial-gradient(ellipse, rgba(0,102,204,.18), rgba(0,102,204,0) 70%);
-  filter: blur(8px);
-  animation: home-location-glow var(--location-duration) ease-in-out both;
-  pointer-events: none;
-}
+.home-location-word::after { content: none !important; }
 @keyframes home-location-cycle {
-  0% { opacity: 0; transform: translateY(72%); filter: blur(6px); }
-  16% { opacity: 1; transform: translateY(0); filter: blur(0); }
-  76% { opacity: 1; transform: translateY(0); filter: blur(0); }
-  100% { opacity: 0; transform: translateY(-72%); filter: blur(6px); }
-}
-@keyframes home-location-glow {
-  0%, 100% { opacity: 0; transform: scale(.78); }
-  30% { opacity: .72; transform: scale(1); }
-  58% { opacity: .42; transform: scale(1.12); }
-  76% { opacity: .68; transform: scale(1.02); }
+  0% { opacity: 0; transform: translateY(82%); }
+  17% { opacity: 1; transform: translateY(0); }
+  78% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-82%); }
 }
 
 .afghanistan-dots {
@@ -96,24 +106,35 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 }
 .map-stage {
   aspect-ratio: 3 / 2;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 8%, #000 91%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 8%, #000 91%, transparent 100%);
+  overflow: visible;
+  margin-top: -18px;
+  margin-bottom: -8px;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 .map-market-flow {
   position: absolute;
-  inset: 4% 3% 5%;
+  inset: 0;
   z-index: 2;
   pointer-events: none;
 }
+
+/*
+  Continuous market loop: there is no shared/global fade phase. Markers are
+  evenly phase-shifted across one 4.8 s master cycle, so while some markers
+  switch off others are already visible. Individual marker changes are
+  discrete rather than faded, eliminating the blank interval reported in the
+  previous version.
+*/
 .map-floater {
   position: absolute;
   width: 0;
   height: 0;
   opacity: 0;
+  visibility: hidden;
   transform-origin: center;
-  animation: market-marker-cycle var(--float-duration) cubic-bezier(.22,1,.36,1) var(--float-delay) infinite;
-  will-change: transform, opacity, filter;
+  animation: market-marker-cycle var(--float-duration) linear var(--float-delay) infinite;
+  will-change: transform;
 }
 .map-token {
   position: absolute;
@@ -188,42 +209,32 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
   text-shadow: 0 1px 4px rgba(255,255,255,.85);
 }
 @keyframes market-marker-cycle {
-  0%, 4% {
+  0%, 7.9% {
     opacity: 0;
-    transform: scale(.42);
-    filter: blur(1.8px);
+    visibility: hidden;
+    transform: scale(.76);
   }
-  9% {
-    opacity: .98;
-    transform: scale(1.02);
-    filter: blur(0);
-  }
-  24% {
-    opacity: .98;
+  8%, 41.9% {
+    opacity: 1;
+    visibility: visible;
     transform: scale(1);
-    filter: blur(0);
   }
-  31% {
+  42%, 100% {
     opacity: 0;
-    transform: scale(.94);
-    filter: blur(.8px);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(.94);
-    filter: blur(.8px);
+    visibility: hidden;
+    transform: scale(.76);
   }
 }
 @keyframes map-coin-ripple {
-  0%, 8% { opacity: 0; transform: scale(.72); }
-  11% { opacity: .42; transform: scale(.82); }
+  0%, 7.9% { opacity: 0; transform: scale(.72); }
+  8% { opacity: .42; transform: scale(.82); }
   22% { opacity: 0; transform: scale(2.15); }
   100% { opacity: 0; transform: scale(2.15); }
 }
 @keyframes map-coin-ripple-secondary {
   0%, 12% { opacity: 0; transform: scale(.72); }
-  15% { opacity: .24; transform: scale(.82); }
-  25% { opacity: 0; transform: scale(1.75); }
+  14% { opacity: .24; transform: scale(.82); }
+  28% { opacity: 0; transform: scale(1.75); }
   100% { opacity: 0; transform: scale(1.75); }
 }
 .market-map.is-paused .map-floater,
@@ -240,8 +251,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 .app-menu::backdrop { background: rgba(15, 23, 42, .36); }
 
 @media (max-width: 390px) {
-  .home-intro h1 { font-size: clamp(1.26rem, 5.9vw, 1.65rem); gap: 5px; }
-  .home-location-window { min-width: 92px; }
+  .home-title-copy { font-size: clamp(.9rem, 4.05vw, 1.05rem); }
+  .home-afghanistan-prefix, .home-afghanistan-suffix { font-size: clamp(.5rem, 2.25vw, .62rem); }
+  .home-location-window { min-width: 58px; height: 28px; }
+  .home-location-word { font-size: clamp(.68rem, 3.15vw, .84rem); }
+  .map-stage { margin-top: -16px; margin-bottom: -6px; }
   .map-token { gap: 2px; }
   .map-coin-shell { width: 20px; height: 20px; }
   .map-coin { width: 16px; height: 16px; flex-basis: 16px; }
@@ -250,9 +264,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 
 @media (prefers-reduced-motion: reduce) {
   .home-location-word,
-  .home-location-word::after,
   .map-floater,
   .map-coin-shell::before,
   .map-coin-shell::after { animation: none !important; }
-  .map-floater { opacity: .82; }
+  .home-location-word { opacity: 1; transform: none; }
+  .map-floater { opacity: .82; visibility: visible; transform: none; }
 }
