@@ -62,7 +62,7 @@ def create_quote(
     """Quote محاسبه‌شده را ذخیره و به کاربر، نوع معامله و دارایی متصل می‌کند."""
     asset = _normalize_asset(asset or quote.get("asset"))
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=_QUOTE_TTL_SECONDS)
-    row = {
+    base_row = {
         "chat_id": chat_id,
         "order_type": order_type,
         "asset": asset,
@@ -74,6 +74,7 @@ def create_quote(
         "status": "active",
         "expires_at": expires_at.isoformat(),
     }
+    row = dict(base_row)
     for field in _PRICING_FIELDS:
         if field in quote:
             row[field] = quote[field]
@@ -81,8 +82,16 @@ def create_quote(
     try:
         res = db.get_client().table("usdt_quotes").insert(row).execute()
     except Exception:
-        logger.exception("خطا در ذخیرهٔ Quote برای %s", asset)
-        res = None
+        # Rollout-safe fallback: production may receive application code before
+        # the pricing migration has been applied. In that case keep checkout
+        # alive using the legacy columns; the quote response still contains the
+        # full breakdown for this request.
+        logger.warning("Pricing columns unavailable; retrying quote insert with legacy schema", exc_info=True)
+        try:
+            res = db.get_client().table("usdt_quotes").insert(base_row).execute()
+        except Exception:
+            logger.exception("خطا در ذخیرهٔ Quote برای %s", asset)
+            res = None
 
     if not res or not res.data:
         raise QuoteError("QUOTE_STORE_FAILED", "ذخیرهٔ نرخ موقت ناموفق بود؛ لطفاً دوباره تلاش کنید.")
