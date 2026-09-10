@@ -7,6 +7,8 @@ import Reviews from "./pages/Reviews";
 import Terms from "./pages/Terms";
 import Kyc from "./pages/Kyc";
 import Remittance from "./pages/Remittance";
+import Remittances from "./pages/Remittances";
+import About from "./pages/About";
 import Toast from "./components/Toast";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
 import { SARAF_LOGO_URL, normalizeAsset } from "./lib/brand";
@@ -18,6 +20,7 @@ export default function App() {
   const [kycMode, setKycMode] = useState("profile");
   const [threshold, setThreshold] = useState(250);
   const [resume, setResume] = useState(null);
+  const [remittanceOrder, setRemittanceOrder] = useState(null);
 
   useEffect(() => {
     initTelegram();
@@ -27,9 +30,11 @@ export default function App() {
     setAsset(requestedAsset);
     if (action === "buy" || action === "sell") setPage(action);
     if (action === "remittance") setPage("remittance");
+    if (action === "remittances") setPage("remittances");
   }, []);
 
   function navigate(p) {
+    if (p !== "remittance") setRemittanceOrder(null);
     setPage(p);
     window.scrollTo(0, 0);
   }
@@ -101,13 +106,12 @@ export default function App() {
           <Home
             navigate={navigate}
             startTransaction={startTransaction}
-            selectedAsset={asset}
-            onSelectAsset={selectAsset}
           />
         )}
         {page === "buy" && (
           <Buy
             asset={asset}
+            onSelectAsset={selectAsset}
             navigate={navigate}
             showError={showError}
             resumeState={resume?.target === "buy" ? resume : null}
@@ -119,6 +123,7 @@ export default function App() {
         {page === "sell" && (
           <Sell
             asset={asset}
+            onSelectAsset={selectAsset}
             navigate={navigate}
             showError={showError}
             resumeState={resume?.target === "sell" ? resume : null}
@@ -131,11 +136,16 @@ export default function App() {
           <Remittance
             navigate={navigate}
             showError={showError}
+            initialOrder={remittanceOrder}
+            resumeState={resume?.target === "remittance" ? resume : null}
+            onResumeConsumed={clearResume}
             onNeedProfile={(state) => requestBasicProfile("remittance", state)}
             onNeedVerification={(state, thresholdUsd) => requestIdentityVerification("remittance", state, thresholdUsd)}
           />
         )}
         {page === "orders" && <Orders navigate={navigate} showError={showError} />}
+        {page === "remittances" && <Remittances navigate={navigate} onContinue={(order) => { setRemittanceOrder(order); navigate("remittance"); }} />}
+        {page === "about" && <About navigate={navigate} />}
         {page === "reviews" && <Reviews navigate={navigate} showError={showError} />}
         {page === "terms" && <Terms navigate={navigate} />}
         {page === "kyc" && (

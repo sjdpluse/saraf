@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CheckCircle,
-  Copy,
-  GlobeHemisphereWest,
   IdentificationCard,
   MapPin,
   PaperPlaneTilt,
@@ -14,6 +12,8 @@ import {
 } from "@phosphor-icons/react";
 import { api } from "../lib/api";
 import NetworkOption from "../components/NetworkOption";
+import CopyRow from "../components/CopyRow";
+import { REMITTANCE_STATUS as STATUS_LABELS } from "../lib/remittance";
 
 const COUNTRIES = [
   "آسترالیا", "امارات متحده عربی", "آلمان", "امریکا", "بریتانیا", "ترکیه",
@@ -21,14 +21,13 @@ const COUNTRIES = [
 ];
 
 const STEPS = ["sender", "asset", "network", "amount", "beneficiary", "identity", "address", "review", "transfer", "tx", "done"];
-const STATUS_LABELS = {
-  awaiting_transfer: "منتظر انتقال کریپتو",
-  transfer_submitted: "در حال تأیید بلاکچین",
-  payout_ready: "آماده پرداخت",
-  completed: "تکمیل شده",
-  on_hold: "در حال بررسی",
-  cancelled: "لغو شده",
-};
+const PHASES = [
+  { label: "فرستنده", steps: ["sender"] },
+  { label: "دارایی", steps: ["asset", "network", "amount"] },
+  { label: "گیرنده", steps: ["beneficiary", "identity", "address"] },
+  { label: "بررسی", steps: ["review"] },
+  { label: "انتقال", steps: ["transfer", "tx", "done"] },
+];
 
 function fmt(value, digits = 2) {
   return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: digits });
@@ -43,13 +42,11 @@ function AssetLogo({ item, size = 42 }) {
 }
 
 function StepHeader({ current }) {
-  const active = Math.max(0, STEPS.indexOf(current));
-  const visibleCount = 8;
-  const visualActive = Math.min(active, visibleCount - 1);
+  const active = Math.max(0, PHASES.findIndex((phase) => phase.steps.includes(current)));
   return (
-    <div className="step-progress">
-      {Array.from({ length: visibleCount }).map((_, i) => <span key={i} className={`step-dot ${i <= visualActive ? "active" : ""}`} />)}
-    </div>
+    <ol className="remit-progress" aria-label="مراحل حواله">
+      {PHASES.map((phase, i) => <li key={phase.label} className={i < active || current === "done" ? "complete" : i === active ? "current" : ""} aria-current={i === active ? "step" : undefined}><span>{i < active || current === "done" ? <CheckCircle size={21} weight="fill" /> : (i + 1).toLocaleString("fa-AF")}</span><small>{phase.label}</small></li>)}
+    </ol>
   );
 }
 
@@ -57,16 +54,18 @@ function ReviewRow({ label, children }) {
   return <div className="quote-row"><span>{label}</span><span className="value">{children}</span></div>;
 }
 
-export default function Remittance({ navigate, showError, onNeedProfile, onNeedVerification }) {
+export default function Remittance({ navigate, showError, onNeedProfile, onNeedVerification, initialOrder, resumeState, onResumeConsumed }) {
   const [config, setConfig] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [step, setStep] = useState("sender");
-  const [quote, setQuote] = useState(null);
-  const [created, setCreated] = useState(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState("");
+  const [configAttempt, setConfigAttempt] = useState(0);
+  const [step, setStep] = useState(initialOrder ? "transfer" : resumeState?.step || "sender");
+  const [quote, setQuote] = useState(resumeState?.quote || null);
+  const [created, setCreated] = useState(initialOrder || null);
   const [txHash, setTxHash] = useState("");
   const [idFile, setIdFile] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     sender_full_name: "",
     sender_country: "",
     amount: "",
@@ -78,31 +77,43 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
     beneficiary_city: "",
     beneficiary_address: "",
     beneficiary_id_document_path: "",
-  });
+    ...resumeState?.form,
+    ...(initialOrder ? { asset: initialOrder.asset, network: initialOrder.network } : {}),
+  }));
 
   const assetConfig = useMemo(() => config?.assets?.find((x) => x.asset === form.asset), [config, form.asset]);
   const networkConfig = useMemo(() => assetConfig?.networks?.find((x) => x.code === form.network), [assetConfig, form.network]);
   const currentIndex = STEPS.indexOf(step);
 
   useEffect(() => {
-    Promise.all([api.getRemittanceConfig(), api.getMyRemittances()])
-      .then(([c, list]) => {
+    let active = true;
+    setConfigLoading(true);
+    setConfigError("");
+    api.getRemittanceConfig()
+      .then((c) => {
+        if (!active) return;
         setConfig(c);
-        setOrders(list || []);
         const first = c?.assets?.[0];
-        if (first) setForm((s) => ({ ...s, asset: first.asset, network: first.networks?.[0]?.code || "" }));
+        if (first) setForm((s) => s.asset ? s : ({ ...s, asset: first.asset, network: first.networks?.[0]?.code || "" }));
       })
-      .catch((e) => showError(e.message));
+      .catch((e) => { if (active) setConfigError(e.message); })
+      .finally(() => { if (active) setConfigLoading(false); });
+    return () => { active = false; };
+  }, [configAttempt]);
+
+  useEffect(() => {
+    if (resumeState) onResumeConsumed?.();
   }, []);
 
   function setField(key, value) {
     setForm((s) => ({ ...s, [key]: value }));
   }
 
-  function next(target) { setStep(target); window.scrollTo?.({ top: 0, behavior: "smooth" }); }
+  function next(target) { setStep(target); window.scrollTo?.({ top: 0, behavior: "instant" }); }
   function back() {
     if (step === "sender") return navigate("home");
-    if (["transfer", "tx", "done"].includes(step)) return;
+    if (step === "tx") return next("transfer");
+    if (["transfer", "done"].includes(step)) return navigate("remittances");
     const prev = STEPS[Math.max(0, currentIndex - 1)];
     next(prev);
   }
@@ -126,6 +137,7 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
   }
 
   async function uploadIdentity() {
+    if (form.beneficiary_id_document_path) return next("address");
     if (!idFile) return showError("تصویر تذکره گیرنده را انتخاب کنید.");
     setBusy(true);
     try {
@@ -141,13 +153,12 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
     try {
       const order = await api.createRemittance({ ...form, amount: Number(form.amount) });
       setCreated(order);
-      setOrders((old) => [order, ...old.filter((x) => x.id !== order.id)]);
       next("transfer");
     } catch (e) {
       if (e.code === "IDENTITY_VERIFICATION_REQUIRED") {
-        onNeedVerification?.({ asset: form.asset, amount: Number(form.amount) }, config?.identity_verification_threshold_usd);
-      } else if (e.code === "BASIC_PROFILE_REQUIRED" || e.status === 403) {
-        onNeedProfile?.({ asset: form.asset, amount: Number(form.amount) });
+        onNeedVerification?.({ form, quote, step: "review" }, config?.identity_verification_threshold_usd);
+      } else if (e.code === "BASIC_PROFILE_REQUIRED") {
+        onNeedProfile?.({ form, quote, step: "review" });
       } else showError(e.message);
     } finally { setBusy(false); }
   }
@@ -158,45 +169,41 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
     try {
       const updated = await api.submitRemittanceTx(created.id, txHash.trim());
       setCreated(updated);
-      setOrders((old) => old.map((x) => x.id === updated.id ? updated : x));
       next("done");
     } catch (e) { showError(e.message); }
     finally { setBusy(false); }
   }
-
-  function copy(text) { navigator.clipboard?.writeText(String(text || "")); }
 
   const invalidSender = form.sender_full_name.trim().length < 3 || !form.sender_country;
   const invalidBeneficiary = form.beneficiary_full_name.trim().length < 3 || form.beneficiary_phone.trim().length < 7;
   const invalidAddress = !form.beneficiary_province.trim() || !form.beneficiary_city.trim() || form.beneficiary_address.trim().length < 3;
 
   return (
-    <div className="app-shell">
+    <main className="app-shell remittance-shell">
       <div className="header">
-        <button className="back-btn" onClick={back} disabled={["transfer", "tx", "done"].includes(step)}><ArrowRight size={18} /></button>
-        <h1>حواله بین‌المللی</h1><div className="header-spacer" />
+        <button className="back-btn" onClick={back} disabled={busy} aria-label={["transfer", "done"].includes(step) ? "رفتن به حواله‌های من" : "بازگشت"}><ArrowRight size={18} /></button>
+        <h1>حواله از طریق کریپتو</h1><div className="header-spacer" />
       </div>
       <StepHeader current={step} />
 
-      <div className="hero-card animate-in remit-hero">
-        <div className="hero-top">
-          <div className="hero-row"><div className="hero-brand"><GlobeHemisphereWest size={28} weight="fill" /><span className="hero-brand-name">International Remittance</span></div></div>
-          <div className="hero-tagline">ارسال دارایی دیجیتال و پرداخت افغانی به گیرنده در افغانستان.</div>
-        </div>
-      </div>
+      {configError && !created && <div className="card" role="alert"><p>{configError}</p><button className="btn btn-outline" onClick={() => setConfigAttempt((value) => value + 1)}>تلاش دوباره</button></div>}
+      {configLoading && !created && <div className="notice" role="status">در حال دریافت اطلاعات حواله…</div>}
+      {["beneficiary", "identity", "address"].includes(step) && quote && <div className="remit-context"><span className="num">{quote.crypto_amount} {quote.asset}</span><span>دریافت گیرنده: <b>{fmt(quote.payout_afn, 0)} افغانی</b></span></div>}
+      <fieldset className="remit-flow" disabled={busy || (!created && (configLoading || !!configError))}>
 
       {step === "sender" && <div className="card animate-in">
         <div className="section-title"><User size={20} /> اطلاعات فرستنده</div>
-        <div className="field"><label className="field-label">نام کامل فرستنده</label><input className="input" value={form.sender_full_name} onChange={(e) => setField("sender_full_name", e.target.value)} placeholder="نام و تخلص" autoComplete="name" /></div>
-        <div className="field"><label className="field-label">کشور فرستنده</label><select className="input" value={form.sender_country} onChange={(e) => setField("sender_country", e.target.value)}><option value="" disabled>کشور را انتخاب کنید</option>{COUNTRIES.map((x) => <option key={x} value={x}>{x}</option>)}</select></div>
-        <button className="btn btn-primary" disabled={invalidSender} onClick={() => next("asset")}>ادامه</button>
+        <div className="field"><label className="field-label" htmlFor="remit-sender">نام کامل فرستنده</label><input id="remit-sender" className="input" value={form.sender_full_name} onChange={(e) => setField("sender_full_name", e.target.value)} placeholder="نام و تخلص" autoComplete="name" /></div>
+        <div className="field"><label className="field-label" htmlFor="remit-country">کشور فرستنده</label><select id="remit-country" className="input" value={form.sender_country} onChange={(e) => setField("sender_country", e.target.value)}><option value="" disabled>کشور را انتخاب کنید</option>{COUNTRIES.map((x) => <option key={x} value={x}>{x}</option>)}</select></div>
+        <button className="btn btn-primary" disabled={invalidSender || !config?.assets?.length} onClick={() => next("asset")}>ادامه</button>
+        {config && !config.assets?.length && <div className="notice warn">در حال حاضر حوالهٔ جدید فعال نیست.</div>}
       </div>}
 
       {step === "asset" && <div className="card animate-in">
         <div className="section-title">انتخاب دارایی</div>
         <div className="section-hint">دارایی مورد نظر برای ارسال حواله را انتخاب کنید.</div>
         <div className="remit-assets">
-          {(config?.assets || []).map((item) => <button key={item.asset} className={`remit-asset-card ${form.asset === item.asset ? "selected" : ""}`} onClick={() => chooseAsset(item)}>
+          {(config?.assets || []).map((item) => <button key={item.asset} aria-pressed={form.asset === item.asset} className={`remit-asset-card ${form.asset === item.asset ? "selected" : ""}`} onClick={() => chooseAsset(item)}>
             <AssetLogo item={item} />
             <span className="remit-asset-copy"><strong className="num">{item.asset}</strong><small>{item.name}</small></span>
             {form.asset === item.asset && <CheckCircle size={19} weight="fill" />}
@@ -214,15 +221,15 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
 
       {step === "amount" && <div className="card animate-in">
         <div className="section-title">مقدار حواله</div>
-        <div className="amount-input-wrap"><input className="input amount-input num" type="number" min="0" step="any" value={form.amount} onChange={(e) => { setField("amount", e.target.value); setQuote(null); }} placeholder={form.asset === "BTC" ? "0.01" : form.asset === "ETH" ? "0.20" : "500"} /><span>{form.asset}</span></div>
+        <div className="amount-input-wrap"><input aria-label={`مقدار حواله به ${form.asset}`} className="input amount-input num" type="number" inputMode="decimal" min="0" step="any" value={form.amount} onChange={(e) => { setField("amount", e.target.value); setQuote(null); }} placeholder={form.asset === "BTC" ? "0.01" : form.asset === "ETH" ? "0.20" : "500"} /><span>{form.asset}</span></div>
         <div className="notice">ارزش حواله باید بین {fmt(config?.min_usd || 10, 0)} تا {fmt(config?.max_usd || 10000, 0)} دالر امریکا (USD) باشد.</div>
         <button className="btn btn-primary" disabled={busy || !form.amount} onClick={calculateQuote}>{busy ? "در حال محاسبه..." : "محاسبه حواله"}</button>
       </div>}
 
       {step === "beneficiary" && <div className="card animate-in">
         <div className="section-title"><User size={20} /> اطلاعات گیرنده</div>
-        <div className="field"><label className="field-label">نام کامل گیرنده</label><input className="input" value={form.beneficiary_full_name} onChange={(e) => setField("beneficiary_full_name", e.target.value)} placeholder="نام و تخلص مطابق تذکره" /></div>
-        <div className="field"><label className="field-label">شماره تماس گیرنده</label><input className="input num" type="tel" value={form.beneficiary_phone} onChange={(e) => setField("beneficiary_phone", e.target.value)} placeholder="07XXXXXXXX" /></div>
+        <div className="field"><label className="field-label" htmlFor="remit-beneficiary">نام کامل گیرنده</label><input id="remit-beneficiary" className="input" value={form.beneficiary_full_name} onChange={(e) => setField("beneficiary_full_name", e.target.value)} placeholder="نام و تخلص مطابق تذکره" /></div>
+        <div className="field"><label className="field-label" htmlFor="remit-phone">شماره تماس گیرنده</label><input id="remit-phone" className="input num" type="tel" value={form.beneficiary_phone} onChange={(e) => setField("beneficiary_phone", e.target.value)} placeholder="07XXXXXXXX" /></div>
         <button className="btn btn-primary" disabled={invalidBeneficiary} onClick={() => next("identity")}>ادامه</button>
       </div>}
 
@@ -231,17 +238,17 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
         <div className="notice">تصویر واضح تذکره گیرنده را آپلود کنید. این فایل خصوصی است و برای تطبیق هویت هنگام پرداخت استفاده می‌شود.</div>
         <label className={`remit-upload ${idFile ? "ready" : ""}`}>
           <UploadSimple size={28} weight="duotone" />
-          <strong>{idFile ? idFile.name : "انتخاب تصویر تذکره"}</strong>
+          <strong>{idFile ? idFile.name : form.beneficiary_id_document_path ? "تذکره آپلود شده — تغییر تصویر" : "انتخاب تصویر تذکره"}</strong>
           <small>JPG, PNG یا WEBP — حداکثر ۱۰ MB</small>
-          <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => { setIdFile(e.target.files?.[0] || null); setField("beneficiary_id_document_path", ""); }} />
+          <input type="file" className="visually-hidden-input" aria-label="انتخاب تصویر تذکره گیرنده" accept="image/jpeg,image/png,image/webp" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setIdFile(file); setField("beneficiary_id_document_path", ""); } }} />
         </label>
-        <button className="btn btn-primary" disabled={busy || !idFile} onClick={uploadIdentity}>{busy ? "در حال آپلود..." : "آپلود و ادامه"}</button>
+        <button className="btn btn-primary" disabled={busy || (!idFile && !form.beneficiary_id_document_path)} onClick={uploadIdentity}>{busy ? "در حال آپلود..." : form.beneficiary_id_document_path ? "ادامه" : "آپلود و ادامه"}</button>
       </div>}
 
       {step === "address" && <div className="card animate-in">
         <div className="section-title"><MapPin size={20} /> آدرس گیرنده</div>
-        <div className="remit-grid"><div className="field"><label className="field-label">ولایت</label><input className="input" value={form.beneficiary_province} onChange={(e) => setField("beneficiary_province", e.target.value)} placeholder="مثلاً کابل" /></div><div className="field"><label className="field-label">شهر / ولسوالی</label><input className="input" value={form.beneficiary_city} onChange={(e) => setField("beneficiary_city", e.target.value)} placeholder="مثلاً کابل" /></div></div>
-        <div className="field"><label className="field-label">آدرس کامل</label><textarea className="input remit-textarea" value={form.beneficiary_address} onChange={(e) => setField("beneficiary_address", e.target.value)} placeholder="ناحیه، منطقه، سرک یا نشانی دقیق" /></div>
+        <div className="remit-grid"><div className="field"><label className="field-label" htmlFor="remit-province">ولایت</label><input id="remit-province" className="input" value={form.beneficiary_province} onChange={(e) => setField("beneficiary_province", e.target.value)} placeholder="مثلاً کابل" /></div><div className="field"><label className="field-label" htmlFor="remit-city">شهر / ولسوالی</label><input id="remit-city" className="input" value={form.beneficiary_city} onChange={(e) => setField("beneficiary_city", e.target.value)} placeholder="مثلاً کابل" /></div></div>
+        <div className="field"><label className="field-label" htmlFor="remit-address">آدرس کامل</label><textarea id="remit-address" className="input remit-textarea" value={form.beneficiary_address} onChange={(e) => setField("beneficiary_address", e.target.value)} placeholder="ناحیه، منطقه، سرک یا نشانی دقیق" /></div>
         <button className="btn btn-primary" disabled={invalidAddress} onClick={() => next("review")}>بررسی نهایی</button>
       </div>}
 
@@ -264,7 +271,7 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
         <div className="notice warn">فقط {created.asset} روی شبکه {networkConfig?.label || created.network} به آدرس زیر ارسال شود.</div>
         <div className="info-box" style={{ marginTop: 12 }}>
           <div className="row"><span className="label">مقدار دقیق</span><span className="value num">{created.crypto_amount} {created.asset}</span></div>
-          <div className="row remit-wallet-row"><span className="label">آدرس دریافت</span><span className="value"><code>{created.deposit_wallet}</code><button className="copy-btn" onClick={() => copy(created.deposit_wallet)}><Copy size={16} /></button></span></div>
+          <CopyRow label="آدرس دریافت" value={created.deposit_wallet} />
         </div>
         <button className="btn btn-primary" onClick={() => next("tx")}>کریپتو را ارسال کردم</button>
       </div>}
@@ -272,7 +279,7 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
       {step === "tx" && created && <div className="card animate-in">
         <div className="section-title"><PaperPlaneTilt size={20} /> ثبت تراکنش</div>
         <div className="notice">Tx Hash / Transaction ID را از کیف پول یا صرافی مبدأ کپی و اینجا وارد کنید.</div>
-        <div className="field" style={{ marginTop: 14 }}><label className="field-label">Tx Hash / Transaction ID</label><textarea className="input remit-textarea num" value={txHash} onChange={(e) => setTxHash(e.target.value)} placeholder="شناسه تراکنش" /></div>
+        <div className="field" style={{ marginTop: 14 }}><label className="field-label" htmlFor="remit-tx">Tx Hash / Transaction ID</label><textarea id="remit-tx" className="input remit-textarea num" value={txHash} onChange={(e) => setTxHash(e.target.value)} placeholder="شناسه تراکنش" /></div>
         <button className="btn btn-primary" disabled={busy || !txHash.trim()} onClick={submitTx}>{busy ? "در حال ثبت..." : "ثبت و ارسال برای تأیید"}</button>
       </div>}
 
@@ -283,13 +290,8 @@ export default function Remittance({ navigate, showError, onNeedProfile, onNeedV
         <div className="info-box" style={{ marginTop: 12 }}><div className="row"><span className="label">کد حواله</span><span className="value num">{created.order_code}</span></div><div className="row"><span className="label">وضعیت</span><span className="value">{STATUS_LABELS[created.status] || created.status}</span></div></div>
       </div>}
 
-      {orders.length > 0 && <div className="card animate-in">
-        <div className="section-title">حواله‌های من</div>
-        {orders.slice(0, 8).map((o) => <div key={o.id} className="remit-order-row">
-          <div className="row-text"><div className="row-title num">{o.order_code}</div><div className="row-subtitle">{o.beneficiary_full_name} · {fmt(o.payout_afn, 0)} AFN · {o.crypto_amount} {o.asset}</div>{o.status === "payout_ready" && o.pickup_code && <div className="remit-pickup">کد دریافت: <strong className="num">{o.pickup_code}</strong></div>}</div>
-          <div className={`status-badge status-${o.status === "completed" ? "completed" : o.status === "cancelled" ? "cancelled" : o.status === "payout_ready" ? "confirmed" : "pending"}`}>{STATUS_LABELS[o.status] || o.status}</div>
-        </div>)}
-      </div>}
-    </div>
+      {step === "done" && <button className="btn btn-primary" onClick={() => navigate("remittances")}>پیگیری در حواله‌های من</button>}
+      </fieldset>
+    </main>
   );
 }

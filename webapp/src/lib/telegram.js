@@ -16,12 +16,12 @@ export function initTelegram() {
   // تلگرام کاربر)، رنگ واقعی پس‌زمینه را مستقیم می‌دهیم، نه کلید تم
   // ("secondary_bg_color") که در حالت تاریک تلگرام می‌تواند تیره برگردد.
   try {
-    wa.setHeaderColor?.("#f5f5f7");
+    wa.setHeaderColor?.("#f7f9f9");
   } catch (_) {
     /* بعضی نسخه‌های قدیمی تلگرام رنگ دلخواه (غیر از کلید تم) را نمی‌پذیرند */
   }
   try {
-    wa.setBackgroundColor?.("#f5f5f7");
+    wa.setBackgroundColor?.("#f7f9f9");
   } catch (_) {
     /* نسخه‌های قدیمی‌تر این متد را ندارند */
   }

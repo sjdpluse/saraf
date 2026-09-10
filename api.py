@@ -54,6 +54,7 @@ from services import (
 )
 from services import supabase_service as db
 from services.instagram_webhook_router import router as instagram_webhook_router
+from services.market_snapshot import router as market_snapshot_router
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -82,6 +83,7 @@ app.add_middleware(
 # وبهوک اینستاگرام (کامنت جدید → دایرکت خودکار کلمهٔ کلیدی + پاسخ AI عمومی) —
 # services/instagram_webhook_router.py را ببینید. مسیرش /webhooks/instagram است.
 app.include_router(instagram_webhook_router)
+app.include_router(market_snapshot_router)
 
 
 @app.middleware("http")

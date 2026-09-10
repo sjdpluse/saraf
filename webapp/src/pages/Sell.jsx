@@ -23,6 +23,7 @@ import NetworkOption from "../components/NetworkOption";
 import InPersonPass from "../components/InPersonPass";
 import { WhatsAppActionButton } from "../components/WhatsAppSupport";
 import { generateInPersonCode } from "../lib/inPerson";
+import AssetSelector from "../components/AssetSelector";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
 const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
@@ -51,7 +52,7 @@ function resolveNetwork(input, networks) {
   return networks.find((item) => item.code.toLowerCase() === q || item.label.toLowerCase() === q) || null;
 }
 
-export default function Sell({ asset = "USDT", navigate, showError, resumeState, onResumeConsumed, onNeedProfile, onNeedVerification }) {
+export default function Sell({ asset = "USDT", onSelectAsset, navigate, showError, resumeState, onResumeConsumed, onNeedProfile, onNeedVerification }) {
   const selectedAsset = normalizeAsset(asset);
   const coinLogo = assetLogo(selectedAsset);
   const coinName = ASSET_NAMES_FA[selectedAsset];
@@ -302,6 +303,7 @@ export default function Sell({ asset = "USDT", navigate, showError, resumeState,
 
       {step === "amount" && (
         <div className="card animate-in">
+          <AssetSelector value={selectedAsset} onChange={onSelectAsset} />
           <div className="field"><label className="field-label">چند {selectedAsset} می‌خواهید بفروشید؟</label><div className="amount-field"><input className="input num" type="number" inputMode="decimal" placeholder="مثال: 100" value={amount} onChange={(e) => setAmount(e.target.value)} /><span className="amount-badge"><img src={coinLogo} alt={selectedAsset} style={{ borderRadius: "50%" }} /></span></div><div className="notice" style={{ marginTop: 10 }}>{coinName} ({selectedAsset})</div></div>
           <button className="btn btn-sell" onClick={fetchQuote} disabled={loadingQuote}>{loadingQuote ? <span className="spinner" /> : "محاسبهٔ نرخ"}</button>
         </div>

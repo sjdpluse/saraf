@@ -19,7 +19,7 @@ export default function CopyRow({ label, value }) {
       {label && <span className="label">{label}</span>}
       <span className="value">
         {value}
-        <button type="button" className={`copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>
+        <button type="button" aria-label={copied ? "کپی شد" : `کپی ${label || "مقدار"}`} className={`copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}>
           {copied ? <Check size={14} weight="bold" /> : <Copy size={14} />}
         </button>
       </span>

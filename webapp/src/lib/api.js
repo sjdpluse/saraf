@@ -89,6 +89,7 @@ function onlineProviderLabel(method) {
 }
 
 export const api = {
+  getMarketSnapshot: () => request("/market/snapshot"),
   getQuote: async (action, amount, asset = "USDT") => {
     const selectedAsset = normalizeAsset(asset);
     const quote = await request("/usdt/quote", { method: "POST", body: { action, amount, asset: selectedAsset } });

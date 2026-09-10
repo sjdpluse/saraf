@@ -1,139 +1,51 @@
 import { useEffect, useState } from "react";
-import {
-  ArrowDown,
-  ArrowUp,
-  ClipboardText,
-  FileText,
-  CaretLeft,
-  ShieldCheck,
-  Clock,
-  HandCoins,
-  Headset,
-  Users,
-  Star,
-  ChatCircleText,
-  GlobeHemisphereWest,
-} from "@phosphor-icons/react";
+import { ArrowDownLeft, ArrowUpRight, ArrowsLeftRight, CaretLeft, ClipboardText, PaperPlaneTilt, Star } from "@phosphor-icons/react";
 import { api } from "../lib/api";
-import { SARAF_LOGO_URL, TETHER_LOGO_URL, USDC_LOGO_URL, normalizeAsset } from "../lib/brand";
-import AssetSelector from "../components/AssetSelector";
+import { SARAF_LOGO_URL } from "../lib/brand";
+import AppMenu from "../components/AppMenu";
+import MarketMap from "../components/MarketMap";
 
-export default function Home({ navigate, startTransaction, selectedAsset = "USDT", onSelectAsset }) {
+export default function Home({ navigate, startTransaction }) {
   const [stats, setStats] = useState(null);
-  const [reviewsCount, setReviewsCount] = useState(null);
-  const asset = normalizeAsset(selectedAsset);
-
   useEffect(() => {
     let mounted = true;
-    api.getStats().then((s) => mounted && setStats(s)).catch(() => {});
-    api.getReviews(1, 0).then((r) => mounted && setReviewsCount(Number(r.total || 0))).catch(() => {});
+    api.getStats().then((value) => mounted && setStats(value)).catch(() => {});
     return () => { mounted = false; };
   }, []);
 
   return (
-    <div className="app-shell">
-      <div className="hero-card animate-in">
-        <div className="hero-top">
-          <div className="hero-row">
-            <div className="hero-brand">
-              <div className="hero-logo"><img src={SARAF_LOGO_URL} alt="صراف" /></div>
-              <span className="hero-brand-name">صراف</span>
-            </div>
-            <div className="num" style={{ position: "relative", zIndex: 1, fontSize: 11, fontWeight: 800, background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.18)", padding: "6px 10px", borderRadius: 999 }}>
-              USDT / USDC
-            </div>
-          </div>
-
-          <div className="hero-tagline">خرید و فروش استیبل‌کوین با روند روشن، بررسی دستی و پیگیری سفارش</div>
-
-          <div className="hero-chip-row">
-            <div className="hero-chip"><ShieldCheck size={13} weight="fill" /> بررسی دستی هر سفارش</div>
-            <div className="hero-chip"><Clock size={13} weight="fill" /> تحویل زیر ۱ ساعت</div>
-          </div>
+    <main className="app-shell home-shell">
+      <header className="home-header">
+        <div className="home-brand"><img src={SARAF_LOGO_URL} alt="" /><span>صراف<small>دنیای کریپتو، به افغانی</small></span></div>
+        <AppMenu navigate={navigate} />
+      </header>
+      <section className="home-intro" aria-labelledby="home-title">
+        <span className="home-eyebrow">از کریپتو تا افغانی</span>
+        <h1 id="home-title">خرید، فروش و حواله<br /><span>ساده‌تر با صراف.</span></h1>
+        <MarketMap />
+      </section>
+      <section className="trade-panel" aria-labelledby="trade-title">
+        <div className="trade-panel-heading"><div><h2 id="trade-title">خرید و فروش</h2><p>تتر و یو‌اس‌دی کوین <bdi>USDT / USDC</bdi></p></div><ArrowsLeftRight size={23} /></div>
+        <div className="trade-actions">
+          <button className="trade-action purchase" onClick={() => startTransaction("buy")}><ArrowDownLeft size={21} weight="bold" /> خرید رمزارز</button>
+          <button className="trade-action sale" onClick={() => startTransaction("sell")}><ArrowUpRight size={21} weight="bold" /> فروش رمزارز</button>
         </div>
-
-        <div className="hero-dock">
-          <button className="hero-dock-btn buy" onClick={() => startTransaction("buy", asset)}>
-            <span className="dock-icon"><ArrowDown size={16} weight="bold" /></span>
-            خرید {asset}
-          </button>
-          <button className="hero-dock-btn sell" onClick={() => startTransaction("sell", asset)}>
-            <span className="dock-icon"><ArrowUp size={16} weight="bold" /></span>
-            فروش {asset}
-          </button>
-        </div>
-      </div>
-
-      <AssetSelector value={asset} onChange={onSelectAsset} />
-
-      <div className="card card-tappable animate-in" style={{ animationDelay: "0.05s" }} onClick={() => navigate("remittance")}>
-        <div className="list-row">
-          <div className="row-icon"><GlobeHemisphereWest size={22} weight="fill" /></div>
-          <div className="row-text">
-            <div className="row-title">حواله بین‌المللی</div>
-            <div className="row-subtitle">ارسال کریپتو از خارج؛ دریافت نقدی خانواده در افغانستان</div>
-          </div>
-          <div className="row-chevron"><CaretLeft size={18} /></div>
-        </div>
-      </div>
-
-      {stats && (
-        <div className="stats-row stats-row-three animate-in" style={{ animationDelay: "0.06s" }}>
-          <div className="stat-box">
-            <Users size={20} className="stat-icon" weight="fill" />
-            <div className="stat-value num">{Number(stats.completed_orders || 0).toLocaleString()}</div>
-            <div className="stat-label">معاملهٔ تکمیل‌شده</div>
-          </div>
-          <div className="stat-box">
-            <Star size={20} className="stat-icon" weight="fill" />
-            <div className="stat-value num">{stats.average_rating ? Number(stats.average_rating).toFixed(1) : "—"}</div>
-            <div className="stat-label">میانگین امتیاز کاربران</div>
-          </div>
-          <button type="button" className="stat-box stat-box-button" onClick={() => navigate("reviews")}>
-            <ChatCircleText size={20} className="stat-icon" weight="fill" />
-            <div className="stat-value num">{reviewsCount === null ? "—" : reviewsCount.toLocaleString()}</div>
-            <div className="stat-label">نظرات کاربران</div>
-          </button>
-        </div>
-      )}
-
-      <div className="card card-tappable animate-in" style={{ animationDelay: "0.09s" }} onClick={() => navigate("orders")}>
-        <div className="list-row">
-          <div className="row-icon"><ClipboardText size={20} /></div>
-          <div className="row-text">
-            <div className="row-title">سفارش‌های من</div>
-            <div className="row-subtitle">پیگیری خرید و فروش‌های USDT / USDC</div>
-          </div>
-          <div className="row-chevron"><CaretLeft size={18} /></div>
-        </div>
-      </div>
-
-      <div className="card animate-in" style={{ animationDelay: "0.12s" }}>
-        <div className="section-title">
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <img src={TETHER_LOGO_URL} alt="USDT" className="tether-badge" style={{ width: 16, height: 16 }} />
-            <img src={USDC_LOGO_URL} alt="USDC" className="tether-badge" style={{ width: 16, height: 16, borderRadius: "50%" }} />
-          </span>
-          چرا صراف؟
-        </div>
-        <div className="trust-list">
-          <div className="trust-item"><ShieldCheck size={18} className="trust-icon" weight="fill" /> نرخ لحظه‌یی بازار برای تصمیم‌گیری روشن‌تر</div>
-          <div className="trust-item"><Clock size={18} className="trust-icon" weight="fill" /> هر سفارش پیش از اجرا توسط تیم ما به‌صورت دستی بررسی و تایید می‌شود</div>
-          <div className="trust-item"><HandCoins size={18} className="trust-icon" weight="fill" /> پرداخت حضوری یا آنلاین — هرکدام که برایتان آسان‌تر است</div>
-          <div className="trust-item"><Headset size={18} className="trust-icon" weight="fill" /> پشتیبانی مستقیم و پاسخ‌گو: @SJDPLUS</div>
-        </div>
-      </div>
-
-      <div className="card card-tappable animate-in" style={{ animationDelay: "0.15s" }} onClick={() => navigate("terms")}>
-        <div className="list-row">
-          <div className="row-icon"><FileText size={20} /></div>
-          <div className="row-text">
-            <div className="row-title">قوانین و شرایط استفاده</div>
-            <div className="row-subtitle">کارمزدها، زمان تحویل و مسئولیت‌ها</div>
-          </div>
-          <div className="row-chevron"><CaretLeft size={18} /></div>
-        </div>
-      </div>
-    </div>
+      </section>
+      <button className="remittance-entry" onClick={() => navigate("remittance")}>
+        <span className="remittance-entry-icon"><PaperPlaneTilt size={25} /></span>
+        <span><strong>حواله از طریق کریپتو</strong><small>ارسال رمزارز؛ دریافت افغانی در افغانستان</small></span>
+        <CaretLeft size={18} />
+      </button>
+      <nav className="home-shortcuts" aria-label="پیگیری درخواست‌ها">
+        <button onClick={() => navigate("orders")}><ClipboardText size={20} /><span>سفارش‌های من</span><CaretLeft size={15} /></button>
+        <button onClick={() => navigate("remittances")}><PaperPlaneTilt size={20} /><span>حواله‌های من</span><CaretLeft size={15} /></button>
+      </nav>
+      <button className="home-social-proof" onClick={() => navigate("reviews")}>
+        <Star size={17} weight="fill" />
+        <span>{stats?.average_rating > 0 ? <><b className="num">{Number(stats.average_rating).toFixed(1)}</b> امتیاز کاربران</> : "نظرات کاربران"}</span>
+        {Number.isFinite(Number(stats?.completed_orders)) && stats?.completed_orders != null && <small>{Number(stats.completed_orders).toLocaleString("fa-AF")} معاملهٔ تکمیل‌شده</small>}
+        <CaretLeft size={15} />
+      </button>
+    </main>
   );
 }
