@@ -112,28 +112,43 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
   height: 0;
   opacity: 0;
   transform-origin: center;
-  animation: market-floater-rise var(--float-duration) cubic-bezier(.22,1,.36,1) var(--float-delay) infinite;
+  animation: market-marker-cycle var(--float-duration) cubic-bezier(.22,1,.36,1) var(--float-delay) infinite;
   will-change: transform, opacity, filter;
 }
 .map-token {
   position: absolute;
-  bottom: 0;
   left: 0;
-  display: inline-flex;
-  flex-direction: row;
+  top: 0;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 3px;
-  transform: translateX(-50%) scale(var(--float-scale));
-  padding: 2px 4px 2px 3px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.74);
-  border: 1px solid rgba(255,255,255,.84);
-  box-shadow:
-    0 3px 10px rgba(29,29,31,.07),
-    0 0 0 1px rgba(0,0,0,.018);
-  backdrop-filter: blur(8px) saturate(1.08);
-  -webkit-backdrop-filter: blur(8px) saturate(1.08);
+  transform: translate(-50%, -50%) scale(var(--float-scale));
   white-space: nowrap;
+}
+.map-coin-shell {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+}
+.map-coin-shell::before,
+.map-coin-shell::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border: 1px solid color-mix(in srgb, var(--coin-accent) 58%, transparent);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(.72);
+  pointer-events: none;
+}
+.map-coin-shell::before {
+  animation: map-coin-ripple var(--float-duration) ease-out var(--float-delay) infinite;
+}
+.map-coin-shell::after {
+  animation: map-coin-ripple-secondary var(--float-duration) ease-out var(--float-delay) infinite;
 }
 .map-coin {
   width: 18px;
@@ -142,9 +157,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
   border: 0;
   border-radius: 50%;
   background: transparent;
-  box-shadow: none;
+  box-shadow: 0 1px 5px rgba(29,29,31,.11);
   display: grid;
   place-items: center;
+  position: relative;
+  z-index: 2;
 }
 .map-coin img {
   width: 100%;
@@ -159,47 +176,59 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 }
 .map-change {
   margin: 0;
-  padding: 0 1px;
+  padding: 0;
   border: 0;
-  border-radius: 0;
   background: transparent;
   box-shadow: none;
-  font-size: .52rem;
+  color: var(--coin-accent);
+  font-size: .49rem;
   line-height: 1;
-  font-weight: 820;
+  font-weight: 850;
   letter-spacing: -.015em;
+  text-shadow: 0 1px 4px rgba(255,255,255,.85);
 }
-.map-change.positive { color: #16825d; }
-.map-change.negative { color: #c53a46; }
-.map-change.neutral { color: #6e6e73; }
-@keyframes market-floater-rise {
-  0% {
+@keyframes market-marker-cycle {
+  0%, 4% {
     opacity: 0;
-    transform: translate3d(0, 22px, 0) scale(.82);
-    filter: blur(3px);
+    transform: scale(.42);
+    filter: blur(1.8px);
   }
-  13% {
-    opacity: .93;
-    transform: translate3d(1px, 4px, 0) scale(1);
+  9% {
+    opacity: .98;
+    transform: scale(1.02);
     filter: blur(0);
   }
-  58% {
-    opacity: .93;
-    transform: translate3d(-2px, -13px, 0) scale(1);
+  24% {
+    opacity: .98;
+    transform: scale(1);
     filter: blur(0);
   }
-  82% {
-    opacity: .55;
-    transform: translate3d(2px, -29px, 0) scale(.97);
-    filter: blur(.2px);
+  31% {
+    opacity: 0;
+    transform: scale(.94);
+    filter: blur(.8px);
   }
   100% {
     opacity: 0;
-    transform: translate3d(-1px, -48px, 0) scale(.9);
-    filter: blur(3px);
+    transform: scale(.94);
+    filter: blur(.8px);
   }
 }
-.market-map.is-paused .map-floater { animation-play-state: paused; }
+@keyframes map-coin-ripple {
+  0%, 8% { opacity: 0; transform: scale(.72); }
+  11% { opacity: .42; transform: scale(.82); }
+  22% { opacity: 0; transform: scale(2.15); }
+  100% { opacity: 0; transform: scale(2.15); }
+}
+@keyframes map-coin-ripple-secondary {
+  0%, 12% { opacity: 0; transform: scale(.72); }
+  15% { opacity: .24; transform: scale(.82); }
+  25% { opacity: 0; transform: scale(1.75); }
+  100% { opacity: 0; transform: scale(1.75); }
+}
+.market-map.is-paused .map-floater,
+.market-map.is-paused .map-coin-shell::before,
+.market-map.is-paused .map-coin-shell::after { animation-play-state: paused; }
 .market-map figcaption, .map-motion-button, .map-pulse, .map-anchor { display: none !important; }
 
 .trade-panel { border-color: rgba(0,113,227,.14); }
@@ -213,12 +242,17 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 @media (max-width: 390px) {
   .home-intro h1 { font-size: clamp(1.26rem, 5.9vw, 1.65rem); gap: 5px; }
   .home-location-window { min-width: 92px; }
-  .map-token { padding: 1.5px 3px 1.5px 2px; }
+  .map-token { gap: 2px; }
+  .map-coin-shell { width: 20px; height: 20px; }
   .map-coin { width: 16px; height: 16px; flex-basis: 16px; }
-  .map-change { font-size: .48rem; }
+  .map-change { font-size: .46rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-location-word, .home-location-word::after, .map-floater { animation: none !important; }
+  .home-location-word,
+  .home-location-word::after,
+  .map-floater,
+  .map-coin-shell::before,
+  .map-coin-shell::after { animation: none !important; }
   .map-floater { opacity: .82; }
 }
