@@ -5,23 +5,75 @@ import { SARAF_LOGO_URL } from "../lib/brand";
 import AppMenu from "../components/AppMenu";
 import MarketMap from "../components/MarketMap";
 
+const LOCATIONS = [
+  ["افغانستان", 2000],
+  ["کابل", 1000],
+  ["بامیان", 1000],
+  ["مزار شریف", 1000],
+  ["هرات", 1000],
+  ["کندهار", 1000],
+  ["ننگرهار", 1000],
+  ["کندز", 1000],
+  ["بدخشان", 1000],
+  ["غزنی", 1000],
+  ["هلمند", 1000],
+  ["فراه", 1000],
+  ["تخار", 1000],
+  ["بغلان", 1000],
+  ["پروان", 1000],
+  ["پنجشیر", 1000],
+  ["دایکندی", 1000],
+  ["غور", 1000],
+  ["فاریاب", 1000],
+  ["جوزجان", 1000],
+  ["سمنگان", 1000],
+  ["سرپل", 1000],
+  ["بادغیس", 1000],
+  ["نیمروز", 1000],
+  ["زابل", 1000],
+  ["پکتیا", 1000],
+  ["پکتیکا", 1000],
+  ["خوست", 1000],
+  ["لغمان", 1000],
+  ["نورستان", 1000],
+  ["کنر", 1000],
+  ["کاپیسا", 1000],
+  ["میدان وردک", 1000],
+  ["لوگر", 1000],
+  ["ارزگان", 1000],
+];
+
 export default function Home({ navigate, startTransaction }) {
   const [stats, setStats] = useState(null);
+  const [locationIndex, setLocationIndex] = useState(0);
+
   useEffect(() => {
     let mounted = true;
     api.getStats().then((value) => mounted && setStats(value)).catch(() => {});
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    const duration = LOCATIONS[locationIndex][1];
+    const timer = window.setTimeout(() => {
+      setLocationIndex((index) => (index + 1) % LOCATIONS.length);
+    }, duration);
+    return () => window.clearTimeout(timer);
+  }, [locationIndex]);
+
+  const [location, locationDuration] = LOCATIONS[locationIndex];
+
   return (
     <main className="app-shell home-shell">
       <header className="home-header">
-        <div className="home-brand"><img src={SARAF_LOGO_URL} alt="" /><span>صراف<small>دنیای کریپتو، به افغانی</small></span></div>
         <AppMenu navigate={navigate} />
+        <div className="home-brand"><img src={SARAF_LOGO_URL} alt="صراف" /></div>
       </header>
       <section className="home-intro" aria-labelledby="home-title">
-        <span className="home-eyebrow">از کریپتو تا افغانی</span>
-        <h1 id="home-title">خرید، فروش و حواله<br /><span>ساده‌تر با صراف.</span></h1>
+        <h1 id="home-title">
+          <span className="home-title-copy">مرجع مطمئن خرید و فروش رمز ارز</span>
+          <span className="home-location-line">در <span className="home-location-window"><span key={locationIndex} className="home-location-word" style={{ "--location-duration": `${locationDuration}ms` }}>{location}</span></span></span>
+        </h1>
         <MarketMap />
       </section>
       <section className="trade-panel" aria-labelledby="trade-title">

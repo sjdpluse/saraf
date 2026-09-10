@@ -1,5 +1,5 @@
 // آدرس‌های برند در یک نقطه نگه‌داری می‌شوند.
-export const SARAF_LOGO_URL = "https://i.postimg.cc/B6ZCWdXp/logosaraf.webp";
+export const SARAF_LOGO_URL = "https://raw.githubusercontent.com/sjdpluse/saraf/main/logosaraf.png";
 export const TETHER_LOGO_URL = "https://i.postimg.cc/250WhXsF/tether.png";
 export const USDC_LOGO_URL = "https://i.postimg.cc/0QndtT7N/usd-coin-usdc-logo.jpg";
 

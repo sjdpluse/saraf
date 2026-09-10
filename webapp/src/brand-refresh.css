@@ -1,0 +1,137 @@
+/* Saraf brand refresh — blue brand, Apple-gray map, compact market motion. */
+:root {
+  --color-primary: #0071e3;
+  --color-primary-light: #0a84ff;
+  --color-primary-dark: #0040c9;
+  --color-info: #0071e3;
+  --color-info-bg: rgba(0, 113, 227, .09);
+  --gradient-primary: linear-gradient(135deg, #2b9dff 0%, #0071e3 52%, #0040c9 100%);
+  --color-buy: #0071e3;
+  --color-buy-bg: rgba(0, 113, 227, .09);
+  --color-buy-border: rgba(0, 113, 227, .28);
+}
+
+button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within {
+  outline-color: #0a84ff;
+}
+.btn-primary, .btn-buy { box-shadow: 0 3px 10px rgba(0, 113, 227, .12); }
+.input:focus { box-shadow: 0 0 0 3px rgba(0, 113, 227, .12); }
+
+.home-header { direction: rtl; }
+.home-brand { margin-inline-start: auto; }
+.home-brand > img {
+  width: 58px;
+  height: 58px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  object-fit: contain;
+}
+.home-intro { padding-top: 10px; }
+.home-intro h1 {
+  margin: 4px 0 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.55;
+}
+.home-title-copy { color: var(--color-text); }
+.home-location-line {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+  color: var(--color-text);
+}
+.home-location-window {
+  display: inline-grid;
+  min-width: 112px;
+  height: 1.55em;
+  overflow: hidden;
+  vertical-align: middle;
+}
+.home-location-word {
+  grid-area: 1 / 1;
+  color: var(--color-primary);
+  font-weight: 900;
+  white-space: nowrap;
+  animation: home-location-cycle var(--location-duration) cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes home-location-cycle {
+  0% { opacity: 0; transform: translateY(-55%); filter: blur(5px); }
+  18% { opacity: 1; transform: translateY(0); filter: blur(0); }
+  72% { opacity: 1; transform: translateY(0); filter: blur(0); }
+  100% { opacity: 0; transform: translateY(-55%); filter: blur(5px); }
+}
+
+.afghanistan-dots {
+  background: #c7c7cc;
+  opacity: .72;
+}
+.map-stage { aspect-ratio: 3 / 2; }
+.map-token {
+  bottom: 0;
+  gap: 2px;
+  transform: translateX(-50%);
+  animation: market-token-cycle 500ms cubic-bezier(.22,1,.36,1) both;
+  will-change: transform, opacity, filter;
+}
+.map-coin {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: market-logo-in 500ms cubic-bezier(.22,1,.36,1) both;
+}
+.map-coin img { border-radius: 50%; }
+.map-coin-fallback {
+  font-size: .62rem;
+  color: var(--coin-color);
+  font-weight: 850;
+}
+.map-change {
+  margin-top: 1px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: .62rem;
+  line-height: 1.2;
+  font-weight: 850;
+  animation: market-percent-in 500ms cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes market-token-cycle {
+  0% { opacity: 0; transform: translate(-50%, -14px) scale(.86); filter: blur(5px); }
+  22% { opacity: 1; transform: translate(-50%, 0) scale(1); filter: blur(0); }
+  76% { opacity: 1; transform: translate(-50%, 0) scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: translate(-50%, 5px) scale(.96); filter: blur(4px); }
+}
+@keyframes market-logo-in {
+  0% { opacity: 0; transform: translateY(-9px) scale(.72); }
+  20% { opacity: 1; transform: translateY(0) scale(1.05); }
+  34%, 78% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(3px) scale(.96); }
+}
+@keyframes market-percent-in {
+  0%, 20% { opacity: 0; transform: translateY(-6px); }
+  36% { opacity: 1; transform: translateY(0); }
+  76% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(3px); }
+}
+.market-map.is-paused .map-token { animation-play-state: paused; }
+.market-map figcaption, .map-motion-button, .map-pulse { display: none !important; }
+
+.trade-panel { border-color: rgba(0,113,227,.14); }
+.trade-action.purchase { background: var(--gradient-primary); }
+.trade-action.sale { background: #eef3f8; }
+.remittance-entry-icon { color: var(--color-primary); background: rgba(0,113,227,.08); }
+.menu-support { background: rgba(0,113,227,.08); }
+.asset-choice.selected { border-color: var(--color-primary); background: #f2f8ff; }
+.app-menu::backdrop { background: rgba(15, 23, 42, .36); }
+
+@media (prefers-reduced-motion: reduce) {
+  .home-location-word, .map-token, .map-coin, .map-change { animation: none !important; }
+}

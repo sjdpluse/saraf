@@ -11,7 +11,15 @@ import httpx
 from fastapi import APIRouter
 
 router = APIRouter(prefix="/api/market", tags=["market"])
-_IDS = {"USDT": "tether", "USDC": "usd-coin", "BTC": "bitcoin", "SOL": "solana"}
+_IDS = {
+    "USDT": "tether",
+    "USDC": "usd-coin",
+    "BTC": "bitcoin",
+    "SOL": "solana",
+    "BNB": "binancecoin",
+    "XRP": "ripple",
+    "TON": "the-open-network",
+}
 _CACHE_TTL = 90
 _MAX_AGE = 300
 _cache = {"assets": [], "attempted_at": None}
@@ -57,7 +65,6 @@ async def get_market_snapshot():
         now = time.monotonic()
         attempted = _cache["attempted_at"]
         if attempted is None or now - attempted >= _CACHE_TTL:
-            # Cache failures too, so page visits cannot flood an unavailable provider.
             _cache["attempted_at"] = now
             try:
                 async with httpx.AsyncClient(timeout=6.0) as client:
