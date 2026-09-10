@@ -28,68 +28,71 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 
 .afghanistan-dots { background:#c7c7cc; opacity:.66; }
 .map-stage { aspect-ratio:3/2; overflow:visible; margin-top:-18px; margin-bottom:-8px; -webkit-mask-image:none; mask-image:none; }
-.map-market-flow { position:absolute; inset:0; z-index:3; pointer-events:none; }
+.map-market-flow { position:absolute; inset:0; z-index:4; pointer-events:none; }
 
-/* Localized province emphasis, clipped by the same dotted Afghanistan mask. */
-.province-highlight {
-  position:absolute; inset:0; pointer-events:none; z-index:2;
-  -webkit-mask-image:var(--map-image); mask-image:var(--map-image);
-  -webkit-mask-size:100% 100%; mask-size:100% 100%;
-  -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
-  background:radial-gradient(ellipse var(--province-w) var(--province-h) at var(--province-x) var(--province-y), rgba(0,102,204,.92) 0%, rgba(0,102,204,.62) 38%, rgba(0,102,204,.18) 68%, transparent 100%);
-  opacity:0; animation:province-focus 520ms cubic-bezier(.22,1,.36,1) forwards;
-}
-@keyframes province-focus { from{opacity:0;filter:brightness(1)} to{opacity:.95;filter:brightness(1.22)} }
+/* Exact ADM1 geometry is fitted to the same 3:2 stage and the original dotted
+   map image is re-drawn only inside the active province. */
+.province-boundary-overlay { position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; overflow:visible; }
+.province-dot-image { opacity:.9; filter:brightness(1.35) saturate(1.15); animation:province-dot-focus .42s cubic-bezier(.22,1,.36,1) both; }
+.province-boundary-line { fill:rgba(0,102,204,.035); stroke:rgba(0,102,204,.42); stroke-width:1.05; vector-effect:non-scaling-stroke; animation:province-boundary-focus .42s cubic-bezier(.22,1,.36,1) both; }
+@keyframes province-dot-focus { from{opacity:0;filter:brightness(1)} to{opacity:.92;filter:brightness(1.42) saturate(1.15)} }
+@keyframes province-boundary-focus { from{opacity:0} to{opacity:1} }
 
-.map-floater { position:absolute; width:0; height:0; opacity:0; transform-origin:center; animation:market-marker-cycle var(--float-duration) linear var(--float-delay) infinite; will-change:transform,opacity; }
+/* Four-slot scheduler: one marker is replaced every 300ms and each marker lives
+   for 1.2s. This mathematically caps the field at four mounted markers while
+   keeping the stream continuous. There is no master timeline and therefore no
+   global all-hidden phase. */
+.map-floater { position:absolute; width:0; height:0; opacity:0; transform-origin:center; animation:market-marker-life 1.2s cubic-bezier(.22,1,.36,1) both; will-change:transform,opacity; }
 .map-token { position:absolute; left:0; top:0; display:flex; flex-direction:column; align-items:center; gap:3px; transform:translate(-50%,-50%) scale(var(--float-scale)); white-space:nowrap; }
 .map-coin-shell { position:relative; width:22px; height:22px; display:grid; place-items:center; }
 .map-coin-shell::before,.map-coin-shell::after { content:""; position:absolute; inset:1px; border:1px solid color-mix(in srgb,var(--coin-accent) 58%,transparent); border-radius:50%; opacity:0; transform:scale(.72); pointer-events:none; }
-.map-coin-shell::before { animation:map-coin-ripple var(--float-duration) ease-out var(--float-delay) infinite; }
-.map-coin-shell::after { animation:map-coin-ripple-secondary var(--float-duration) ease-out var(--float-delay) infinite; }
-.map-coin { width:18px; height:18px; flex:0 0 18px; border:0; border-radius:50%; background:transparent; box-shadow:0 1px 5px rgba(29,29,31,.11); display:grid; place-items:center; position:relative; z-index:2; opacity:0; transform:scale(.72); animation:map-logo-soft-cycle var(--float-duration) cubic-bezier(.22,1,.36,1) var(--float-delay) infinite; }
+.map-coin-shell::before { animation:map-coin-ripple 1.2s ease-out both; }
+.map-coin-shell::after { animation:map-coin-ripple-secondary 1.2s ease-out both; }
+.map-coin { width:18px; height:18px; flex:0 0 18px; border:0; border-radius:50%; background:transparent; box-shadow:0 1px 5px rgba(29,29,31,.11); display:grid; place-items:center; position:relative; z-index:2; opacity:0; transform:scale(.8); animation:map-logo-life 1.2s cubic-bezier(.22,1,.36,1) both; }
 .map-coin img { width:100%; height:100%; border-radius:50%; object-fit:contain; }
 .map-coin-fallback { font-size:.48rem; color:#1d1d1f; font-weight:700; }
-.map-change { margin:0; padding:0; border:0; background:transparent; box-shadow:none; color:var(--coin-accent); font-size:.49rem; line-height:1; font-weight:300; letter-spacing:.01em; text-shadow:0 1px 4px rgba(255,255,255,.85); display:inline-flex; align-items:baseline; gap:1px; direction:ltr; opacity:0; animation:map-value-soft-cycle var(--float-duration) cubic-bezier(.22,1,.36,1) var(--float-delay) infinite; }
-.map-change-sign { display:inline-block; font-weight:300; transform:translateY(7px); opacity:0; animation:map-sign-rise var(--float-duration) cubic-bezier(.22,1,.36,1) var(--float-delay) infinite; }
+.map-change { margin:0; padding:0; border:0; background:transparent; box-shadow:none; color:var(--coin-accent); font-size:.49rem; line-height:1; font-weight:300; letter-spacing:.01em; text-shadow:0 1px 4px rgba(255,255,255,.9); display:inline-flex; align-items:baseline; gap:1px; direction:ltr; opacity:0; animation:map-value-life 1.2s cubic-bezier(.22,1,.36,1) both; }
+.map-change-sign { display:inline-block; font-weight:300; opacity:0; animation:map-sign-rise 1.2s cubic-bezier(.22,1,.36,1) both; }
 .map-change-value { font-weight:300; }
 
-/*
-  Seamless loop: 20 markers are spaced every 5% of one 5.2s cycle. Each marker
-  is visible/fading for ~23% of the cycle, so roughly 4-5 markers are always
-  active. There is no shared all-hidden segment and no upward travel of logos.
-*/
-@keyframes market-marker-cycle {
-  0%,3% { opacity:0; transform:scale(.82); }
-  7% { opacity:1; transform:scale(1); }
-  20% { opacity:1; transform:scale(1); }
-  24% { opacity:0; transform:scale(.94); }
-  100% { opacity:0; transform:scale(.94); }
+@keyframes market-marker-life {
+  0% { opacity:0; transform:scale(.84); }
+  15% { opacity:1; transform:scale(1); }
+  82% { opacity:1; transform:scale(1); }
+  100% { opacity:0; transform:scale(.96); }
 }
-@keyframes map-logo-soft-cycle {
-  0%,2% { opacity:0; transform:scale(.72); filter:blur(1.2px); }
-  8% { opacity:1; transform:scale(1); filter:blur(0); }
-  19% { opacity:1; transform:scale(1); filter:blur(0); }
-  24% { opacity:0; transform:scale(.9); filter:blur(.8px); }
-  100% { opacity:0; transform:scale(.9); filter:blur(.8px); }
+@keyframes map-logo-life {
+  0% { opacity:0; transform:scale(.76); filter:blur(1.25px); }
+  18% { opacity:1; transform:scale(1); filter:blur(0); }
+  82% { opacity:1; transform:scale(1); filter:blur(0); }
+  100% { opacity:0; transform:scale(.94); filter:blur(.7px); }
 }
-@keyframes map-value-soft-cycle {
-  0%,5% { opacity:0; transform:translateY(3px); }
-  9% { opacity:1; transform:translateY(0); }
-  19% { opacity:1; transform:translateY(0); }
-  24% { opacity:0; transform:translateY(-2px); }
+@keyframes map-value-life {
+  0%,10% { opacity:0; transform:translateY(4px); }
+  24% { opacity:1; transform:translateY(0); }
+  82% { opacity:1; transform:translateY(0); }
   100% { opacity:0; transform:translateY(-2px); }
 }
 @keyframes map-sign-rise {
-  0%,6% { opacity:0; transform:translateY(8px); }
-  11% { opacity:1; transform:translateY(0); }
-  19% { opacity:1; transform:translateY(0); }
-  24%,100% { opacity:0; transform:translateY(-2px); }
+  0%,13% { opacity:0; transform:translateY(8px); }
+  28% { opacity:1; transform:translateY(0); }
+  82% { opacity:1; transform:translateY(0); }
+  100% { opacity:0; transform:translateY(-2px); }
 }
-@keyframes map-coin-ripple { 0%,7%{opacity:0;transform:scale(.72)} 9%{opacity:.38;transform:scale(.82)} 18%{opacity:0;transform:scale(2.05)} 100%{opacity:0;transform:scale(2.05)} }
-@keyframes map-coin-ripple-secondary { 0%,10%{opacity:0;transform:scale(.72)} 12%{opacity:.2;transform:scale(.82)} 21%{opacity:0;transform:scale(1.7)} 100%{opacity:0;transform:scale(1.7)} }
+@keyframes map-coin-ripple {
+  0%,13% { opacity:0; transform:scale(.72); }
+  20% { opacity:.34; transform:scale(.82); }
+  50% { opacity:0; transform:scale(2.05); }
+  100% { opacity:0; transform:scale(2.05); }
+}
+@keyframes map-coin-ripple-secondary {
+  0%,22% { opacity:0; transform:scale(.72); }
+  29% { opacity:.18; transform:scale(.82); }
+  57% { opacity:0; transform:scale(1.7); }
+  100% { opacity:0; transform:scale(1.7); }
+}
 .market-map.is-paused .map-floater,.market-map.is-paused .map-coin,.market-map.is-paused .map-change,.market-map.is-paused .map-change-sign,.market-map.is-paused .map-coin-shell::before,.market-map.is-paused .map-coin-shell::after { animation-play-state:paused; }
-.market-map figcaption,.map-motion-button,.map-pulse,.map-anchor { display:none !important; }
+.market-map figcaption,.map-motion-button,.map-pulse,.map-anchor,.province-highlight { display:none !important; }
 
 .trade-panel { border-color:rgba(0,113,227,.14); }
 .trade-action.purchase { background:var(--gradient-primary); }
@@ -111,8 +114,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
   .map-change { font-size:.46rem; }
 }
 @media (prefers-reduced-motion:reduce) {
-  .home-location-word,.province-highlight,.map-floater,.map-coin,.map-change,.map-change-sign,.map-coin-shell::before,.map-coin-shell::after { animation:none !important; }
+  .home-location-word,.province-dot-image,.province-boundary-line,.map-floater,.map-coin,.map-change,.map-change-sign,.map-coin-shell::before,.map-coin-shell::after { animation:none !important; }
   .home-location-word { opacity:1; transform:none; }
-  .province-highlight { opacity:.8; }
-  .map-floater,.map-coin,.map-change,.map-change-sign { opacity:.82; transform:none; }
+  .province-dot-image { opacity:.9; }
+  .map-floater,.map-coin,.map-change,.map-change-sign { opacity:1; transform:none; }
 }
