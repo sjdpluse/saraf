@@ -6,7 +6,6 @@ import AppMenu from "../components/AppMenu";
 import MarketMap from "../components/MarketMap";
 
 const LOCATIONS = [
-  ["افغانستان", 2200],
   ["کابل", 1700],
   ["بامیان", 1700],
   ["مزار شریف", 1900],
