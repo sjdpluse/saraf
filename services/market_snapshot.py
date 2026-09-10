@@ -34,7 +34,7 @@ _IDS = {
     "ATOM": "cosmos",
 }
 _CACHE_TTL = 90
-_MAX_AGE = 300
+_MAX_AGE = 900
 _cache = {"assets": [], "attempted_at": None}
 _lock = asyncio.Lock()
 
