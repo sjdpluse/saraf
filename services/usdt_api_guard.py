@@ -22,7 +22,7 @@ from services import (
     wallet_validator,
     webapp_auth,
 )
-from services.money import D, to_float, quantize_afn
+from services.money import D, to_float, quantize_afn, quantize_usd
 from services.api_errors import ApiError
 
 _quote_context: contextvars.ContextVar[Optional[dict]] = contextvars.ContextVar("saraf_quote_context", default=None)
@@ -30,6 +30,20 @@ _order_context: contextvars.ContextVar[Optional[dict]] = contextvars.ContextVar(
 
 AZIZI_MIN_STABLECOIN_AMOUNT = 500
 _ALLOWED_ONLINE_PROVIDERS = {"hesabpay", "azizi"}
+
+_BUY_PRICING_NUMERIC_FIELDS = (
+    "market_margin_usd",
+    "supplier_profit_usd",
+    "saraf_profit_usd",
+    "customer_discount_usd",
+    "supplier_payout_usd",
+    "market_price_usd",
+    "supplier_profit_afn",
+    "saraf_profit_afn",
+    "customer_discount_afn",
+    "supplier_payout_afn",
+    "market_price_afn",
+)
 
 _QUOTE_ERROR_STATUS = {
     "QUOTE_NOT_FOUND": 400,
@@ -182,22 +196,38 @@ def _patch_quote_service() -> None:
         if ctx and ctx["quote"]["order_type"] == "buy":
             q = ctx["quote"]
             q_asset = _normalize_asset(q.get("asset"))
+            q_amount = D(q["usdt_amount"])
             rate = D(q["usd_rate"])
-            base = D(q["usdt_amount"]) * rate
-            fee_afn = D(q["total_afn"]) - base
-            return {
+            base = q_amount * rate
+            total_afn = D(q["total_afn"])
+            total_usd = D(q["total_usd"])
+            customer_fee_afn = total_afn - base
+            customer_fee_usd = total_usd - q_amount
+
+            result = {
                 "asset": q_asset,
-                "amount": to_float(D(q["usdt_amount"])),
+                "amount": to_float(q_amount),
                 "usd_rate": to_float(rate),
                 "fee_percent": to_float(D(q["fee_percent"] or 0)),
                 "base_afn": to_float(quantize_afn(base)),
-                "fee_afn": to_float(quantize_afn(fee_afn)),
-                "total_afn": to_float(D(q["total_afn"])),
-                "total_usd": to_float(D(q["total_usd"])),
-                "payable_usd": to_float(quantize_afn(D(q["total_afn"])) / rate),
+                # Legacy fee_afn now represents the full amount charged above
+                # principal, not Saraf's net-profit share.
+                "fee_afn": to_float(quantize_afn(customer_fee_afn)),
+                "customer_fee_usd": to_float(quantize_usd(customer_fee_usd)),
+                "customer_fee_afn": to_float(quantize_afn(customer_fee_afn)),
+                "total_afn": to_float(total_afn),
+                "total_usd": to_float(total_usd),
+                "payable_usd": to_float(total_usd),
                 "quote_id": q["id"],
                 "expires_at": q["expires_at"],
             }
+            if q.get("pricing_model") is not None:
+                result["pricing_model"] = q["pricing_model"]
+            for field in _BUY_PRICING_NUMERIC_FIELDS:
+                if q.get(field) is not None:
+                    result[field] = to_float(D(q[field]))
+            return result
+
         qctx = _quote_context.get()
         selected_asset = _normalize_asset(asset or (qctx or {}).get("asset"))
         quote = await original_buy(amount, selected_asset)
