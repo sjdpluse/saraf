@@ -285,6 +285,8 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
   }
 
   const isHesabPay = paymentMethod === "online_hesabpay";
+  const customerFeeUsd = Math.max(0, Number(quote?.payable_usd ?? quote?.total_usd ?? 0) - Number(amount || 0));
+  const customerFeeAfn = Math.max(0, Number(quote?.total_afn || 0) - Number(quote?.base_afn || 0));
 
   return (
     <div className="app-shell">
@@ -318,7 +320,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
             <div className="quote-row"><span>مبلغ قابل پرداخت به دالر</span><span className="value num">${Number(quote.payable_usd ?? quote.total_usd ?? amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span></div>
             <div className="quote-row"><span>نرخ دالر</span><span className="value num">{quote.usd_rate.toLocaleString()} افغانی</span></div>
             <div className="quote-row"><span>مبلغ پایه</span><span className="value num">{quote.base_afn.toLocaleString()} افغانی</span></div>
-            <div className="quote-row"><span>کارمزد صراف</span><span className="value num">${Number(quote.saraf_profit_usd || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} • {Number(quote.saraf_profit_afn || 0).toLocaleString()} افغانی</span></div>
+            <div className="quote-row"><span>کارمزد صراف</span><span className="value num">${customerFeeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })} • {customerFeeAfn.toLocaleString()} افغانی</span></div>
             <div className="quote-total buy"><span className="label">مبلغ نهایی قابل پرداخت</span><span className="amount num">{quote.total_afn.toLocaleString()} ؋</span></div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
