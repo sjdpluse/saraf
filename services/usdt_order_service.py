@@ -85,6 +85,44 @@ def _money(value, digits=2) -> str:
     return f"{float(value or 0):,.{digits}f}"
 
 
+def _buy_admin_pricing(amount: float, quote: dict) -> dict:
+    """Return a financially explicit breakdown for admin display.
+
+    `customer_fee_*` is the complete amount charged above the stablecoin
+    principal. It is intentionally different from `saraf_profit_*`, which is
+    only Saraf's net retained share after the supplier share is paid.
+    """
+    amount_usd = float(amount or 0)
+    usd_rate = float(quote.get("usd_rate") or 0)
+    base_afn = float(quote.get("base_afn") or (amount_usd * usd_rate))
+    total_usd = float(quote.get("payable_usd") or quote.get("total_usd") or amount_usd)
+    total_afn = float(quote.get("total_afn") or 0)
+    customer_fee_usd = max(0.0, total_usd - amount_usd)
+    customer_fee_afn = max(0.0, total_afn - base_afn)
+
+    # These values are part of the immutable stored quote. Do not derive them
+    # from the current market rate if they are present, because settlement must
+    # remain tied to the customer's original quote.
+    supplier_profit_usd = float(quote.get("supplier_profit_usd") or 0)
+    supplier_profit_afn = float(quote.get("supplier_profit_afn") or 0)
+    supplier_payout_usd = float(quote.get("supplier_payout_usd") or 0)
+    supplier_payout_afn = float(quote.get("supplier_payout_afn") or 0)
+    saraf_profit_usd = float(quote.get("saraf_profit_usd") or 0)
+    saraf_profit_afn = float(quote.get("saraf_profit_afn") or 0)
+
+    return {
+        "base_afn": base_afn,
+        "customer_fee_usd": customer_fee_usd,
+        "customer_fee_afn": customer_fee_afn,
+        "supplier_profit_usd": supplier_profit_usd,
+        "supplier_profit_afn": supplier_profit_afn,
+        "supplier_payout_usd": supplier_payout_usd,
+        "supplier_payout_afn": supplier_payout_afn,
+        "saraf_profit_usd": saraf_profit_usd,
+        "saraf_profit_afn": saraf_profit_afn,
+    }
+
+
 async def notify_admins(text: str, order_id: Optional[int] = None) -> None:
     from keyboards import admin_order_review_keyboard
 
@@ -275,23 +313,19 @@ async def create_buy_order(*, chat_id: int, username: Optional[str], full_name: 
         f"{selected_asset} شما پس از تأیید پرداخت، ظرف کمتر از *۱ ساعت* به آدرس فوق واریز خواهد شد.\n\n🆘 پشتیبانی: {SUPPORT_TELEGRAM_USERNAME}"
     )
     risk_banner = f"\n{risk_engine.risk_label(risk_level)}\nدلایل: {'؛ '.join(risk_reasons)}\n" if risk_reasons else ""
-
-    supplier_payout_usd = float(quote.get("supplier_payout_usd") or 0)
-    supplier_payout_afn = float(quote.get("supplier_payout_afn") or 0)
-    supplier_profit_usd = float(quote.get("supplier_profit_usd") or 0)
-    supplier_profit_afn = float(quote.get("supplier_profit_afn") or 0)
-    saraf_profit_usd = float(quote.get("saraf_profit_usd") or 0)
-    saraf_profit_afn = float(quote.get("saraf_profit_afn") or 0)
+    pricing = _buy_admin_pricing(amount, quote)
 
     await notify_admins(
         f"🆕 *سفارش خرید {selected_asset}*\n{risk_banner}{_trust_snippet(profile)}\n"
         f"کد: `{order_code}`\nکاربر: @{_md_escape(username)} ({chat_id})\n📞 تماس: {_md_escape(phone)}\n"
         f"دارایی: {selected_asset}\nمقدار: {amount:g} {selected_asset}\n"
         f"💳 مبلغ پرداختی مشتری: *{quote['total_afn']:,.1f} افغانی* | *${_money(quote.get('total_usd'))}*\n"
-        f"💰 کارمزد/سود صراف: *${_money(saraf_profit_usd)}* | *{saraf_profit_afn:,.1f} افغانی*\n\n"
+        f"💵 کارمزد صراف از مشتری: *${_money(pricing['customer_fee_usd'])}* | *{pricing['customer_fee_afn']:,.1f} افغانی*\n"
+        f"📈 سود خالص صراف: *${_money(pricing['saraf_profit_usd'])}* | *{pricing['saraf_profit_afn']:,.1f} افغانی*\n\n"
         f"🏦 *تسویه با تأمین‌کننده*\n"
-        f"سود تأمین‌کننده (۵۰٪ حاشیه): *${_money(supplier_profit_usd)}* | *{supplier_profit_afn:,.1f} افغانی*\n"
-        f"✅ مبلغ کامل قابل پرداخت به تأمین‌کننده: *${_money(supplier_payout_usd)}* | *{supplier_payout_afn:,.1f} افغانی*\n\n"
+        f"اصل دارایی: *${_money(amount)}* | *{pricing['base_afn']:,.1f} افغانی*\n"
+        f"سود تأمین‌کننده (۵۰٪ حاشیه): *${_money(pricing['supplier_profit_usd'])}* | *{pricing['supplier_profit_afn']:,.1f} افغانی*\n"
+        f"✅ مبلغ کامل قابل پرداخت به تأمین‌کننده: *${_money(pricing['supplier_payout_usd'])}* | *{pricing['supplier_payout_afn']:,.1f} افغانی*\n\n"
         f"روش پرداخت: {_md_escape(payment_method)}\nکد مراجعه حضوری: {_md_escape(in_person_code) if payment_method == 'in_person' else '-'}\n"
         f"مقصد: {_md_escape(exchange_name)}\nشبکه: {_md_escape(network)}\nآدرس ولت: `{wallet_address}`\nمنبع سفارش: {source}",
         order_id=order_id,
