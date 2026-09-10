@@ -71,16 +71,20 @@ export default function Home({ navigate, startTransaction }) {
       </header>
       <section className="home-intro" aria-labelledby="home-title">
         <MarketMap />
-        <h1 id="home-title">
+        <h1 id="home-title" className="home-title-stack">
           <span className="home-title-copy">مرجع خرید و فروش رمز ارز در</span>
-          <span className="home-location-window">
-            <span
-              key={locationIndex}
-              className="home-location-word"
-              style={{ "--location-duration": `${locationDuration}ms` }}
-            >
-              {location}
+          <span className="home-afghanistan-line" aria-label={`افغانستان، ${location}`}>
+            <span className="home-afghanistan-prefix">افغانســــــــــــــ</span>
+            <span className="home-location-window">
+              <span
+                key={locationIndex}
+                className="home-location-word"
+                style={{ "--location-duration": `${locationDuration}ms` }}
+              >
+                {location}
+              </span>
             </span>
+            <span className="home-afghanistan-suffix">ــــــــــــتان</span>
           </span>
         </h1>
       </section>
