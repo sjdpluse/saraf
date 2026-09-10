@@ -15,10 +15,23 @@ _IDS = {
     "USDT": "tether",
     "USDC": "usd-coin",
     "BTC": "bitcoin",
+    "ETH": "ethereum",
     "SOL": "solana",
     "BNB": "binancecoin",
     "XRP": "ripple",
     "TON": "the-open-network",
+    "ADA": "cardano",
+    "DOGE": "dogecoin",
+    "TRX": "tron",
+    "AVAX": "avalanche-2",
+    "DOT": "polkadot",
+    "LINK": "chainlink",
+    "LTC": "litecoin",
+    "BCH": "bitcoin-cash",
+    "XLM": "stellar",
+    "SHIB": "shiba-inu",
+    "UNI": "uniswap",
+    "ATOM": "cosmos",
 }
 _CACHE_TTL = 90
 _MAX_AGE = 300
