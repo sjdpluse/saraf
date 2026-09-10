@@ -16,21 +16,21 @@ const COINS = [
   { symbol: "TON", name: "تون", logo: "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color/ton.png", accent: "#0098ea" },
 ];
 
-// Fixed map anchors with one shared master cycle. Each marker fades/scales in at
-// its own anchor, emits a subtle ripple, stays readable briefly, and fades out.
-// Delays are intentionally irregular so 2-4 markers can overlap without the
-// mechanical cadence of a carousel.
+// Percentage anchors are tied to recognizable province centers on the exact
+// 3:2 Afghanistan silhouette used by the Mini App. Keeping them relative to
+// the map stage means the markers remain over the same provinces at every
+// mobile width instead of drifting with viewport pixels.
 const FLOATERS = [
-  { coin: 0, x: 20, y: 66, delay: -0.18, scale: 0.98 },
-  { coin: 2, x: 29, y: 46, delay: -0.66, scale: 0.92 },
-  { coin: 1, x: 38, y: 71, delay: -1.17, scale: 0.96 },
-  { coin: 3, x: 47, y: 40, delay: -1.73, scale: 0.9 },
-  { coin: 4, x: 56, y: 61, delay: -2.12, scale: 0.94 },
-  { coin: 5, x: 66, y: 47, delay: -2.71, scale: 0.9 },
-  { coin: 6, x: 75, y: 65, delay: -3.23, scale: 0.94 },
-  { coin: 2, x: 81, y: 37, delay: -3.69, scale: 0.86 },
-  { coin: 0, x: 44, y: 55, delay: -4.08, scale: 0.88 },
-  { coin: 1, x: 62, y: 75, delay: -4.55, scale: 0.9 },
+  { province: "هرات", coin: 0, x: 15, y: 49, delay: 0, scale: 0.98 },
+  { province: "بلخ", coin: 2, x: 42, y: 26, delay: -0.48, scale: 0.92 },
+  { province: "کابل", coin: 1, x: 61, y: 44, delay: -0.96, scale: 0.96 },
+  { province: "قندهار", coin: 3, x: 38, y: 75, delay: -1.44, scale: 0.9 },
+  { province: "ننگرهار", coin: 4, x: 69, y: 46, delay: -1.92, scale: 0.94 },
+  { province: "کندز", coin: 5, x: 58, y: 25, delay: -2.4, scale: 0.9 },
+  { province: "بامیان", coin: 6, x: 50, y: 44, delay: -2.88, scale: 0.94 },
+  { province: "غزنی", coin: 2, x: 56, y: 57, delay: -3.36, scale: 0.86 },
+  { province: "هلمند", coin: 0, x: 28, y: 73, delay: -3.84, scale: 0.88 },
+  { province: "بدخشان", coin: 1, x: 69, y: 18, delay: -4.32, scale: 0.9 },
 ];
 
 function CoinLogo({ coin }) {
@@ -102,7 +102,8 @@ export default function MarketMap() {
             return (
               <div
                 className="map-floater"
-                key={`${coin.symbol}-${index}`}
+                data-province={floater.province}
+                key={`${floater.province}-${coin.symbol}-${index}`}
                 style={{
                   left: `${floater.x}%`,
                   top: `${floater.y}%`,
