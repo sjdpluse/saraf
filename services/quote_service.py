@@ -20,6 +20,20 @@ logger = logging.getLogger(__name__)
 
 _QUOTE_TTL_SECONDS = int(USDT_QUOTE_VALIDITY_MINUTES * 60)
 _SUPPORTED_ASSETS = {"USDT", "USDC"}
+_PRICING_FIELDS = (
+    "pricing_model",
+    "market_margin_usd",
+    "supplier_profit_usd",
+    "saraf_profit_usd",
+    "customer_discount_usd",
+    "supplier_payout_usd",
+    "market_price_usd",
+    "supplier_profit_afn",
+    "saraf_profit_afn",
+    "customer_discount_afn",
+    "supplier_payout_afn",
+    "market_price_afn",
+)
 
 
 class QuoteError(ValueError):
@@ -48,26 +62,24 @@ def create_quote(
     """Quote محاسبه‌شده را ذخیره و به کاربر، نوع معامله و دارایی متصل می‌کند."""
     asset = _normalize_asset(asset or quote.get("asset"))
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=_QUOTE_TTL_SECONDS)
+    row = {
+        "chat_id": chat_id,
+        "order_type": order_type,
+        "asset": asset,
+        "usdt_amount": amount,
+        "usd_rate": quote["usd_rate"],
+        "fee_percent": quote.get("fee_percent", 0),
+        "total_afn": quote["total_afn"],
+        "total_usd": quote["total_usd"],
+        "status": "active",
+        "expires_at": expires_at.isoformat(),
+    }
+    for field in _PRICING_FIELDS:
+        if field in quote:
+            row[field] = quote[field]
+
     try:
-        res = (
-            db.get_client()
-            .table("usdt_quotes")
-            .insert(
-                {
-                    "chat_id": chat_id,
-                    "order_type": order_type,
-                    "asset": asset,
-                    "usdt_amount": amount,
-                    "usd_rate": quote["usd_rate"],
-                    "fee_percent": quote.get("fee_percent", 0),
-                    "total_afn": quote["total_afn"],
-                    "total_usd": quote["total_usd"],
-                    "status": "active",
-                    "expires_at": expires_at.isoformat(),
-                }
-            )
-            .execute()
-        )
+        res = db.get_client().table("usdt_quotes").insert(row).execute()
     except Exception:
         logger.exception("خطا در ذخیرهٔ Quote برای %s", asset)
         res = None
@@ -86,6 +98,7 @@ def create_quote(
             "asset": asset,
             "usdt_amount": amount,
             "total_afn": quote.get("total_afn"),
+            "pricing_model": quote.get("pricing_model"),
         },
     )
     result = dict(quote)
