@@ -1,21 +1,21 @@
 /* Saraf brand refresh — blue brand, Apple-gray map, compact market motion. */
 :root {
-  --color-primary: #0066cc;
+  --color-primary: #0071e3;
   --color-primary-light: #0a84ff;
-  --color-primary-dark: #0040a8;
-  --color-info: #0066cc;
-  --color-info-bg: rgba(0, 102, 204, .09);
-  --gradient-primary: linear-gradient(135deg, #2b9dff 0%, #0066cc 52%, #0040a8 100%);
-  --color-buy: #0066cc;
-  --color-buy-bg: rgba(0, 102, 204, .09);
-  --color-buy-border: rgba(0, 102, 204, .28);
+  --color-primary-dark: #0040c9;
+  --color-info: #0071e3;
+  --color-info-bg: rgba(0, 113, 227, .09);
+  --gradient-primary: linear-gradient(135deg, #2b9dff 0%, #0071e3 52%, #0040c9 100%);
+  --color-buy: #0071e3;
+  --color-buy-bg: rgba(0, 113, 227, .09);
+  --color-buy-border: rgba(0, 113, 227, .28);
 }
 
 button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within {
   outline-color: #0a84ff;
 }
-.btn-primary, .btn-buy { box-shadow: 0 3px 10px rgba(0, 102, 204, .12); }
-.input:focus { box-shadow: 0 0 0 3px rgba(0, 102, 204, .12); }
+.btn-primary, .btn-buy { box-shadow: 0 3px 10px rgba(0, 113, 227, .12); }
+.input:focus { box-shadow: 0 0 0 3px rgba(0, 113, 227, .12); }
 
 .home-header { direction: rtl; }
 .home-brand { margin-inline-start: auto; }
@@ -55,6 +55,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 }
 .home-location-word {
   grid-area: 1 / 1;
+  position: relative;
   color: #0066cc !important;
   font-weight: 900;
   white-space: nowrap;
@@ -201,11 +202,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 .market-map.is-paused .map-floater { animation-play-state: paused; }
 .market-map figcaption, .map-motion-button, .map-pulse, .map-anchor { display: none !important; }
 
-.trade-panel { border-color: rgba(0,102,204,.14); }
+.trade-panel { border-color: rgba(0,113,227,.14); }
 .trade-action.purchase { background: var(--gradient-primary); }
 .trade-action.sale { background: #eef3f8; }
-.remittance-entry-icon { color: var(--color-primary); background: rgba(0,102,204,.08); }
-.menu-support { background: rgba(0,102,204,.08); }
+.remittance-entry-icon { color: var(--color-primary); background: rgba(0,113,227,.08); }
+.menu-support { background: rgba(0,113,227,.08); }
 .asset-choice.selected { border-color: var(--color-primary); background: #f2f8ff; }
 .app-menu::backdrop { background: rgba(15, 23, 42, .36); }
 
