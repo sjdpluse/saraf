@@ -17,7 +17,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 .home-brand { margin-inline-start: auto; }
 .home-brand > img { width: 58px; height: 58px; border-radius: 0; background: transparent; box-shadow: none; object-fit: contain; }
 .home-intro { padding-top: 0; margin-top: -12px; }
-.home-title-stack { margin: -13px 0 4px !important; display:flex !important; flex-direction:column !important; flex-wrap:nowrap !important; align-items:center; justify-content:center; gap:1px !important; line-height:1.42 !important; position:relative; z-index:3; }
+.home-title-stack { margin: -3px 0 4px !important; display:flex !important; flex-direction:column !important; flex-wrap:nowrap !important; align-items:center; justify-content:center; gap:1px !important; line-height:1.42 !important; position:relative; z-index:3; }
 .home-title-copy { display:block; color:#1d1d1f !important; font-size:clamp(.96rem,4.1vw,1.16rem); font-weight:800; line-height:1.65; }
 .home-afghanistan-line { direction:rtl; display:inline-flex; align-items:center; justify-content:center; min-height:30px; max-width:100%; white-space:nowrap; line-height:1; }
 .home-afghanistan-prefix,.home-afghanistan-suffix { color:#1d1d1f !important; font-size:clamp(.54rem,2.35vw,.68rem); font-weight:400; letter-spacing:-.02em; line-height:1; }
@@ -36,47 +36,34 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 .province-boundary-line { display:none !important; }
 @keyframes province-dot-focus { from{opacity:0} to{opacity:.30} }
 
-/* Three rotating slots. The parent marker is always visible; only its content
-   animates. One slot is replaced every 420ms, so there is no all-hidden phase. */
+/* One synchronized market marker per active province. Its lifetime matches the
+   province-name lifetime, so one random coin fades in, holds, and fades out
+   before the next province takes over. */
 .map-floater { position:absolute; width:0; height:0; opacity:1 !important; visibility:visible !important; transform-origin:center; z-index:5; }
-.map-token { position:absolute; left:0; top:0; display:flex; flex-direction:column; align-items:center; gap:3px; transform:translate(-50%,-50%) scale(var(--float-scale)); white-space:nowrap; opacity:0; animation:map-token-life 1.26s cubic-bezier(.22,1,.36,1) both; will-change:opacity,transform,filter; }
+.map-token { position:absolute; left:0; top:0; display:flex; flex-direction:column; align-items:center; gap:3px; transform:translate(-50%,-50%) scale(var(--float-scale)); white-space:nowrap; opacity:0; animation:map-token-life var(--coin-duration) cubic-bezier(.22,1,.36,1) both; will-change:opacity,transform,filter; }
 .map-coin-shell { position:relative; width:24px; height:24px; display:grid; place-items:center; }
-.map-coin-shell::before,.map-coin-shell::after { content:""; position:absolute; inset:1px; border:1px solid color-mix(in srgb,var(--coin-accent) 55%,transparent); border-radius:50%; opacity:0; transform:scale(.72); pointer-events:none; }
-.map-coin-shell::before { animation:map-coin-ripple 1.26s ease-out both; }
-.map-coin-shell::after { animation:map-coin-ripple-secondary 1.26s ease-out both; }
+.map-coin-shell::before,.map-coin-shell::after { content:none !important; }
 .map-coin { width:20px; height:20px; flex:0 0 20px; border:0; border-radius:50%; background:transparent; box-shadow:0 1px 5px rgba(29,29,31,.11); display:grid; place-items:center; position:relative; z-index:2; }
 .map-coin img { width:100%; height:100%; border-radius:50%; object-fit:contain; display:block; }
 .map-coin-fallback { font-size:.48rem; color:#1d1d1f; font-weight:700; }
 .map-change { margin:0; padding:0; border:0; background:transparent; box-shadow:none; color:var(--coin-accent); font-size:.52rem; line-height:1; font-weight:300; letter-spacing:.01em; text-shadow:0 1px 4px rgba(255,255,255,.92); display:inline-flex; align-items:baseline; gap:1px; direction:ltr; min-height:.58rem; }
-.map-change-sign { display:inline-block; font-weight:300; opacity:0; transform:translateY(7px); animation:map-sign-rise 1.26s cubic-bezier(.22,1,.36,1) both; }
+.map-change-sign { display:inline-block; font-weight:300; opacity:0; transform:translateY(7px); animation:map-sign-rise var(--coin-duration) cubic-bezier(.22,1,.36,1) both; }
 .map-change-value { font-weight:300; }
 .map-change.is-waiting { opacity:.42; }
 
 @keyframes map-token-life {
-  0% { opacity:0; transform:translate(-50%,-50%) scale(calc(var(--float-scale) * .78)); filter:blur(1.2px); }
-  14% { opacity:1; transform:translate(-50%,-50%) scale(var(--float-scale)); filter:blur(0); }
-  82% { opacity:1; transform:translate(-50%,-50%) scale(var(--float-scale)); filter:blur(0); }
-  100% { opacity:0; transform:translate(-50%,-50%) scale(calc(var(--float-scale) * .96)); filter:blur(.45px); }
+  0% { opacity:0; transform:translate(-50%,-50%) scale(calc(var(--float-scale) * .86)); filter:blur(.9px); }
+  16% { opacity:1; transform:translate(-50%,-50%) scale(var(--float-scale)); filter:blur(0); }
+  74% { opacity:1; transform:translate(-50%,-50%) scale(var(--float-scale)); filter:blur(0); }
+  100% { opacity:0; transform:translate(-50%,-50%) scale(calc(var(--float-scale) * .96)); filter:blur(.35px); }
 }
 @keyframes map-sign-rise {
-  0%,10% { opacity:0; transform:translateY(8px); }
-  26% { opacity:1; transform:translateY(0); }
-  82% { opacity:1; transform:translateY(0); }
+  0%,12% { opacity:0; transform:translateY(7px); }
+  28% { opacity:1; transform:translateY(0); }
+  74% { opacity:1; transform:translateY(0); }
   100% { opacity:0; transform:translateY(-1px); }
 }
-@keyframes map-coin-ripple {
-  0%,12% { opacity:0; transform:scale(.72); }
-  19% { opacity:.30; transform:scale(.82); }
-  46% { opacity:0; transform:scale(2.05); }
-  100% { opacity:0; transform:scale(2.05); }
-}
-@keyframes map-coin-ripple-secondary {
-  0%,22% { opacity:0; transform:scale(.72); }
-  29% { opacity:.16; transform:scale(.82); }
-  54% { opacity:0; transform:scale(1.7); }
-  100% { opacity:0; transform:scale(1.7); }
-}
-.market-map.is-paused .map-token,.market-map.is-paused .map-change-sign,.market-map.is-paused .map-coin-shell::before,.market-map.is-paused .map-coin-shell::after { animation-play-state:paused; }
+.market-map.is-paused .map-token,.market-map.is-paused .map-change-sign { animation-play-state:paused; }
 .market-map figcaption,.map-motion-button,.map-pulse,.map-anchor,.province-highlight { display:none !important; }
 
 .trade-panel { border-color:rgba(0,113,227,.14); }
@@ -99,7 +86,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
   .map-change { font-size:.49rem; }
 }
 @media (prefers-reduced-motion:reduce) {
-  .home-location-word,.province-dot-image,.map-token,.map-change-sign,.map-coin-shell::before,.map-coin-shell::after { animation:none !important; }
+  .home-location-word,.province-dot-image,.map-token,.map-change-sign { animation:none !important; }
   .home-location-word { opacity:1; transform:none; }
   .province-dot-image { opacity:.30; }
   .map-token { opacity:1; filter:none; transform:translate(-50%,-50%) scale(var(--float-scale)); }

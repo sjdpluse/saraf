@@ -5,8 +5,6 @@ import { TETHER_LOGO_URL, USDC_LOGO_URL } from "../lib/brand";
 import afghanistanMap from "../assets/afghanistan-dots.webp";
 
 const ICON_BASE = "https://cdn.jsdelivr.net/gh/spothq/cryptocurrency-icons@master/128/color";
-const SLOT_INTERVAL_MS = 420;
-const ACTIVE_SLOTS = 3;
 const PROVINCE_DATA_URL = "https://raw.githubusercontent.com/periodo/periodo-places/1563735c333174952541241c7c9640b346387533/gazetteers/afghan-provinces.json";
 
 const COINS = [
@@ -32,28 +30,17 @@ const COINS = [
   { symbol: "ATOM", logo: `${ICON_BASE}/atom.png`, accent: "#2e3148" },
 ];
 
-const MARKERS = [
-  { province: "هرات", coin: 0, x: 15, y: 49, scale: .98 },
-  { province: "بلخ", coin: 2, x: 42, y: 26, scale: .92 },
-  { province: "کابل", coin: 1, x: 61, y: 44, scale: .96 },
-  { province: "قندهار", coin: 4, x: 38, y: 75, scale: .9 },
-  { province: "ننگرهار", coin: 5, x: 69, y: 46, scale: .94 },
-  { province: "کندز", coin: 6, x: 58, y: 25, scale: .9 },
-  { province: "بامیان", coin: 3, x: 50, y: 44, scale: .94 },
-  { province: "غزنی", coin: 7, x: 56, y: 57, scale: .86 },
-  { province: "هلمند", coin: 8, x: 28, y: 73, scale: .88 },
-  { province: "بدخشان", coin: 9, x: 69, y: 18, scale: .9 },
-  { province: "فراه", coin: 10, x: 17, y: 64, scale: .9 },
-  { province: "تخار", coin: 11, x: 61, y: 19, scale: .9 },
-  { province: "بغلان", coin: 12, x: 55, y: 31, scale: .9 },
-  { province: "پروان", coin: 13, x: 58, y: 39, scale: .88 },
-  { province: "دایکندی", coin: 14, x: 43, y: 56, scale: .9 },
-  { province: "غور", coin: 15, x: 32, y: 50, scale: .88 },
-  { province: "فاریاب", coin: 16, x: 33, y: 26, scale: .9 },
-  { province: "پکتیا", coin: 17, x: 62, y: 61, scale: .88 },
-  { province: "خوست", coin: 18, x: 67, y: 61, scale: .88 },
-  { province: "نیمروز", coin: 19, x: 17, y: 80, scale: .9 },
-];
+const PROVINCE_POINTS = {
+  "کابل": [61, 44], "بامیان": [50, 44], "مزار شریف": [42, 26], "بلخ": [42, 26],
+  "هرات": [15, 49], "کندهار": [38, 75], "ننگرهار": [69, 46], "کندز": [58, 25],
+  "بدخشان": [69, 18], "غزنی": [56, 57], "هلمند": [28, 73], "فراه": [17, 64],
+  "تخار": [61, 19], "بغلان": [55, 31], "پروان": [58, 39], "پنجشیر": [61, 34],
+  "دایکندی": [43, 56], "غور": [32, 50], "فاریاب": [33, 26], "جوزجان": [38, 23],
+  "سمنگان": [47, 28], "سرپل": [39, 33], "بادغیس": [22, 37], "نیمروز": [17, 80],
+  "زابل": [47, 70], "پکتیا": [62, 61], "پکتیکا": [58, 68], "خوست": [67, 61],
+  "لغمان": [65, 42], "نورستان": [68, 34], "کنر": [72, 39], "کاپیسا": [61, 38],
+  "میدان وردک": [57, 49], "لوگر": [61, 52], "ارزگان": [44, 64],
+};
 
 const PROVINCE_NAME_MAP = {
   "کابل": ["Kabul"], "بامیان": ["Bamyan", "Bamiyan"], "مزار شریف": ["Balkh"], "بلخ": ["Balkh"],
@@ -163,14 +150,11 @@ function ProvinceOverlay({ activeLocation }) {
   );
 }
 
-export default function MarketMap({ activeLocation }) {
+export default function MarketMap({ activeLocation, activeDuration = 1700 }) {
   const [snapshot, setSnapshot] = useState(null);
   const [hidden, setHidden] = useState(document.hidden);
   const [now, setNow] = useState(Date.now());
-  const [sequence, setSequence] = useState(ACTIVE_SLOTS);
-  const [activeMarkers, setActiveMarkers] = useState(() =>
-    Array.from({ length: ACTIVE_SLOTS }, (_, i) => ({ markerIndex: i, instance: i }))
-  );
+  const [coinIndex, setCoinIndex] = useState(() => Math.floor(Math.random() * COINS.length));
 
   useEffect(() => {
     let mounted = true;
@@ -204,21 +188,21 @@ export default function MarketMap({ activeLocation }) {
   }, []);
 
   useEffect(() => {
-    if (hidden) return undefined;
-    const timer = window.setInterval(() => {
-      setSequence((current) => {
-        const next = current + 1;
-        setActiveMarkers((items) => [
-          ...items.slice(-(ACTIVE_SLOTS - 1)),
-          { markerIndex: current % MARKERS.length, instance: next },
-        ]);
-        return next;
-      });
-    }, SLOT_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [hidden]);
+    setCoinIndex((current) => {
+      if (COINS.length < 2) return 0;
+      let next = current;
+      while (next === current) next = Math.floor(Math.random() * COINS.length);
+      return next;
+    });
+  }, [activeLocation]);
 
-  const rendered = useMemo(() => activeMarkers.map((item) => ({ ...item, marker: MARKERS[item.markerIndex] })), [activeMarkers]);
+  const point = PROVINCE_POINTS[activeLocation] || PROVINCE_POINTS["کابل"];
+  const coin = COINS[coinIndex];
+  const change = marketChange(snapshot, coin.symbol, now);
+  const rounded = change === null ? null : Number(change.toFixed(2));
+  const sign = rounded === null ? "" : rounded > 0 ? "+" : rounded < 0 ? "−" : "";
+  const value = rounded === null ? null : Math.abs(rounded).toFixed(2);
+  const markerKey = `${activeLocation}-${coin.symbol}`;
 
   return (
     <figure className={"market-map " + (hidden ? "is-paused" : "")} aria-label="نمای زندهٔ رمزارزها روی نقشهٔ افغانستان">
@@ -226,25 +210,25 @@ export default function MarketMap({ activeLocation }) {
         <div className="afghanistan-dots" role="img" aria-label="نقشهٔ نقطه‌یی افغانستان" />
         <ProvinceOverlay activeLocation={activeLocation} />
         <div className="map-market-flow" aria-hidden="true">
-          {rendered.map(({ marker, instance }) => {
-            const coin = COINS[marker.coin];
-            const change = marketChange(snapshot, coin.symbol, now);
-            const rounded = change === null ? null : Number(change.toFixed(2));
-            const sign = rounded === null ? "" : rounded > 0 ? "+" : rounded < 0 ? "−" : "";
-            const value = rounded === null ? null : Math.abs(rounded).toFixed(2);
-
-            return (
-              <div className="map-floater" key={instance} style={{ left: `${marker.x}%`, top: `${marker.y}%`, "--float-scale": marker.scale, "--coin-accent": coin.accent }}>
-                <div className="map-token">
-                  <span className={`map-change num ${value === null ? "is-waiting" : ""}`}>
-                    <span className="map-change-sign">{sign}</span>
-                    <span className="map-change-value">{value ?? "··"}</span>
-                  </span>
-                  <span className="map-coin-shell"><span className="map-coin"><CoinLogo coin={coin} /></span></span>
-                </div>
-              </div>
-            );
-          })}
+          <div
+            className="map-floater"
+            key={markerKey}
+            style={{
+              left: `${point[0]}%`,
+              top: `${point[1]}%`,
+              "--float-scale": .96,
+              "--coin-accent": coin.accent,
+              "--coin-duration": `${activeDuration}ms`,
+            }}
+          >
+            <div className="map-token">
+              <span className={`map-change num ${value === null ? "is-waiting" : ""}`}>
+                <span className="map-change-sign">{sign}</span>
+                <span className="map-change-value">{value ?? "··"}</span>
+              </span>
+              <span className="map-coin-shell"><span className="map-coin"><CoinLogo coin={coin} /></span></span>
+            </div>
+          </div>
         </div>
       </div>
     </figure>
