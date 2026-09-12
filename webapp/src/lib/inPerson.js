@@ -1,4 +1,5 @@
-export const IN_PERSON_ADDRESS = "کوته‌سنگی، همادی مارکیت، کابل، افغانستان";
+export const IN_PERSON_ADDRESS = "کوته‌سنگی، حمادی مارکیت، کابل، افغانستان";
+export const IN_PERSON_MAP_URL = "https://maps.app.goo.gl/9oJXYnfyJ8QvAGvXA?g_st=atm";
 export const IN_PERSON_REPRESENTATIVE_PHONE = "0790810632";
 export const SARAF_SUPPORT_PHONE = "0775146747";
 
