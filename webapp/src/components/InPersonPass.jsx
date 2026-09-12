@@ -5,6 +5,7 @@ import { downloadTelegramFile } from "../lib/telegram";
 import { SARAF_LOGO_URL, assetLogo, normalizeAsset } from "../lib/brand";
 import {
   IN_PERSON_ADDRESS,
+  IN_PERSON_MAP_URL,
   IN_PERSON_REPRESENTATIVE_PHONE,
   SARAF_SUPPORT_PHONE,
 } from "../lib/inPerson";
@@ -105,6 +106,9 @@ export default function InPersonPass({
 
         <div className="inperson-action">{actionFa}</div>
         <div className="inperson-address"><MapPin size={18} weight="fill" /><span>{IN_PERSON_ADDRESS}</span></div>
+        <a className="btn btn-secondary" href={IN_PERSON_MAP_URL} target="_blank" rel="noopener noreferrer" style={{ marginTop: 10 }}>
+          <MapPin size={18} weight="fill" /> مشاهده آدرس در Google Maps
+        </a>
         <div className="inperson-code"><span>کد مراجعه</span><CyberCode code={code} /></div>
 
         <div className="inperson-contact-grid">
