@@ -101,6 +101,9 @@ def _buy_admin_pricing(amount: float, quote: dict) -> dict:
     customer_fee_usd = max(0.0, total_usd - amount_usd)
     customer_fee_afn = max(0.0, total_afn - base_afn)
 
+    # These values are part of the immutable stored quote. Do not derive them
+    # from the current market rate if they are present, because settlement must
+    # remain tied to the customer's original quote.
     supplier_profit_usd = float(quote.get("supplier_profit_usd") or 0)
     supplier_profit_afn = float(quote.get("supplier_profit_afn") or 0)
     supplier_payout_usd = float(quote.get("supplier_payout_usd") or 0)
