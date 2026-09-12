@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONTS = os.path.join(ROOT, "assets", "fonts")
 SARAF_LOGO = os.path.join(ROOT, "logosaraf.png")
 
-IN_PERSON_ADDRESS = "کوته‌سنگی، همادی مارکیت، کابل، افغانستان"
+IN_PERSON_ADDRESS = "کوته‌سنگی، حمادی مارکیت، کابل، افغانستان"
 REPRESENTATIVE_PHONE = "0790810632"
 SUPPORT_PHONE = "0775146747"
 
@@ -88,12 +88,10 @@ async def generate_in_person_pass(action: str, asset: str, code: str) -> bytes:
     page = Image.new("RGBA", (width, height), (245, 245, 247, 255))
     draw = ImageDraw.Draw(page)
 
-    # Card + subtle header surface
     draw.rounded_rectangle((70, 55, 1130, 705), radius=48, fill=(255, 255, 255, 255), outline=(225, 228, 234, 255), width=2)
     draw.rounded_rectangle((70, 55, 1130, 235), radius=48, fill=(242, 248, 255, 255))
     draw.rectangle((70, 185, 1130, 235), fill=(242, 248, 255, 255))
 
-    # Saraf logo
     try:
         saraf = Image.open(SARAF_LOGO).convert("RGBA")
         saraf = _fit_logo(saraf, 82)
@@ -101,7 +99,6 @@ async def generate_in_person_pass(action: str, asset: str, code: str) -> bytes:
     except Exception:
         logger.exception("Could not load Saraf logo for in-person pass")
 
-    # Asset logo, with safe fallback badge
     asset_img = await _asset_logo(selected_asset)
     if asset_img is not None:
         asset_img = _fit_logo(asset_img, 76, circular=True)
@@ -129,7 +126,6 @@ async def generate_in_person_pass(action: str, asset: str, code: str) -> bytes:
     _rtl(draw, (600, 430), "کد مراجعه", small, (110, 110, 115))
     draw.text((600, 498), str(code), font=code_font, fill=(0, 113, 227), anchor="mm", spacing=12)
 
-    # Contact cells
     draw.rounded_rectangle((125, 585, 575, 665), radius=20, fill=(248, 248, 250, 255), outline=(232, 232, 235, 255), width=1)
     draw.rounded_rectangle((625, 585, 1075, 665), radius=20, fill=(248, 248, 250, 255), outline=(232, 232, 235, 255), width=1)
     _rtl(draw, (350, 608), "شماره نماینده صراف", small, (110, 110, 115))
