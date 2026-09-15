@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import afghanistanMap from "../assets/afghanistan-map.webp";
+import afghanistanMap from "../assets/afghanistan-map.svg";
 
 const PROVINCE_DATA_URL = "https://raw.githubusercontent.com/periodo/periodo-places/1563735c333174952541241c7c9640b346387533/gazetteers/afghan-provinces.json";
-const MAP_WIDTH = 600;
-const MAP_HEIGHT = 473;
-const MAP_BOUNDS = { left: 33, top: 35, right: 567, bottom: 438 };
+const MAP_WIDTH = 2000;
+const MAP_HEIGHT = 1578;
+const MAP_BOUNDS = { left: 128, top: 120, right: 1871, bottom: 1455 };
 
 const PROVINCE_NAME_MAP = {
   "کابل": ["Kabul"], "بامیان": ["Bamyan", "Bamiyan"], "مزار شریف": ["Balkh"], "بلخ": ["Balkh"],
