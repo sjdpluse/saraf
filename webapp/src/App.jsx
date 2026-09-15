@@ -10,6 +10,7 @@ import Remittance from "./pages/Remittance";
 import Remittances from "./pages/Remittances";
 import About from "./pages/About";
 import Toast from "./components/Toast";
+import BottomNav from "./components/BottomNav";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
 import { SARAF_LOGO_URL, normalizeAsset } from "./lib/brand";
 
@@ -158,6 +159,7 @@ export default function App() {
           />
         )}
       </div>
+      <BottomNav page={page} navigate={navigate} />
       <Toast message={error} onClose={() => setError(null)} />
     </>
   );
