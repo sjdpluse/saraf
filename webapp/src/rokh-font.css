@@ -1,0 +1,96 @@
+@font-face {
+  font-family: "Rokh";
+  src: url("./assets/fonts/Rokh-Thin.woff2") format("woff2");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Rokh";
+  src: url("./assets/fonts/Rokh-ExtraLight.woff2") format("woff2");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Rokh";
+  src: url("./assets/fonts/Rokh-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Rokh";
+  src: url("./assets/fonts/Rokh-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Rokh";
+  src: url("./assets/fonts/Rokh-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Rokh";
+  src: url("./assets/fonts/Rokh-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Rokh";
+  src: url("./assets/fonts/Rokh-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Rokh";
+  src: url("./assets/fonts/Rokh-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Rokh";
+  src: url("./assets/fonts/Rokh-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-fa: "Rokh", sans-serif;
+  --font-num: "Rokh", sans-serif;
+}
+
+html,
+body,
+#root,
+button,
+input,
+textarea,
+select,
+option {
+  font-family: "Rokh", sans-serif;
+}
+
+input::placeholder,
+textarea::placeholder {
+  font-family: "Rokh", sans-serif;
+}
+
+.num {
+  font-family: "Rokh", sans-serif;
+}
