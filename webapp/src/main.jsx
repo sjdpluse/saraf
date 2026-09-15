@@ -6,6 +6,7 @@ import "./remittance.css";
 import "./ui.css";
 import "./brand-refresh.css";
 import "./peyda-font.css";
+import "./ux-effects.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
