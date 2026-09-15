@@ -1,0 +1,297 @@
+/* Menu page: use the same clean full-page language as Orders. */
+.menu-page-shell {
+  gap: 16px !important;
+}
+.menu-page-shell .header {
+  margin-bottom: 2px !important;
+}
+.menu-page-shell .header h1 {
+  width: 100%;
+  justify-content: center;
+  font-size: 18px;
+}
+.menu-page-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.menu-page-item,
+.menu-page-support {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,.07);
+  background: #fff;
+  border-radius: 18px;
+  min-height: 76px;
+  padding: 14px 15px;
+  display: grid;
+  grid-template-columns: 42px minmax(0,1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  direction: rtl;
+  color: #1d1d1f;
+  text-align: right;
+  font-family: inherit;
+  box-shadow: 0 5px 18px rgba(0,0,0,.045);
+  cursor: pointer;
+  transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s ease, border-color .18s ease;
+}
+.menu-page-item:active,
+.menu-page-support:active {
+  transform: scale(.985);
+}
+.menu-page-item:hover,
+.menu-page-support:hover {
+  border-color: rgba(0,76,255,.18);
+  box-shadow: 0 10px 26px rgba(0,0,0,.07);
+}
+.menu-page-item-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,76,255,.08);
+  color: #004cff;
+}
+.menu-page-item-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.menu-page-item-copy strong {
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+.menu-page-item-copy small {
+  color: #6c757d;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+.menu-page-support {
+  margin-top: 2px;
+  background: linear-gradient(180deg, #fff, #f9fbff);
+}
+.menu-page-support .menu-page-item-icon {
+  background: rgba(28,166,76,.09);
+  color: #1ca64c;
+}
+
+/* Error popup: anchored under the action that generated it; centered fallback. */
+.toast.saraf-toast {
+  position: fixed !important;
+  bottom: auto !important;
+  z-index: 9999 !important;
+  width: min(390px, calc(100vw - 32px));
+  min-height: 48px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 9px;
+  direction: rtl;
+  text-align: center;
+  background: rgba(255,255,255,.97) !important;
+  color: #b42318;
+  border: 1px solid rgba(255,59,48,.20);
+  box-shadow: 0 14px 40px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: toastPop .28s cubic-bezier(.22,1,.36,1) both !important;
+}
+.toast.saraf-toast.toast-anchored {
+  transform: translateX(-50%) !important;
+}
+.toast.saraf-toast.toast-centered {
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}
+.toast.saraf-toast svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.toast.saraf-toast span {
+  line-height: 1.65;
+  font-size: 13px;
+  font-weight: 650;
+}
+@keyframes toastPop {
+  from { opacity: 0; transform: translate(-50%, 8px) scale(.96); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+.toast.saraf-toast.toast-centered {
+  animation-name: toastPopCenter !important;
+}
+@keyframes toastPopCenter {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Exchange / wallet choices. Logos are transparent and visually outside the button on the left. */
+.exchange-choice-row {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px !important;
+  padding-left: 48px;
+  overflow: visible;
+}
+.exchange-choice-row .exchange-option {
+  position: relative;
+  width: 100%;
+  min-height: 52px;
+  justify-content: flex-start;
+  text-align: right;
+  direction: rtl;
+  padding: 12px 14px !important;
+  overflow: visible;
+}
+.exchange-choice-row .exchange-option > img {
+  display: none !important;
+}
+.exchange-choice-row .exchange-option::after {
+  content: "";
+  position: absolute;
+  left: -45px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  background-image: var(--exchange-logo);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  pointer-events: none;
+}
+.exchange-choice-row .broker-option {
+  margin-top: 32px;
+}
+.exchange-choice-row .broker-option::before {
+  content: "بروکر";
+  position: absolute;
+  top: -27px;
+  right: 0;
+  left: -48px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6c757d;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-top: 1px solid rgba(0,0,0,.08);
+  padding-top: 7px;
+}
+
+/* Staged entry: content arrives top-to-bottom on each step. */
+.card.animate-in > * {
+  opacity: 0;
+  transform: translateY(-8px);
+  animation: stageItemIn .45s cubic-bezier(.22,1,.36,1) forwards;
+}
+.card.animate-in > *:nth-child(1) { animation-delay: .03s; }
+.card.animate-in > *:nth-child(2) { animation-delay: .09s; }
+.card.animate-in > *:nth-child(3) { animation-delay: .15s; }
+.card.animate-in > *:nth-child(4) { animation-delay: .21s; }
+.card.animate-in > *:nth-child(5) { animation-delay: .27s; }
+.card.animate-in > *:nth-child(6) { animation-delay: .33s; }
+.card.animate-in > *:nth-child(n+7) { animation-delay: .39s; }
+@keyframes stageItemIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+.quote-row,
+.quote-total {
+  animation: quoteRowIn .48s cubic-bezier(.22,1,.36,1) both;
+}
+.quote-row:nth-child(1) { animation-delay: .08s; }
+.quote-row:nth-child(2) { animation-delay: .14s; }
+.quote-row:nth-child(3) { animation-delay: .20s; }
+.quote-row:nth-child(4) { animation-delay: .26s; }
+.quote-total { animation-delay: .32s; }
+@keyframes quoteRowIn {
+  from { opacity: 0; transform: translateY(-7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Animated primary stage buttons, adapted from the supplied rotating-gradient concept without adding styled-components. */
+.flow-stage-btn {
+  --flow-a: #ffffff;
+  --flow-b: #004cff;
+  --flow-c: #68a0ff;
+  position: relative !important;
+  isolation: isolate;
+  overflow: hidden !important;
+  border-radius: 18px !important;
+  border: 1px solid rgba(255,255,255,.9) !important;
+  color: #fff !important;
+  background: #004cff !important;
+  box-shadow: inset 0 0 12px rgba(255,255,255,.16), 0 8px 20px rgba(0,76,255,.20) !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,.18);
+}
+.flow-stage-btn.btn-buy {
+  --flow-b: #0c9b53;
+  --flow-c: #42d987;
+  background: #149b55 !important;
+  box-shadow: inset 0 0 12px rgba(255,255,255,.14), 0 8px 20px rgba(20,155,85,.18) !important;
+}
+.flow-stage-btn.btn-sell {
+  --flow-b: #ff3b30;
+  --flow-c: #ff786f;
+  background: #ef4138 !important;
+  box-shadow: inset 0 0 12px rgba(255,255,255,.13), 0 8px 20px rgba(239,65,56,.18) !important;
+}
+.flow-stage-btn::before {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  pointer-events: none;
+  left: -130%;
+  top: -370%;
+  width: 360%;
+  aspect-ratio: 1;
+  background:
+    radial-gradient(ellipse at 65% 180%, var(--flow-a), var(--flow-b), var(--flow-a), var(--flow-c), var(--flow-a), var(--flow-b), var(--flow-a));
+  mix-blend-mode: soft-light;
+  animation: flowGradientRotate 18s linear infinite;
+  opacity: .95;
+}
+.flow-stage-btn::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  border-radius: 17px;
+  background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(0,0,0,.10));
+  box-shadow: inset 0 4px 5px rgba(255,255,255,.16), inset 0 -4px 5px rgba(0,0,0,.10);
+  pointer-events: none;
+}
+.flow-stage-btn:not(:disabled):hover {
+  transform: translateY(-1px) scale(1.01);
+}
+.flow-stage-btn:not(:disabled):active {
+  transform: scale(.975) !important;
+}
+@keyframes flowGradientRotate {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 390px) {
+  .menu-page-item,
+  .menu-page-support { min-height: 70px; grid-template-columns: 38px minmax(0,1fr) 16px; padding: 12px 13px; gap: 10px; }
+  .menu-page-item-icon { width: 38px; height: 38px; }
+  .exchange-choice-row { padding-left: 44px; }
+  .exchange-choice-row .exchange-option::after { left: -41px; width: 29px; height: 29px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card.animate-in > *, .quote-row, .quote-total, .flow-stage-btn::before, .toast.saraf-toast {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
