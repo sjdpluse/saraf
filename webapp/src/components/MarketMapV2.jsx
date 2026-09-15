@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import afghanistanMap from "../assets/afghanistan-map.svg";
+import afghanistanMap from "../assets/map(1).webp";
 
 const PROVINCE_DATA_URL = "https://raw.githubusercontent.com/periodo/periodo-places/1563735c333174952541241c7c9640b346387533/gazetteers/afghan-provinces.json";
 const MAP_WIDTH = 2000;
