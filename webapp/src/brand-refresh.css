@@ -18,17 +18,34 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 .home-brand > img { width: 58px; height: 58px; border-radius: 0; background: transparent; box-shadow: none; object-fit: contain; }
 .home-intro { padding-top: 0; margin-top: -12px; }
 .home-title-stack { margin: -3px 0 4px !important; display:flex !important; flex-direction:column !important; flex-wrap:nowrap !important; align-items:center; justify-content:center; gap:1px !important; line-height:1.42 !important; position:relative; z-index:3; }
-.home-title-copy { display:block; color:#1d1d1f !important; font-size:clamp(.96rem,4.1vw,1.16rem); font-weight:800; line-height:1.65; }
-.home-afghanistan-line { direction:rtl; display:inline-flex; align-items:center; justify-content:center; min-height:30px; max-width:100%; white-space:nowrap; line-height:1; }
-.home-afghanistan-prefix,.home-afghanistan-suffix { color:#1d1d1f !important; font-size:clamp(.54rem,2.35vw,.68rem); font-weight:400; letter-spacing:-.02em; line-height:1; }
-.home-location-window { display:inline-grid; place-items:center; min-width:64px; height:30px; overflow:hidden; vertical-align:middle; position:relative; margin-inline:-1px; }
-.home-location-word { grid-area:1/1; position:relative; color:#0066cc !important; font-size:clamp(.72rem,3.25vw,.9rem); font-weight:300; white-space:nowrap; will-change:transform,opacity; animation:home-location-cycle var(--location-duration) cubic-bezier(.22,1,.36,1) both; text-shadow:none !important; filter:none !important; }
+.home-title-copy { display:block; color:#1d1d1f !important; font-size:clamp(.96rem,4.1vw,1.16rem); font-weight:600; line-height:1.65; }
+.home-afghanistan-line { direction:rtl; display:inline-flex; align-items:center; justify-content:center; min-height:34px; max-width:100%; white-space:nowrap; line-height:1; }
+.home-afghanistan-prefix,.home-afghanistan-suffix { color:#1d1d1f !important; font-size:clamp(.96rem,4.1vw,1.16rem); font-weight:500; letter-spacing:-.02em; line-height:1; }
+.home-location-window { display:inline-grid; place-items:center; min-width:72px; height:34px; overflow:hidden; vertical-align:middle; position:relative; margin-inline:-1px; }
+.home-location-word { grid-area:1/1; position:relative; color:#0066cc !important; font-size:clamp(.96rem,4.1vw,1.16rem); font-weight:500; white-space:nowrap; will-change:transform,opacity; animation:home-location-cycle var(--location-duration) cubic-bezier(.22,1,.36,1) both; text-shadow:none !important; filter:none !important; }
 .home-location-word::after { content:none !important; }
 @keyframes home-location-cycle { 0%{opacity:0;transform:translateY(82%)} 17%{opacity:1;transform:translateY(0)} 78%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-82%)} }
 
 .afghanistan-dots { background:#c7c7cc; opacity:.66; }
-.map-stage { aspect-ratio:3/2; overflow:visible; margin-top:-18px; margin-bottom:-8px; -webkit-mask-image:none; mask-image:none; }
+.map-stage { position:relative; aspect-ratio:3/2; overflow:visible; margin-top:-18px; margin-bottom:-8px; -webkit-mask-image:none; mask-image:none; }
+.map-visual-content { position:absolute; inset:0; opacity:0; visibility:hidden; transition:opacity .22s cubic-bezier(.22,1,.36,1); }
+.map-stage.is-ready .map-visual-content { opacity:1; visibility:visible; }
 .map-market-flow { position:absolute; inset:0; z-index:5; pointer-events:none; }
+
+/* Crystal loader: shown only until the WebP map is fully loaded and decoded. */
+.map-loader-shell { position:absolute; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+.map-crystal-loader { position:relative; width:200px; height:200px; max-width:100%; perspective:800px; }
+.map-loader-crystal { position:absolute; top:50%; left:50%; width:60px; height:60px; transform-origin:bottom center; transform:translate(-50%,-50%) rotateX(45deg) rotateZ(0deg); animation:map-loader-spin 4s linear infinite; animation-delay:var(--loader-delay,0s); }
+.map-loader-crystal::before { content:""; position:absolute; inset:0; border-radius:10px; background:var(--loader-gradient); opacity:0; transform:scale(.5); animation:map-loader-emerge 2s ease-in-out infinite alternate,map-loader-fade-in .3s ease-out forwards; animation-delay:var(--loader-delay,0s),var(--loader-delay,0s); }
+.map-loader-crystal:nth-child(1) { --loader-gradient:linear-gradient(45deg,#003366,#336699); --loader-delay:0s; }
+.map-loader-crystal:nth-child(2) { --loader-gradient:linear-gradient(45deg,#003399,#3366cc); --loader-delay:.3s; }
+.map-loader-crystal:nth-child(3) { --loader-gradient:linear-gradient(45deg,#0066cc,#3399ff); --loader-delay:.6s; }
+.map-loader-crystal:nth-child(4) { --loader-gradient:linear-gradient(45deg,#0099ff,#66ccff); --loader-delay:.9s; }
+.map-loader-crystal:nth-child(5) { --loader-gradient:linear-gradient(45deg,#33ccff,#99ccff); --loader-delay:1.2s; }
+.map-loader-crystal:nth-child(6) { --loader-gradient:linear-gradient(45deg,#66ffff,#ccffff); --loader-delay:1.5s; }
+@keyframes map-loader-spin { from{transform:translate(-50%,-50%) rotateX(45deg) rotateZ(0deg)} to{transform:translate(-50%,-50%) rotateX(45deg) rotateZ(360deg)} }
+@keyframes map-loader-emerge { 0%,100%{transform:scale(.5);opacity:0} 50%{transform:scale(1);opacity:1} }
+@keyframes map-loader-fade-in { to{opacity:.8} }
 
 /* Active province: only the existing dotted texture is recoloured. No border. */
 .province-boundary-overlay { position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; overflow:visible; }
@@ -76,19 +93,22 @@ button:focus-visible, a:focus-visible, summary:focus-visible, label:focus-within
 
 @media (max-width:390px) {
   .home-title-copy { font-size:clamp(.9rem,4.05vw,1.05rem); }
-  .home-afghanistan-prefix,.home-afghanistan-suffix { font-size:clamp(.5rem,2.25vw,.62rem); }
-  .home-location-window { min-width:58px; height:28px; }
-  .home-location-word { font-size:clamp(.68rem,3.15vw,.84rem); }
+  .home-afghanistan-prefix,.home-afghanistan-suffix { font-size:clamp(.9rem,4.05vw,1.05rem); }
+  .home-location-window { min-width:68px; height:32px; }
+  .home-location-word { font-size:clamp(.9rem,4.05vw,1.05rem); }
   .map-stage { margin-top:-16px; margin-bottom:-6px; }
+  .map-crystal-loader { width:180px; height:180px; }
+  .map-loader-crystal { width:54px; height:54px; }
   .map-token { gap:2px; }
   .map-coin-shell { width:22px; height:22px; }
   .map-coin { width:18px; height:18px; flex-basis:18px; }
   .map-change { font-size:.49rem; }
 }
 @media (prefers-reduced-motion:reduce) {
-  .home-location-word,.province-dot-image,.map-token,.map-change-sign { animation:none !important; }
+  .home-location-word,.province-dot-image,.map-token,.map-change-sign,.map-loader-crystal,.map-loader-crystal::before { animation:none !important; }
   .home-location-word { opacity:1; transform:none; }
   .province-dot-image { opacity:.30; }
   .map-token { opacity:1; filter:none; transform:translate(-50%,-50%) scale(var(--float-scale)); }
   .map-change-sign { opacity:1; transform:none; }
+  .map-loader-crystal::before { opacity:.72; transform:scale(.8); }
 }
