@@ -32,7 +32,7 @@ const HESABPAY_LOGO_URL = "https://i.postimg.cc/63khhqcm/hesab.png";
 const HESABPAY_QR_URL = "https://i.postimg.cc/D058wYSQ/Hesab.jpg";
 const HESABPAY_PHONE = "0775146747";
 const AZIZI_MIN_AMOUNT = 500;
-const STEPS = ["amount", "quote", "payment", "receipt", "exchange", "network", "wallet", "review", "done"];
+const STEPS = ["amount", "quote", "exchange", "network", "wallet", "payment", "receipt", "review", "done"];
 
 const providerLogoStyle = {
   width: 34,
@@ -121,7 +121,14 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
   }
 
   function goBack() {
-    if (step === "review") clearPreview();
+    if (step === "review") {
+      clearPreview();
+      if (paymentMethod === "in_person") {
+        setShowInPersonPass(true);
+        setStepIdx(5);
+        return;
+      }
+    }
     if (stepIdx === 0) navigate("home");
     else setStepIdx((i) => i - 1);
   }
@@ -167,23 +174,25 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
       return;
     }
     if (method === "online") {
+      setShowInPersonPass(false);
       setPaymentMethod(null);
       setShowOnlineProviders(true);
       return;
     }
     setShowOnlineProviders(false);
+    setShowInPersonPass(false);
     setPaymentMethod(method);
     setPaymentInfo(null);
     setReceiptUrl(null);
-    setStepIdx(4);
   }
 
   async function chooseOnlineProvider(provider) {
+    setShowInPersonPass(false);
     setReceiptUrl(null);
     if (provider === "hesabpay") {
       setPaymentMethod("online_hesabpay");
       setPaymentInfo(null);
-      setStepIdx(3);
+      setStepIdx(6);
       return;
     }
     if (!canUseAzizi) {
@@ -194,7 +203,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
     setLoadingPaymentInfo(true);
     try {
       setPaymentInfo(await api.getPaymentInfo());
-      setStepIdx(3);
+      setStepIdx(6);
     } catch (err) {
       setPaymentMethod(null);
       showError(err instanceof ApiError ? err.message : "دریافت اطلاعات حساب عزیزی بانک ناموفق بود.");
@@ -223,12 +232,12 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
       setExchangeCustom("");
       return;
     }
-    setStepIdx(5);
+    setStepIdx(3);
   }
 
   function continueCustomExchange() {
     if (!exchangeCustom.trim()) return showError("نام صرافی یا کیف پول را وارد کنید.");
-    setStepIdx(5);
+    setStepIdx(3);
   }
 
   function chooseNetwork(code) {
@@ -237,7 +246,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
       setNetworkCustom("");
       return;
     }
-    setStepIdx(6);
+    setStepIdx(4);
   }
 
   function continueCustomNetwork() {
@@ -245,13 +254,21 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
     const resolved = resolveNetwork(networkCustom, networks);
     if (!resolved) return showError(`شبکهٔ واردشده برای ${selectedAsset} پشتیبانی نمی‌شود.`);
     setNetwork(resolved.code);
-    setStepIdx(6);
+    setStepIdx(4);
+  }
+
+  function continueFromWallet() {
+    if (!finalExchange) return showError("نام صرافی یا کیف پول الزامی است.");
+    if (!finalNetwork) return showError("شبکهٔ معتبر را مشخص کنید.");
+    if (!walletAddress.trim()) return showError("آدرس ولت را وارد کنید.");
+    setStepIdx(5);
   }
 
   async function prepareReview() {
     if (!finalExchange) return showError("نام صرافی یا کیف پول الزامی است.");
     if (!finalNetwork) return showError("شبکهٔ معتبر را مشخص کنید.");
     if (!walletAddress.trim()) return showError("آدرس ولت را وارد کنید.");
+    if (!paymentMethod) return showError("روش پرداخت را انتخاب کنید.");
     setPreviewLoading(true);
     clearPreview();
     try {
@@ -326,33 +343,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
             <button className="btn btn-buy" onClick={() => checkGateAndProceed(parseFloat(amount), quote)} disabled={checkingProfile}>{checkingProfile ? <span className="spinner" /> : <>ادامهٔ درخواست خرید <ArrowRight size={16} weight="bold" /></>}</button>
-            <div className="help-actions-grid">
-              <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، در مورد خرید و فروش ${selectedAsset} در صراف معلومات بیشتر می‌خواهم.`)}><ChatCircleDots size={17} /> اطلاعات بیشتر</button>
-              <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، برای خرید و فروش ${selectedAsset} در صراف به پشتیبانی نیاز دارم.`)}><Headset size={17} /> پشتیبانی</button>
-              <WhatsAppActionButton mode="support" asset={selectedAsset} />
-            </div>
           </div>
-        </div>
-      )}
-
-      {step === "payment" && (
-        <div className="card animate-in">
-          <label className="field-label">روش پرداخت خود را انتخاب کنید</label>
-          <div className="choice-row" style={{ marginTop: 4 }}>
-            <button className="choice-btn" onClick={() => choosePayment("in_person")} disabled={loadingPaymentInfo}><Buildings size={16} /> حضوری</button>
-            <button className={`choice-btn ${showOnlineProviders ? "selected" : ""}`} onClick={() => choosePayment("online")} disabled={loadingPaymentInfo}><Bank size={16} /> آنلاین</button>
-          </div>
-          {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش پرداخت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}>{canUseAzizi && <button className="choice-btn" onClick={() => chooseOnlineProvider("azizi")} disabled={loadingPaymentInfo}>{loadingPaymentInfo ? <span className="spinner" /> : <img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} />} عزیزی بانک</button>}<button className="choice-btn" onClick={() => chooseOnlineProvider("hesabpay")} disabled={loadingPaymentInfo}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div>{!canUseAzizi && <div className="notice" style={{ marginTop: 10 }}>برای معاملات تا ۵۰۰ {selectedAsset}، پرداخت آنلاین فقط از طریق حساب‌پی انجام می‌شود. عزیزی بانک برای مبالغ بیشتر از ۵۰۰ {selectedAsset} فعال است.</div>}</div>}
-          {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="buy" asset={selectedAsset} code={inPersonCode} buttonClass="btn-buy" showError={showError} onContinue={() => { setShowInPersonPass(false); setStepIdx(4); }} /></div>}
-        </div>
-      )}
-
-      {step === "receipt" && (
-        <div className="card animate-in">
-          {isHesabPay ? <><div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={{ ...providerLogoStyle, width: 54, height: 54 }} /></div><div className="info-box" style={{ marginBottom: 14, textAlign: "center" }}><img src={HESABPAY_QR_URL} alt="QR حساب‌پی" style={{ width: "min(100%, 260px)", borderRadius: 14, display: "block", margin: "0 auto 14px" }} /><CopyRow label="شماره حساب‌پی" value={HESABPAY_PHONE} /></div></> : <><div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={{ ...providerLogoStyle, width: 54, height: 54 }} /></div>{paymentInfo && <div className="info-box" style={{ marginBottom: 14 }}><CopyRow label="بانک" value={paymentInfo.bank_name} /><CopyRow label="صاحب حساب" value={paymentInfo.bank_account_holder} /><CopyRow label="شماره حساب" value={paymentInfo.bank_account_number} /></div>}</>}
-          <div className="notice" style={{ marginBottom: 16 }}>پس از پرداخت، تصویر رسید را بارگذاری کنید.</div>
-          <label className={`upload-box ${receiptUrl ? "has-file" : ""}`}><input type="file" accept="image/*" onChange={handleReceiptFile} />{receiptUploading ? <span className="spinner" /> : receiptUrl ? <CheckCircle size={22} weight="fill" /> : <UploadSimple size={22} />}<span>{receiptUploading ? "در حال آپلود..." : receiptUrl ? "رسید بارگذاری شد" : "انتخاب تصویر رسید"}</span></label>
-          <button className="btn btn-buy" style={{ marginTop: 16 }} disabled={!receiptUrl || receiptUploading} onClick={() => setStepIdx(4)}>ادامه</button>
         </div>
       )}
 
@@ -380,7 +371,33 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
           <div className="field"><label className="field-label">دیپازیت آدرس یا آدرس ولت برای دریافت {selectedAsset}</label><textarea className="input num" rows={3} placeholder="آدرس ولت را دقیق وارد کنید" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} /></div>
           <div className="notice" style={{ marginBottom: 12 }}>شبکه: <b>{networkLabel}</b></div>
           <div className="notice warn" style={{ marginBottom: 16 }}><Warning size={16} className="notice-icon" weight="fill" />آدرس و شبکه را دقیق بررسی کنید؛ انتقال بلاک‌چینی به آدرس یا شبکهٔ اشتباه قابل برگشت نیست.</div>
-          <button className="btn btn-buy" onClick={prepareReview} disabled={!walletAddress.trim() || previewLoading}>{previewLoading ? <span className="spinner" /> : <>بررسی درخواست <ArrowRight size={16} weight="bold" /></>}</button>
+          <button className="btn btn-buy" onClick={continueFromWallet} disabled={!walletAddress.trim()}>ادامه <ArrowRight size={16} weight="bold" /></button>
+        </div>
+      )}
+
+      {step === "payment" && (
+        <div className="card animate-in">
+          <label className="field-label">روش پرداخت خود را انتخاب کنید</label>
+          <div className="choice-row" style={{ marginTop: 4 }}>
+            <button className={`choice-btn ${paymentMethod === "in_person" ? "selected" : ""}`} onClick={() => choosePayment("in_person")} disabled={loadingPaymentInfo}><Buildings size={16} /> حضوری</button>
+            <button className={`choice-btn ${showOnlineProviders || paymentMethod?.startsWith("online_") ? "selected" : ""}`} onClick={() => choosePayment("online")} disabled={loadingPaymentInfo}><Bank size={16} /> آنلاین</button>
+          </div>
+          {showOnlineProviders && <div style={{ marginTop: 16 }}><label className="field-label">روش پرداخت آنلاین را انتخاب کنید</label><div className="choice-row" style={{ marginTop: 6 }}>{canUseAzizi && <button className={`choice-btn ${paymentMethod === "online_azizi" ? "selected" : ""}`} onClick={() => chooseOnlineProvider("azizi")} disabled={loadingPaymentInfo}>{loadingPaymentInfo ? <span className="spinner" /> : <img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={providerLogoStyle} />} عزیزی بانک</button>}<button className={`choice-btn ${paymentMethod === "online_hesabpay" ? "selected" : ""}`} onClick={() => chooseOnlineProvider("hesabpay")} disabled={loadingPaymentInfo}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={providerLogoStyle} /> حساب‌پی</button></div>{!canUseAzizi && <div className="notice" style={{ marginTop: 10 }}>برای معاملات تا ۵۰۰ {selectedAsset}، پرداخت آنلاین فقط از طریق حساب‌پی انجام می‌شود. عزیزی بانک برای مبالغ بیشتر از ۵۰۰ {selectedAsset} فعال است.</div>}</div>}
+          {showInPersonPass && <div style={{ marginTop: 16 }}><InPersonPass action="buy" asset={selectedAsset} code={inPersonCode} buttonClass="btn-buy" showError={showError} onContinue={async () => { setShowInPersonPass(false); await prepareReview(); }} /></div>}
+          <div className="help-actions-grid" style={{ marginTop: 16 }}>
+            <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، در مورد خرید و فروش ${selectedAsset} در صراف معلومات بیشتر می‌خواهم.`)}><ChatCircleDots size={17} /> اطلاعات بیشتر</button>
+            <button className="btn btn-outline" onClick={() => openTelegramChat("SJDPLUS", `سلام، برای خرید و فروش ${selectedAsset} در صراف به پشتیبانی نیاز دارم.`)}><Headset size={17} /> پشتیبانی</button>
+            <WhatsAppActionButton mode="support" asset={selectedAsset} />
+          </div>
+        </div>
+      )}
+
+      {step === "receipt" && (
+        <div className="card animate-in">
+          {isHesabPay ? <><div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><img src={HESABPAY_LOGO_URL} alt="HesabPay" style={{ ...providerLogoStyle, width: 54, height: 54 }} /></div><div className="info-box" style={{ marginBottom: 14, textAlign: "center" }}><img src={HESABPAY_QR_URL} alt="QR حساب‌پی" style={{ width: "min(100%, 260px)", borderRadius: 14, display: "block", margin: "0 auto 14px" }} /><CopyRow label="شماره حساب‌پی" value={HESABPAY_PHONE} /></div></> : <><div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><img src={AZIZI_LOGO_URL} alt="Azizi Bank" style={{ ...providerLogoStyle, width: 54, height: 54 }} /></div>{paymentInfo && <div className="info-box" style={{ marginBottom: 14 }}><CopyRow label="بانک" value={paymentInfo.bank_name} /><CopyRow label="صاحب حساب" value={paymentInfo.bank_account_holder} /><CopyRow label="شماره حساب" value={paymentInfo.bank_account_number} /></div>}</>}
+          <div className="notice" style={{ marginBottom: 16 }}>پس از پرداخت، تصویر رسید را بارگذاری کنید.</div>
+          <label className={`upload-box ${receiptUrl ? "has-file" : ""}`}><input type="file" accept="image/*" onChange={handleReceiptFile} />{receiptUploading ? <span className="spinner" /> : receiptUrl ? <CheckCircle size={22} weight="fill" /> : <UploadSimple size={22} />}<span>{receiptUploading ? "در حال آپلود..." : receiptUrl ? "رسید بارگذاری شد" : "انتخاب تصویر رسید"}</span></label>
+          <button className="btn btn-buy" style={{ marginTop: 16 }} disabled={!receiptUrl || receiptUploading || previewLoading} onClick={prepareReview}>{previewLoading ? <span className="spinner" /> : <>بررسی درخواست <ArrowRight size={16} weight="bold" /></>}</button>
         </div>
       )}
 
