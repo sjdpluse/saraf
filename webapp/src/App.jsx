@@ -9,6 +9,7 @@ import Kyc from "./pages/Kyc";
 import Remittance from "./pages/Remittance";
 import Remittances from "./pages/Remittances";
 import About from "./pages/About";
+import Menu from "./pages/Menu";
 import Toast from "./components/Toast";
 import BottomNav from "./components/BottomNav";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
@@ -104,10 +105,7 @@ export default function App() {
     <>
       <div key={`${page}-${asset}`} className="page-transition">
         {page === "home" && (
-          <Home
-            navigate={navigate}
-            startTransaction={startTransaction}
-          />
+          <Home navigate={navigate} startTransaction={startTransaction} />
         )}
         {page === "buy" && (
           <Buy
@@ -149,6 +147,7 @@ export default function App() {
         {page === "about" && <About navigate={navigate} />}
         {page === "reviews" && <Reviews navigate={navigate} showError={showError} />}
         {page === "terms" && <Terms navigate={navigate} />}
+        {page === "menu" && <Menu navigate={navigate} />}
         {page === "kyc" && (
           <Kyc
             mode={kycMode}
