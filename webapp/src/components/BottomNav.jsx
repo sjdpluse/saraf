@@ -16,13 +16,6 @@ export default function BottomNav({ page, navigate }) {
     <div className="bottom-nav-wrap" aria-label="ناوبری اصلی">
       <nav className="bottom-nav">
         <button
-          className={`bottom-nav-item ${page === "home" ? "active" : ""}`}
-          onClick={() => navigate("home")}
-          aria-label="خانه"
-        >
-          <House size={25} weight={page === "home" ? "fill" : "regular"} />
-        </button>
-        <button
           className="bottom-nav-item"
           onClick={goBack}
           aria-label="بازگشت"
@@ -31,17 +24,20 @@ export default function BottomNav({ page, navigate }) {
           <ArrowRight size={25} />
         </button>
         <button
+          className={`bottom-nav-item ${page === "home" ? "active" : ""}`}
+          onClick={() => navigate("home")}
+          aria-label="خانه"
+        >
+          <House size={25} weight={page === "home" ? "fill" : "regular"} />
+        </button>
+        <button
           className={`bottom-nav-item ${page === "orders" ? "active" : ""}`}
           onClick={() => navigate("orders")}
           aria-label="سفارش‌های من"
         >
           <ClipboardText size={25} weight={page === "orders" ? "fill" : "regular"} />
         </button>
-        <AppMenu
-          navigate={navigate}
-          triggerClassName={`bottom-nav-item ${page === "menu" ? "active" : ""}`}
-          triggerIconSize={25}
-        />
+        <AppMenu navigate={navigate} triggerClassName={`bottom-nav-item ${page === "menu" ? "active" : ""}`} triggerIconSize={25} />
       </nav>
     </div>
   );
