@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  CaretRight,
+  CaretLeft,
   IdentificationCard,
   User,
   Phone,
@@ -87,7 +87,7 @@ export default function Kyc({ mode = "profile", thresholdUsd, onComplete, onCanc
       <div className="header">
         {step !== "submitting" ? (
           <button className="back-btn" onClick={goBack} aria-label="بازگشت">
-            <CaretRight size={18} weight="bold" />
+            <CaretLeft size={18} weight="bold" />
           </button>
         ) : (
           <div className="header-spacer" />
