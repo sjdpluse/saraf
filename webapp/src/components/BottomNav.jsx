@@ -37,7 +37,11 @@ export default function BottomNav({ page, navigate }) {
         >
           <ClipboardText size={25} weight={page === "orders" ? "fill" : "regular"} />
         </button>
-        <AppMenu navigate={navigate} triggerClassName="bottom-nav-item" triggerIconSize={25} />
+        <AppMenu
+          navigate={navigate}
+          triggerClassName={`bottom-nav-item ${page === "menu" ? "active" : ""}`}
+          triggerIconSize={25}
+        />
       </nav>
     </div>
   );
