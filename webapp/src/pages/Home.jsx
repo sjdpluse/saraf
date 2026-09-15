@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, ArrowsLeftRight, CaretLeft, ClipboardText, PaperPlaneTilt, Star } from "@phosphor-icons/react";
+import { ArrowDownLeft, ArrowUpRight, CaretLeft, ClipboardText, PaperPlaneTilt, Star } from "@phosphor-icons/react";
 import { api } from "../lib/api";
 import { SARAF_LOGO_URL } from "../lib/brand";
 import AppMenu from "../components/AppMenu";
@@ -87,13 +87,20 @@ export default function Home({ navigate, startTransaction }) {
           </span>
         </h1>
       </section>
-      <section className="trade-panel" aria-labelledby="trade-title">
-        <div className="trade-panel-heading"><div><h2 id="trade-title">خرید و فروش</h2><p>تتر و یو‌اس‌دی کوین <bdi>USDT / USDC</bdi></p></div><ArrowsLeftRight size={23} /></div>
-        <div className="trade-actions">
-          <button className="trade-action purchase" onClick={() => startTransaction("buy")}><ArrowDownLeft size={21} weight="bold" /> خرید رمزارز</button>
-          <button className="trade-action sale" onClick={() => startTransaction("sell")}><ArrowUpRight size={21} weight="bold" /> فروش رمزارز</button>
+
+      <section className="trade-panel trade-panel-actions-only" aria-label="خرید و فروش رمز ارز">
+        <div className="trade-actions trade-actions-premium">
+          <button className="trade-cart-btn purchase" onClick={() => startTransaction("buy")}>
+            <span className="trade-cart-icon" aria-hidden="true"><ArrowDownLeft size={18} weight="bold" /></span>
+            <span className="trade-cart-text">خرید رمز ارز</span>
+          </button>
+          <button className="trade-cart-btn sale" onClick={() => startTransaction("sell")}>
+            <span className="trade-cart-icon" aria-hidden="true"><ArrowUpRight size={18} weight="bold" /></span>
+            <span className="trade-cart-text">فروش رمز ارز</span>
+          </button>
         </div>
       </section>
+
       <button className="remittance-entry" onClick={() => navigate("remittance")}>
         <span className="remittance-entry-icon"><PaperPlaneTilt size={25} /></span>
         <span><strong>حواله از طریق کریپتو</strong><small>ارسال رمزارز؛ دریافت افغانی در افغانستان</small></span>
