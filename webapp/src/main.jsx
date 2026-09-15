@@ -5,6 +5,7 @@ import "./index.css";
 import "./remittance.css";
 import "./ui.css";
 import "./brand-refresh.css";
+import "./rokh-font.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
