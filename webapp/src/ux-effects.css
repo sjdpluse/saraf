@@ -1,0 +1,285 @@
+/* Focused UX effects requested for the Saraf mini app. */
+
+/* Afghanistan line: same scale as the headline, but visually light. */
+.home-afghanistan-prefix,
+.home-afghanistan-suffix,
+.home-location-word {
+  font-weight: 300 !important;
+}
+
+/* Exact six-crystal loader behavior. The image-loading gate remains in MarketMap. */
+.map-loader-shell {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.map-crystal-loader {
+  position: relative;
+  width: 200px !important;
+  height: 200px !important;
+  perspective: 800px;
+}
+
+.map-loader-crystal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 60px !important;
+  height: 60px !important;
+  opacity: 0;
+  transform-origin: bottom center;
+  transform: translate(-50%, -50%) rotateX(45deg) rotateZ(0deg);
+  animation: map-loader-spin 4s linear infinite,
+    map-loader-emerge 2s ease-in-out infinite alternate,
+    map-loader-fade-in 0.3s ease-out forwards;
+  border-radius: 10px;
+  visibility: hidden;
+}
+
+/* Disable the earlier approximation; each crystal itself now owns all animations. */
+.map-loader-crystal::before {
+  content: none !important;
+  display: none !important;
+}
+
+@keyframes map-loader-spin {
+  from {
+    transform: translate(-50%, -50%) rotateX(45deg) rotateZ(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotateX(45deg) rotateZ(360deg);
+  }
+}
+
+@keyframes map-loader-emerge {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes map-loader-fade-in {
+  to {
+    visibility: visible;
+    opacity: 0.8;
+  }
+}
+
+.map-loader-crystal:nth-child(1) {
+  background: linear-gradient(45deg, #003366, #336699);
+  animation-delay: 0s;
+}
+.map-loader-crystal:nth-child(2) {
+  background: linear-gradient(45deg, #003399, #3366cc);
+  animation-delay: 0.3s;
+}
+.map-loader-crystal:nth-child(3) {
+  background: linear-gradient(45deg, #0066cc, #3399ff);
+  animation-delay: 0.6s;
+}
+.map-loader-crystal:nth-child(4) {
+  background: linear-gradient(45deg, #0099ff, #66ccff);
+  animation-delay: 0.9s;
+}
+.map-loader-crystal:nth-child(5) {
+  background: linear-gradient(45deg, #33ccff, #99ccff);
+  animation-delay: 1.2s;
+}
+.map-loader-crystal:nth-child(6) {
+  background: linear-gradient(45deg, #66ffff, #ccffff);
+  animation-delay: 1.5s;
+}
+
+/* Home: card now contains only the two animated trade actions. */
+.trade-panel-actions-only {
+  padding: 14px !important;
+}
+
+.trade-actions-premium {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.trade-cart-btn {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition-duration: 0.5s;
+  overflow: hidden;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.103);
+  position: relative;
+  padding: 0 12px;
+}
+
+.trade-cart-btn.purchase {
+  background-color: rgb(0, 76, 255);
+}
+
+.trade-cart-btn.sale {
+  background-color: #111111;
+}
+
+.trade-cart-icon {
+  position: absolute;
+  left: -50px;
+  width: 30px;
+  height: 30px;
+  background-color: transparent;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 2;
+  transition-duration: 0.5s;
+  color: #ffffff;
+}
+
+.trade-cart-text {
+  height: 100%;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  z-index: 1;
+  transition-duration: 0.5s;
+  font-size: 1.04em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.trade-cart-btn:hover .trade-cart-icon,
+.trade-cart-btn:focus-visible .trade-cart-icon {
+  transform: translateX(58px);
+  border-radius: 40px;
+  transition-duration: 0.5s;
+}
+
+.trade-cart-btn:hover .trade-cart-text,
+.trade-cart-btn:focus-visible .trade-cart-text {
+  transform: translate(10px, 0);
+  transition-duration: 0.5s;
+}
+
+.trade-cart-btn:active {
+  transform: scale(0.95);
+  transition-duration: 0.5s;
+}
+
+/* Final order confirmation: gradient movement and state copy. */
+.review-confirm-btn {
+  background-color: transparent;
+  color: #ffffff;
+  font-weight: 700;
+  min-height: 3.3em;
+  width: 100%;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: 0.4s ease;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  isolation: isolate;
+  padding: 0 18px;
+}
+
+.review-confirm-gradient {
+  height: 100%;
+  width: 350%;
+  background: linear-gradient(to right, #156aa3 25%, #64eae7 65%, #16a085 90%);
+  position: absolute;
+  top: 0;
+  left: 60%;
+  transform: translateX(-50%);
+  z-index: 0;
+  transition: 0.4s ease;
+}
+
+.review-confirm-text {
+  position: relative;
+  z-index: 1;
+  transition: 0.4s ease 0.5s;
+}
+
+.review-confirm-text-success {
+  position: absolute;
+  opacity: 0;
+  transition: 0.4s;
+}
+
+.review-confirm-btn:hover:not(:disabled) .review-confirm-gradient {
+  transition: 0.4s ease;
+  transform: translateX(-40%);
+}
+
+.review-confirm-btn:focus .review-confirm-gradient,
+.review-confirm-btn.is-submitting .review-confirm-gradient {
+  background-size: 200%;
+  background-position: right;
+  transform: translateX(-88%);
+  transition: 1s ease;
+}
+
+.review-confirm-btn:focus .review-confirm-text:not(.review-confirm-text-success),
+.review-confirm-btn.is-submitting .review-confirm-text:not(.review-confirm-text-success) {
+  opacity: 0;
+  transition: 0.4s ease;
+}
+
+.review-confirm-btn:focus .review-confirm-text-success,
+.review-confirm-btn.is-submitting .review-confirm-text-success {
+  opacity: 1;
+  transition: 1s ease 0.5s;
+}
+
+.review-confirm-btn:disabled:not(.is-submitting) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 390px) {
+  .trade-panel-actions-only {
+    padding: 12px !important;
+  }
+  .trade-actions-premium {
+    gap: 8px;
+  }
+  .trade-cart-btn {
+    height: 42px;
+    padding-inline: 8px;
+  }
+  .trade-cart-text {
+    font-size: 0.96em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trade-cart-btn,
+  .trade-cart-icon,
+  .trade-cart-text,
+  .review-confirm-btn,
+  .review-confirm-gradient,
+  .review-confirm-text {
+    transition: none !important;
+  }
+}
