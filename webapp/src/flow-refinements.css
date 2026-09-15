@@ -1,0 +1,51 @@
+/* Sell-stage arrows: progression must visually point left-to-right (->). */
+.exact-flow-wrapper.exact-flow-sell .gradient-btn svg,
+.exact-flow-wrapper.exact-flow-sell .text-overlay svg {
+  transform: scaleX(1) !important;
+}
+
+/* Buy-stage progression keeps the RTL-facing arrow used elsewhere. */
+.exact-flow-wrapper.exact-flow-buy .gradient-btn svg,
+.exact-flow-wrapper.exact-flow-buy .text-overlay svg {
+  transform: scaleX(-1);
+}
+
+/* Hide Calculate until an amount exists, then reveal it softly. */
+.exact-flow-wrapper.amount-reveal-button.is-amount-hidden {
+  display: none !important;
+}
+
+.exact-flow-wrapper.amount-reveal-button.is-amount-visible {
+  display: flex !important;
+  animation: amountActionReveal .42s cubic-bezier(.22,1,.36,1) both;
+}
+
+@keyframes amountActionReveal {
+  from {
+    opacity: 0;
+    filter: blur(9px);
+    transform: translateY(7px) scale(.975);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Exchange / broker text stays visually centered inside each button. */
+.exchange-choice-row .exchange-option {
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.exchange-choice-row .broker-option::before {
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exact-flow-wrapper.amount-reveal-button.is-amount-visible {
+    animation: none !important;
+  }
+}
