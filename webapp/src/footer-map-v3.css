@@ -1,6 +1,5 @@
-/* Fullscreen-safe layout, footer navigation, supplied Afghanistan map, and headline market ticker. */
+/* Fullscreen-safe layout, footer navigation, supplied Afghanistan map, and full-page menu. */
 
-/* The Telegram fullscreen chrome owns the upper corners now. */
 .home-header { display: none !important; }
 .header { justify-content: center !important; }
 .header .back-btn { display: none !important; }
@@ -8,7 +7,7 @@
 .home-shell { padding-top: calc(26px + env(safe-area-inset-top)) !important; }
 .app-shell { padding-bottom: calc(112px + env(safe-area-inset-bottom)) !important; }
 
-/* Supplied map only. */
+/* User-supplied transparent WebP map. */
 .map-stage-new {
   width: 100%;
   max-width: 500px;
@@ -44,54 +43,15 @@
 }
 .province-highlight-image-static { opacity: 1; }
 
-/* Explicitly kill the old moving province/coin layers. */
 .province-transfer-layer,
 .province-transfer-particle,
 .province-transition-old,
 .province-transition-new,
 .map-market-flow,
-.map-floater { display: none !important; animation: none !important; }
+.map-floater,
+.headline-crypto { display: none !important; animation: none !important; }
 
-/* The crypto animation now lives inside the headline. */
-.home-title-copy-market {
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  direction: rtl;
-}
-.headline-crypto {
-  direction: ltr;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 25px;
-  padding: 2px 7px 2px 4px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.88);
-  border: 1px solid rgba(0,76,255,.12);
-  box-shadow: 0 3px 10px rgba(0,0,0,.045);
-  color: #004cff;
-  font-size: .7rem;
-  font-weight: 500;
-  animation: headline-crypto-cycle var(--headline-coin-duration) cubic-bezier(.22,1,.36,1) both;
-  white-space: nowrap;
-}
-.headline-crypto img {
-  width: 19px;
-  height: 19px;
-  border-radius: 50%;
-  object-fit: contain;
-}
-@keyframes headline-crypto-cycle {
-  0% { opacity: 0; transform: translateY(7px) scale(.9); }
-  18% { opacity: 1; transform: translateY(0) scale(1); }
-  78% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-7px) scale(.94); }
-}
-
-/* Floating footer inspired by the supplied radio navigation. */
+/* Floating footer navigation. */
 .bottom-nav-wrap {
   position: fixed;
   left: 50%;
@@ -131,7 +91,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: transform .18s ease, color .18s ease, opacity .18s ease, background .18s ease;
+  transition: transform .18s ease, color .18s ease, opacity .18s ease;
 }
 .bottom-nav-item:hover:not(:disabled),
 .bottom-nav-item:focus-visible:not(:disabled) {
@@ -158,11 +118,65 @@
   opacity: .28;
   cursor: default;
 }
-
-/* When the menu is opened from the footer, its trigger must never get a card. */
 .bottom-nav .bottom-nav-item {
   box-shadow: none !important;
   border: 0 !important;
+}
+
+/* Full-page menu, visually consistent with list pages such as Orders. */
+.menu-page-shell {
+  padding-top: calc(24px + env(safe-area-inset-top));
+}
+.menu-page-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.menu-page-item,
+.menu-page-support {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,.06);
+  background: #fff;
+  border-radius: 18px;
+  min-height: 72px;
+  padding: 13px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: right;
+  color: inherit;
+  box-shadow: 0 5px 18px rgba(0,0,0,.035);
+  cursor: pointer;
+}
+.menu-page-item-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f7;
+  color: #004cff;
+}
+.menu-page-item-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.menu-page-item-copy strong {
+  font-size: .93rem;
+  font-weight: 700;
+}
+.menu-page-item-copy small {
+  color: #737373;
+  font-size: .74rem;
+  line-height: 1.55;
+}
+.menu-page-support {
+  margin-top: 12px;
 }
 
 @media (max-width: 390px) {
@@ -170,11 +184,8 @@
   .bottom-nav-wrap { width: min(320px, calc(100vw - 24px)); }
   .bottom-nav { height: 60px; }
   .bottom-nav-item { width: 64px; height: 56px; padding: 12px 18px; }
-  .headline-crypto { font-size: .66rem; gap: 3px; padding-inline: 6px 4px; }
-  .headline-crypto img { width: 18px; height: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .headline-crypto,
-  .bottom-nav-item { animation: none !important; transition: none !important; }
+  .bottom-nav-item { transition: none !important; }
 }
