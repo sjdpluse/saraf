@@ -9,6 +9,8 @@ import "./peyda-font.css";
 import "./ux-effects.css";
 import "./home-refine.css";
 import "./footer-map-v3.css";
+import "./experience-polish.css";
+import "./experience-polish.js";
 
 function normalizeSellAmountPlaceholder(root = document) {
   const candidates = [];
