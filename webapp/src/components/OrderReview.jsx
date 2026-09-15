@@ -1,4 +1,4 @@
-import { CheckCircle, ShieldCheck, Warning, ArrowRight, CurrencyDollar, Wallet } from "@phosphor-icons/react";
+import { ShieldCheck, Warning, ArrowRight, CurrencyDollar, Wallet } from "@phosphor-icons/react";
 import { assetLogo, normalizeAsset } from "../lib/brand";
 
 function DetailRow({ label, value, mono = false }) {
@@ -66,7 +66,11 @@ export default function OrderReview({ action, asset, amount, quote, exchange, ne
       </div>
 
       <div className="notice warn"><Warning size={17} weight="fill" /> پس از تایید، درخواست برای بررسی تیم صراف ثبت می‌شود. شبکه، آدرس و مبلغ را دقیق کنترل کنید.</div>
-      <button className={`btn ${isBuy ? "btn-buy" : "btn-sell"}`} onClick={onConfirm} disabled={submitting || previewLoading || !cardPreviewUrl}>{submitting ? <span className="spinner" /> : <><CheckCircle size={18} weight="fill" /> تایید و درخواست {isBuy ? "خرید" : "فروش"} {selectedAsset}</>}</button>
+      <button className={`review-confirm-btn ${submitting ? "is-submitting" : ""}`} onClick={onConfirm} disabled={submitting || previewLoading || !cardPreviewUrl}>
+        <span className="review-confirm-text">تأیید و ارسال درخواست</span>
+        <span className="review-confirm-text review-confirm-text-success">در حال ارسال...</span>
+        <span className="review-confirm-gradient" aria-hidden="true" />
+      </button>
       <button className="btn btn-outline" onClick={onBack} disabled={submitting}><ArrowRight size={17} /> بازگشت و اصلاح معلومات</button>
     </div>
   );
