@@ -25,7 +25,8 @@ import { WhatsAppActionButton } from "../components/WhatsAppSupport";
 import { generateInPersonCode } from "../lib/inPerson";
 import AssetSelector from "../components/AssetSelector";
 
-const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin"];
+const EXCHANGES = ["Binance", "Bybit", "OKX", "KuCoin", "JustMarkets"];
+const JUSTMARKETS_LOGO_URL = "https://i.postimg.cc/fLhWf9Qm/justmarkets-favicon-256.png";
 const AZIZI_LOGO_URL = "https://i.postimg.cc/Y2FRCN2z/azizi.png";
 const HESABPAY_LOGO_URL = "https://i.postimg.cc/63khhqcm/hesab.png";
 const HESABPAY_QR_URL = "https://i.postimg.cc/D058wYSQ/Hesab.jpg";
@@ -304,7 +305,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
           <div className="field">
             <label className="field-label">چند {selectedAsset} می‌خواهید بخرید؟</label>
             <div className="amount-field">
-              <input className="input num" type="number" inputMode="decimal" placeholder="مثال: 100" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <input className="input num" type="number" inputMode="decimal" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
               <span className="amount-badge"><img src={coinLogo} alt={selectedAsset} style={{ borderRadius: "50%" }} /></span>
             </div>
             <div className="notice" style={{ marginTop: 10 }}>{coinName} ({selectedAsset})</div>
@@ -358,7 +359,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
       {step === "exchange" && (
         <div className="card animate-in">
           <label className="field-label">{selectedAsset} را در کدام صرافی یا کیف پول می‌خواهید دریافت کنید؟</label>
-          <div className="choice-row" style={{ marginTop: 4 }}>{EXCHANGES.map((ex) => <button key={ex} className={`choice-btn ${exchange === ex ? "selected" : ""}`} onClick={() => chooseExchange(ex)}>{ex}</button>)}</div>
+          <div className="choice-row" style={{ marginTop: 4 }}>{EXCHANGES.map((ex) => <button key={ex} className={`choice-btn ${exchange === ex ? "selected" : ""}`} onClick={() => chooseExchange(ex)}>{ex === "JustMarkets" && <img src={JUSTMARKETS_LOGO_URL} alt="JustMarkets" style={providerLogoStyle} />}{ex}</button>)}</div>
           <div style={{ marginTop: 10 }}><button className={`choice-btn ${exchange === "other" ? "selected" : ""}`} style={{ width: "100%" }} onClick={() => chooseExchange("other")}>کیف پول شخصی / صرافی دیگر</button></div>
           {exchange === "other" && <><input className="input" style={{ marginTop: 12 }} placeholder="نام صرافی یا کیف پول" value={exchangeCustom} onChange={(e) => setExchangeCustom(e.target.value)} /><button className="btn btn-buy" style={{ marginTop: 12 }} onClick={continueCustomExchange} disabled={!exchangeCustom.trim()}>ادامه</button></>}
         </div>
@@ -376,7 +377,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
 
       {step === "wallet" && (
         <div className="card animate-in">
-          <div className="field"><label className="field-label">آدرس ولت دریافت {selectedAsset}</label><textarea className="input num" rows={3} placeholder="آدرس ولت را دقیق وارد کنید" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} /></div>
+          <div className="field"><label className="field-label">دیپازیت آدرس یا آدرس ولت برای دریافت {selectedAsset}</label><textarea className="input num" rows={3} placeholder="آدرس ولت را دقیق وارد کنید" value={walletAddress} onChange={(e) => setWalletAddress(e.target.value)} /></div>
           <div className="notice" style={{ marginBottom: 12 }}>شبکه: <b>{networkLabel}</b></div>
           <div className="notice warn" style={{ marginBottom: 16 }}><Warning size={16} className="notice-icon" weight="fill" />آدرس و شبکه را دقیق بررسی کنید؛ انتقال بلاک‌چینی به آدرس یا شبکهٔ اشتباه قابل برگشت نیست.</div>
           <button className="btn btn-buy" onClick={prepareReview} disabled={!walletAddress.trim() || previewLoading}>{previewLoading ? <span className="spinner" /> : <>بررسی درخواست <ArrowRight size={16} weight="bold" /></>}</button>
