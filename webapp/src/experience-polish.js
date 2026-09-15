@@ -1,6 +1,6 @@
 const EXCHANGE_LOGOS = {
   Binance: "https://cdn.simpleicons.org/binance/F3BA2F",
-  Bybit: "https://logo.svgcdn.com/token-branded/bybit.svg",
+  Bybit: "https://i.postimg.cc/26yGrqLK/ODF-(1).png",
   OKX: "https://cdn.simpleicons.org/okx/111111",
   KuCoin: "https://cdn.simpleicons.org/kucoin/24AE8F",
   JustMarkets: "https://i.postimg.cc/cJKXwgXS/ODF.png",
@@ -31,20 +31,75 @@ function rememberLastAction(event) {
   };
 }
 
+function setReactInputValue(input, value) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (setter) setter.call(input, value);
+  else input.value = value;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function chooseInjectedSellBroker(button) {
+  const card = button.closest(".card");
+  if (!card) return;
+
+  const otherButton = Array.from(card.querySelectorAll(".choice-btn")).find((item) =>
+    /صرافی\s*\/\s*کیف پول دیگر|کیف پول شخصی|صرافی دیگر/.test(item.textContent.trim())
+  );
+  if (!otherButton) return;
+
+  otherButton.click();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const input = card.querySelector('input[placeholder="نام صرافی یا کیف پول"]');
+      if (!input) return;
+      setReactInputValue(input, "JustMarkets");
+      setTimeout(() => {
+        const continueButton = Array.from(card.querySelectorAll(".btn.btn-sell")).find((item) =>
+          item.textContent.replace(/\s+/g, " ").trim().startsWith("ادامه")
+        );
+        continueButton?.click();
+      }, 0);
+    });
+  });
+}
+
+function ensureSellJustMarkets(row, buttons) {
+  const card = row.closest(".card");
+  const label = card?.querySelector(".field-label")?.textContent || "";
+  const isSellExchangeStep = label.includes("از کدام صرافی") || label.includes("ارسال می‌کنید");
+  if (!isSellExchangeStep) return buttons;
+  if (buttons.some((button) => button.textContent.trim() === "JustMarkets")) return buttons;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "choice-btn";
+  button.textContent = "JustMarkets";
+  button.dataset.injectedBroker = "1";
+  button.addEventListener("click", () => chooseInjectedSellBroker(button));
+  row.appendChild(button);
+  return [...buttons, button];
+}
+
 function enhanceExchangeChoices(root = document) {
   root.querySelectorAll?.(".choice-row").forEach((row) => {
-    const buttons = Array.from(row.querySelectorAll(":scope > .choice-btn"));
-    const hasExchange = buttons.some((button) => EXCHANGE_LOGOS[button.textContent.trim()]);
-    if (!hasExchange) return;
+    let buttons = Array.from(row.querySelectorAll(":scope > .choice-btn"));
+    const hasKnownExchange = buttons.some((button) => EXCHANGE_LOGOS[button.textContent.trim()]);
+    const card = row.closest(".card");
+    const label = card?.querySelector(".field-label")?.textContent || "";
+    const looksLikeExchangeStep = hasKnownExchange || label.includes("صرافی یا کیف پول");
+    if (!looksLikeExchangeStep) return;
 
+    buttons = ensureSellJustMarkets(row, buttons);
     row.classList.add("exchange-choice-row");
+
     buttons.forEach((button) => {
-      const label = button.textContent.trim();
-      const logo = EXCHANGE_LOGOS[label];
+      const labelText = button.textContent.trim();
+      const logo = EXCHANGE_LOGOS[labelText];
       if (!logo) return;
       button.classList.add("exchange-option");
       button.style.setProperty("--exchange-logo", `url("${logo}")`);
-      if (label === "JustMarkets") button.classList.add("broker-option");
+      if (labelText === "JustMarkets") button.classList.add("broker-option");
     });
   });
 }
@@ -54,6 +109,22 @@ function buttonShouldUseExactGradient(button) {
   const text = button.textContent.replace(/\s+/g, " ").trim();
   if (!text) return false;
   return /^(ادامه|محاسبه|بررسی|ثبت|شروع|تایید|تکمیل|ارسال)/.test(text);
+}
+
+function syncAmountVisibility(source, wrapper) {
+  const text = source.textContent.replace(/\s+/g, " ").trim();
+  const isCalculate = text.startsWith("محاسبه");
+  wrapper.classList.toggle("amount-reveal-button", isCalculate);
+  if (!isCalculate) {
+    wrapper.classList.remove("is-amount-hidden", "is-amount-visible");
+    return;
+  }
+
+  const card = source.closest(".card");
+  const amountInput = card?.querySelector('input[type="number"]');
+  const hasAmount = Boolean(amountInput?.value?.trim());
+  wrapper.classList.toggle("is-amount-hidden", !hasAmount);
+  wrapper.classList.toggle("is-amount-visible", hasAmount);
 }
 
 function syncExactGradientButton(source, wrapper) {
@@ -75,6 +146,7 @@ function syncExactGradientButton(source, wrapper) {
   wrapper.classList.toggle("exact-flow-buy", source.classList.contains("btn-buy"));
   wrapper.classList.toggle("exact-flow-sell", source.classList.contains("btn-sell"));
   wrapper.classList.toggle("exact-flow-primary", source.classList.contains("btn-primary"));
+  syncAmountVisibility(source, wrapper);
 }
 
 function buildExactGradientButton(source) {
@@ -180,6 +252,11 @@ function enhance(root = document) {
 
 if (typeof document !== "undefined") {
   document.addEventListener("pointerdown", rememberLastAction, true);
+  document.addEventListener("input", (event) => {
+    if (event.target?.matches?.('input[type="number"]')) {
+      requestAnimationFrame(() => enhanceStageButtons(document));
+    }
+  }, true);
   enhance();
 
   if (typeof MutationObserver !== "undefined") {
