@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { marketChange } from "../lib/market";
 import { TETHER_LOGO_URL, USDC_LOGO_URL } from "../lib/brand";
@@ -59,6 +59,16 @@ function CoinLogo({ coin }) {
   return failed
     ? <span className="map-coin-fallback">{coin.symbol}</span>
     : <img src={coin.logo} alt="" onError={() => setFailed(true)} />;
+}
+
+function MapLoader() {
+  return (
+    <div className="map-loader-shell" role="status" aria-label="در حال بارگذاری نقشه">
+      <div className="map-crystal-loader" aria-hidden="true">
+        {Array.from({ length: 6 }, (_, index) => <span className="map-loader-crystal" key={index} />)}
+      </div>
+    </div>
+  );
 }
 
 function walkCoordinates(node, visit) {
@@ -155,6 +165,32 @@ export default function MarketMap({ activeLocation, activeDuration = 1700 }) {
   const [hidden, setHidden] = useState(document.hidden);
   const [now, setNow] = useState(Date.now());
   const [coinIndex, setCoinIndex] = useState(() => Math.floor(Math.random() * COINS.length));
+  const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const image = new Image();
+
+    const revealMap = async () => {
+      try {
+        if (typeof image.decode === "function") await image.decode();
+      } catch (_) {
+        // onload already confirms the image bytes are available; decode may fail on older WebViews.
+      }
+      if (!cancelled) setMapReady(true);
+    };
+
+    image.onload = revealMap;
+    image.onerror = () => { if (!cancelled) setMapReady(true); };
+    image.src = afghanistanMap;
+    if (image.complete && image.naturalWidth > 0) revealMap();
+
+    return () => {
+      cancelled = true;
+      image.onload = null;
+      image.onerror = null;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -206,27 +242,30 @@ export default function MarketMap({ activeLocation, activeDuration = 1700 }) {
 
   return (
     <figure className={"market-map " + (hidden ? "is-paused" : "")} aria-label="نمای زندهٔ رمزارزها روی نقشهٔ افغانستان">
-      <div className="map-stage" style={{ "--map-image": `url("${afghanistanMap}")` }}>
-        <div className="afghanistan-dots" role="img" aria-label="نقشهٔ نقطه‌یی افغانستان" />
-        <ProvinceOverlay activeLocation={activeLocation} />
-        <div className="map-market-flow" aria-hidden="true">
-          <div
-            className="map-floater"
-            key={markerKey}
-            style={{
-              left: `${point[0]}%`,
-              top: `${point[1]}%`,
-              "--float-scale": .96,
-              "--coin-accent": coin.accent,
-              "--coin-duration": `${activeDuration}ms`,
-            }}
-          >
-            <div className="map-token">
-              <span className={`map-change num ${value === null ? "is-waiting" : ""}`}>
-                <span className="map-change-sign">{sign}</span>
-                <span className="map-change-value">{value ?? "··"}</span>
-              </span>
-              <span className="map-coin-shell"><span className="map-coin"><CoinLogo coin={coin} /></span></span>
+      <div className={`map-stage ${mapReady ? "is-ready" : "is-loading"}`} style={{ "--map-image": `url("${afghanistanMap}")` }}>
+        {!mapReady && <MapLoader />}
+        <div className="map-visual-content" aria-hidden={!mapReady}>
+          <div className="afghanistan-dots" role="img" aria-label="نقشهٔ نقطه‌یی افغانستان" />
+          <ProvinceOverlay activeLocation={activeLocation} />
+          <div className="map-market-flow" aria-hidden="true">
+            <div
+              className="map-floater"
+              key={markerKey}
+              style={{
+                left: `${point[0]}%`,
+                top: `${point[1]}%`,
+                "--float-scale": .96,
+                "--coin-accent": coin.accent,
+                "--coin-duration": `${activeDuration}ms`,
+              }}
+            >
+              <div className="map-token">
+                <span className={`map-change num ${value === null ? "is-waiting" : ""}`}>
+                  <span className="map-change-sign">{sign}</span>
+                  <span className="map-change-value">{value ?? "··"}</span>
+                </span>
+                <span className="map-coin-shell"><span className="map-coin"><CoinLogo coin={coin} /></span></span>
+              </div>
             </div>
           </div>
         </div>
