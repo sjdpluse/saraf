@@ -8,6 +8,7 @@ import "./brand-refresh.css";
 import "./peyda-font.css";
 import "./ux-effects.css";
 import "./home-refine.css";
+import "./footer-map-v3.css";
 
 function normalizeSellAmountPlaceholder(root = document) {
   const candidates = [];
