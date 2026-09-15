@@ -61,6 +61,12 @@
 .map-floater,
 .headline-crypto { display: none !important; animation: none !important; }
 
+/* Progression arrows in buy/sell flows point to the left in RTL. */
+.btn-buy > svg,
+.btn-sell > svg {
+  transform: scaleX(-1);
+}
+
 /* Floating footer inspired by the supplied radio navigation. */
 .bottom-nav-wrap {
   position: fixed;
