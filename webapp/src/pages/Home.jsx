@@ -3,7 +3,7 @@ import { ArrowDownLeft, ArrowUpRight, CaretLeft, ClipboardText, PaperPlaneTilt, 
 import { api } from "../lib/api";
 import { SARAF_LOGO_URL } from "../lib/brand";
 import AppMenu from "../components/AppMenu";
-import MarketMap from "../components/MarketMap";
+import MarketMap from "../components/MarketMapV2";
 
 const LOCATIONS = [
   ["کابل", 1700],

@@ -12,6 +12,18 @@ export function initTelegram() {
   if (!wa) return;
   wa.ready();
   wa.expand();
+
+  // Telegram Bot API 8.0+ supports true fullscreen Mini Apps. This is the only
+  // supported way to get rid of the normal native WebView header/title area;
+  // older/unsupported clients simply keep the standard Telegram header.
+  try {
+    const supportsFullscreen = typeof wa.requestFullscreen === "function"
+      && (typeof wa.isVersionAtLeast !== "function" || wa.isVersionAtLeast("8.0"));
+    if (supportsFullscreen && !wa.isFullscreen) wa.requestFullscreen();
+  } catch (_) {
+    /* Fullscreen can be unsupported by a specific Telegram client/platform. */
+  }
+
   // چون تم روشن یک تصمیم برند ثابت است (نه وابسته به تم تاریک/روشن خود
   // تلگرام کاربر)، رنگ واقعی پس‌زمینه را مستقیم می‌دهیم، نه کلید تم
   // ("secondary_bg_color") که در حالت تاریک تلگرام می‌تواند تیره برگردد.

@@ -1,0 +1,91 @@
+/* Home refinements: transparent menu trigger + neutral map + continuous province transition. */
+
+/* Hamburger trigger on Home must be icon-only, without a card/surface. */
+.home-header > .icon-button {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #161616 !important;
+}
+.home-header > .icon-button:hover,
+.home-header > .icon-button:focus,
+.home-header > .icon-button:active {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.home-header > .icon-button:active { transform: scale(.92); }
+
+/* Exact requested neutral map tone. The dotted source is used as a mask/texture. */
+.afghanistan-dots {
+  background-color: #6c757d !important;
+  opacity: 1 !important;
+}
+
+/* Province highlight uses #161616 and never fades to transparent between locations. */
+.province-hourglass-overlay { z-index: 3; overflow: visible; }
+.province-hourglass-layer {
+  transform-box: view-box;
+  will-change: transform;
+}
+.province-hourglass-layer .province-dot-image {
+  opacity: 1 !important;
+  animation: none !important;
+}
+.province-hourglass-steady { transform: scale(1); }
+
+.province-hourglass-out {
+  animation: province-hourglass-collapse .82s cubic-bezier(.55,.02,.28,1) forwards;
+}
+.province-hourglass-in {
+  transform: scale(.055,.12);
+  animation: province-hourglass-expand .72s .28s cubic-bezier(.16,1,.3,1) forwards;
+}
+
+/* A short dotted "sand" stream keeps the eye connected from the old province to the new one. */
+.province-sand-stream {
+  fill: none;
+  stroke: #161616;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-dasharray: .025 .06;
+  stroke-dashoffset: .9;
+  opacity: 0;
+  vector-effect: non-scaling-stroke;
+  animation: province-sand-flow .72s .18s cubic-bezier(.3,.7,.25,1) both;
+}
+
+@keyframes province-hourglass-collapse {
+  0%   { transform: scale(1,1) rotate(0deg); }
+  42%  { transform: scale(.54,.88) rotate(-1.2deg); }
+  72%  { transform: scale(.16,.58) rotate(1deg); }
+  100% { transform: scale(.055,.12) rotate(0deg); }
+}
+
+@keyframes province-hourglass-expand {
+  0%   { transform: scale(.055,.12) rotate(0deg); }
+  34%  { transform: scale(.18,.62) rotate(-1deg); }
+  70%  { transform: scale(.68,.92) rotate(.7deg); }
+  100% { transform: scale(1,1) rotate(0deg); }
+}
+
+@keyframes province-sand-flow {
+  0%   { opacity: 0; stroke-dashoffset: 1; }
+  20%  { opacity: .42; }
+  76%  { opacity: .55; stroke-dashoffset: .15; }
+  100% { opacity: 0; stroke-dashoffset: 0; }
+}
+
+.market-map.is-paused .province-hourglass-out,
+.market-map.is-paused .province-hourglass-in,
+.market-map.is-paused .province-sand-stream { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .province-hourglass-out,
+  .province-hourglass-in,
+  .province-sand-stream { animation: none !important; }
+  .province-hourglass-out { display: none; }
+  .province-hourglass-in,
+  .province-hourglass-steady { transform: none !important; }
+}
