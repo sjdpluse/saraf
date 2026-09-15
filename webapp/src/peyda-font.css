@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Doppio+One&display=swap");
+
 @font-face {
   font-family: "Peyda";
   src: url("/miniapp/fonts/Peyda-Regular.ttf") format("truetype");
@@ -39,8 +41,8 @@
 }
 
 :root {
-  --font-fa: "Peyda", sans-serif;
-  --font-num: "Peyda", sans-serif;
+  --font-fa: "Doppio One", "Peyda", sans-serif;
+  --font-num: "Doppio One", "Peyda", sans-serif;
 }
 
 html,
@@ -51,14 +53,14 @@ input,
 textarea,
 select,
 option {
-  font-family: "Peyda", sans-serif;
+  font-family: "Doppio One", "Peyda", sans-serif;
 }
 
 input::placeholder,
 textarea::placeholder {
-  font-family: "Peyda", sans-serif;
+  font-family: "Doppio One", "Peyda", sans-serif;
 }
 
 .num {
-  font-family: "Peyda", sans-serif;
+  font-family: "Doppio One", "Peyda", sans-serif;
 }
