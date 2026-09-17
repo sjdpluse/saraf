@@ -1,20 +1,30 @@
 .saraf-card-carousel {
-  --carousel-card-width: 148px;
+  --carousel-card-width: clamp(238px, 72vw, 320px);
   position: absolute;
   inset: 0;
-  overflow: visible;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  overflow: hidden;
   direction: ltr;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: pan-y;
   z-index: 8;
+  contain: layout paint;
+  isolation: isolate;
 }
 
 .saraf-card-carousel__stage {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   opacity: 0;
   transition: opacity .28s ease;
+  contain: layout paint;
 }
 
 .saraf-card-carousel.is-ready .saraf-card-carousel__stage {
@@ -22,32 +32,36 @@
 }
 
 .saraf-card-carousel__card {
-  --card-x: 0%;
+  --card-left: 50%;
   --card-y: 0px;
   --card-rotate: 0deg;
   --card-scale: 1;
   --card-opacity: 0;
+  --card-blur: 0px;
   --card-z: 1;
   position: absolute;
   top: 51%;
-  left: 50%;
+  left: var(--card-left);
   width: var(--carousel-card-width);
   aspect-ratio: 1.586 / 1;
   overflow: hidden;
-  border-radius: clamp(8px, 2vw, 12px);
-  background: rgba(255,255,255,.96);
-  box-shadow: 0 8px 24px rgba(0,0,0,.11);
+  border-radius: clamp(13px, 3.2vw, 20px);
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 12px 30px rgba(0,0,0,.14);
   opacity: var(--card-opacity);
   z-index: var(--card-z);
+  filter: blur(var(--card-blur));
   transform:
-    translate(calc(-50% + var(--card-x)), calc(-50% + var(--card-y)))
+    translate3d(-50%, calc(-50% + var(--card-y)), 0)
     rotate(var(--card-rotate))
     scale(var(--card-scale));
   transform-origin: center center;
   transition:
-    transform .56s cubic-bezier(.22,1,.36,1),
-    opacity .28s ease;
-  will-change: transform, opacity;
+    left .62s cubic-bezier(.22,1,.36,1),
+    transform .62s cubic-bezier(.22,1,.36,1),
+    opacity .34s ease,
+    filter .42s ease;
+  will-change: left, transform, opacity, filter;
 }
 
 .saraf-card-carousel__card img {
@@ -65,15 +79,35 @@
 
 .market-map-with-cards {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  contain: layout paint;
+}
+
+.market-map-with-cards .market-map,
+.market-map-with-cards .map-stage-new {
+  max-width: 100%;
 }
 
 .market-map-with-cards .map-stage-new {
-  overflow: visible;
+  overflow: hidden;
 }
 
 @media (max-width: 390px) {
   .saraf-card-carousel {
-    --carousel-card-width: 136px;
+    --carousel-card-width: clamp(230px, 74vw, 286px);
+  }
+
+  .saraf-card-carousel__card {
+    top: 52%;
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 340px) {
+  .saraf-card-carousel {
+    --carousel-card-width: 224px;
   }
 }
 
