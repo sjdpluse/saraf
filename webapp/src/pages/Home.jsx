@@ -39,7 +39,10 @@ export default function Home({ navigate, startTransaction }) {
   return (
     <main className="app-shell home-shell">
       <section className="home-intro" aria-labelledby="home-title">
-        <MarketMap activeLocation={location} />
+        <div className="market-map-with-cards">
+          <MarketMap activeLocation={location} />
+          <CardCarousel />
+        </div>
         <h1 id="home-title" className="home-title-stack">
           <span className="home-title-copy">مرجع خرید و فروش رمز ارز در</span>
           <span className="home-afghanistan-line" aria-label={`افغانستان، ${location}`}>
@@ -57,8 +60,6 @@ export default function Home({ navigate, startTransaction }) {
           </span>
         </h1>
       </section>
-
-      <CardCarousel />
 
       <section className="trade-panel trade-panel-actions-only" aria-label="خرید و فروش رمز ارز">
         <div className="trade-actions trade-actions-premium">
