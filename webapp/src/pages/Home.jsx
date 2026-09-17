@@ -41,7 +41,7 @@ export default function Home({ navigate, startTransaction }) {
       <section className="home-intro" aria-labelledby="home-title">
         <div className="market-map-with-cards">
           <MarketMap activeLocation={location} />
-          <CardCarousel />
+          <CardCarousel activeStep={locationIndex} />
         </div>
         <h1 id="home-title" className="home-title-stack">
           <span className="home-title-copy">مرجع خرید و فروش رمز ارز در</span>
