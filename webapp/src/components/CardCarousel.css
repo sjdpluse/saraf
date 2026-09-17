@@ -4,9 +4,6 @@
   inset: 0;
   overflow: visible;
   direction: ltr;
-  perspective: 760px;
-  perspective-origin: 50% 50%;
-  transform-style: preserve-3d;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
@@ -16,7 +13,6 @@
 .saraf-card-carousel__stage {
   position: absolute;
   inset: 0;
-  transform-style: preserve-3d;
   opacity: 0;
   transition: opacity .28s ease;
 }
@@ -26,10 +22,12 @@
 }
 
 .saraf-card-carousel__card {
-  --card-x: 0px;
-  --card-z: 0px;
-  --card-rotate-y: 0deg;
+  --card-x: 0%;
+  --card-y: 0px;
+  --card-rotate: 0deg;
   --card-scale: 1;
+  --card-opacity: 0;
+  --card-z: 1;
   position: absolute;
   top: 51%;
   left: 50%;
@@ -39,14 +37,16 @@
   border-radius: clamp(8px, 2vw, 12px);
   background: rgba(255,255,255,.96);
   box-shadow: 0 8px 24px rgba(0,0,0,.11);
+  opacity: var(--card-opacity);
+  z-index: var(--card-z);
   transform:
-    translate3d(calc(-50% + var(--card-x)), -50%, var(--card-z))
-    rotateY(var(--card-rotate-y))
+    translate(calc(-50% + var(--card-x)), calc(-50% + var(--card-y)))
+    rotate(var(--card-rotate))
     scale(var(--card-scale));
   transform-origin: center center;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  transition:
+    transform .56s cubic-bezier(.22,1,.36,1),
+    opacity .28s ease;
   will-change: transform, opacity;
 }
 
@@ -73,12 +73,13 @@
 
 @media (max-width: 390px) {
   .saraf-card-carousel {
-    perspective: 700px;
+    --carousel-card-width: 136px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .saraf-card-carousel__stage {
+  .saraf-card-carousel__stage,
+  .saraf-card-carousel__card {
     transition: none;
   }
 }
