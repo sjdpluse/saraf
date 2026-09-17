@@ -21,12 +21,12 @@ const MAX_VISIBLE_ANGLE = 96;
 
 function buildLoop(cards) {
   if (!cards.length) return [];
-  if (cards.length >= 4) return cards;
+  if (cards.length >= 8) return cards;
 
   const loop = [];
-  while (loop.length < 4) {
+  while (loop.length < 8) {
     cards.forEach((card) => {
-      if (loop.length < 4) loop.push(card);
+      if (loop.length < 8) loop.push(card);
     });
   }
   return loop;
