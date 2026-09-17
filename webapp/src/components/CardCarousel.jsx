@@ -57,54 +57,59 @@ function preloadImage(src) {
 function slotStyle(distance) {
   if (distance <= -2) {
     return {
-      "--card-x": "-132%",
-      "--card-y": "5px",
+      "--card-left": "-34%",
+      "--card-y": "6px",
       "--card-rotate": "16deg",
       "--card-scale": ".88",
       "--card-opacity": "0",
+      "--card-blur": "7px",
       "--card-z": "1",
     };
   }
 
   if (distance === -1) {
     return {
-      "--card-x": "-62%",
-      "--card-y": "2px",
+      "--card-left": "0%",
+      "--card-y": "3px",
       "--card-rotate": "10deg",
-      "--card-scale": ".94",
-      "--card-opacity": "1",
+      "--card-scale": ".93",
+      "--card-opacity": ".62",
+      "--card-blur": "3px",
       "--card-z": "2",
     };
   }
 
   if (distance === 0) {
     return {
-      "--card-x": "0%",
+      "--card-left": "50%",
       "--card-y": "0px",
       "--card-rotate": "0deg",
       "--card-scale": "1",
       "--card-opacity": "1",
+      "--card-blur": "0px",
       "--card-z": "4",
     };
   }
 
   if (distance === 1) {
     return {
-      "--card-x": "62%",
-      "--card-y": "2px",
+      "--card-left": "100%",
+      "--card-y": "3px",
       "--card-rotate": "-10deg",
-      "--card-scale": ".94",
-      "--card-opacity": "1",
+      "--card-scale": ".93",
+      "--card-opacity": ".62",
+      "--card-blur": "3px",
       "--card-z": "2",
     };
   }
 
   return {
-    "--card-x": "132%",
-    "--card-y": "5px",
+    "--card-left": "134%",
+    "--card-y": "6px",
     "--card-rotate": "-16deg",
     "--card-scale": ".88",
     "--card-opacity": "0",
+    "--card-blur": "7px",
     "--card-z": "1",
   };
 }
