@@ -1,23 +1,28 @@
 .saraf-card-carousel {
-  --carousel-card-width: 250px;
-  position: relative;
-  width: calc(100% + 32px);
-  height: clamp(158px, 43vw, 214px);
-  margin: 0 -16px 2px;
-  overflow: hidden;
+  --carousel-card-width: 148px;
+  position: absolute;
+  inset: 0;
+  overflow: visible;
   direction: ltr;
-  perspective: 1180px;
-  perspective-origin: 50% 48%;
-  isolation: isolate;
-  contain: layout paint;
+  perspective: 760px;
+  perspective-origin: 50% 50%;
+  transform-style: preserve-3d;
+  pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
+  z-index: 8;
 }
 
 .saraf-card-carousel__stage {
   position: absolute;
   inset: 0;
   transform-style: preserve-3d;
+  opacity: 0;
+  transition: opacity .28s ease;
+}
+
+.saraf-card-carousel.is-ready .saraf-card-carousel__stage {
+  opacity: 1;
 }
 
 .saraf-card-carousel__card {
@@ -26,14 +31,14 @@
   --card-rotate-y: 0deg;
   --card-scale: 1;
   position: absolute;
-  top: 50%;
+  top: 51%;
   left: 50%;
   width: var(--carousel-card-width);
   aspect-ratio: 1.586 / 1;
   overflow: hidden;
-  border-radius: clamp(11px, 2.6vw, 16px);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.075);
+  border-radius: clamp(8px, 2vw, 12px);
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 8px 24px rgba(0,0,0,.11);
   transform:
     translate3d(calc(-50% + var(--card-x)), -50%, var(--card-z))
     rotateY(var(--card-rotate-y))
@@ -43,7 +48,6 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   will-change: transform, opacity;
-  transition: opacity 120ms linear;
 }
 
 .saraf-card-carousel__card img {
@@ -55,14 +59,26 @@
   -webkit-user-drag: none;
 }
 
-@media (max-width: 380px) {
+.saraf-card-carousel__loader {
+  z-index: 30;
+}
+
+.market-map-with-cards {
+  position: relative;
+}
+
+.market-map-with-cards .map-stage-new {
+  overflow: visible;
+}
+
+@media (max-width: 390px) {
   .saraf-card-carousel {
-    height: 154px;
+    perspective: 700px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .saraf-card-carousel__card {
+  .saraf-card-carousel__stage {
     transition: none;
   }
 }
