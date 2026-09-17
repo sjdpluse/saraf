@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./CardCarousel.css";
 
 const rootCards = import.meta.glob("../assets/card-*.{png,jpg,jpeg,webp,avif,svg}", {
@@ -15,26 +15,10 @@ const sourceCards = Object.entries({ ...rootCards, ...folderCards })
   .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }))
   .map(([path, src]) => ({ path, src }));
 
-const SLOT_MS = 1880;
-const ANGLE_STEP = 36;
-const MAX_VISIBLE_ANGLE = 96;
-
-function buildLoop(cards) {
-  if (!cards.length) return [];
-  if (cards.length >= 8) return cards;
-
-  const loop = [];
-  while (loop.length < 8) {
-    cards.forEach((card) => {
-      if (loop.length < 8) loop.push(card);
-    });
-  }
-  return loop;
-}
-
-function wrappedDistance(value, count) {
+function wrappedDistance(activeIndex, cardIndex, count) {
+  if (!count) return 0;
   const half = count / 2;
-  return ((((value + half) % count) + count) % count) - half;
+  return ((((activeIndex - cardIndex + half) % count) + count) % count) - half;
 }
 
 function CardLoader() {
@@ -70,114 +54,107 @@ function preloadImage(src) {
   });
 }
 
-export default function CardCarousel() {
-  const rootRef = useRef(null);
-  const phaseRef = useRef(0);
-  const frameRef = useRef(0);
-  const lastFrameRef = useRef(null);
-  const [assetsReady, setAssetsReady] = useState(false);
+function slotStyle(distance) {
+  if (distance <= -2) {
+    return {
+      "--card-x": "-132%",
+      "--card-y": "5px",
+      "--card-rotate": "16deg",
+      "--card-scale": ".88",
+      "--card-opacity": "0",
+      "--card-z": "1",
+    };
+  }
 
-  const cards = useMemo(() => buildLoop(sourceCards), []);
+  if (distance === -1) {
+    return {
+      "--card-x": "-62%",
+      "--card-y": "2px",
+      "--card-rotate": "10deg",
+      "--card-scale": ".94",
+      "--card-opacity": "1",
+      "--card-z": "2",
+    };
+  }
+
+  if (distance === 0) {
+    return {
+      "--card-x": "0%",
+      "--card-y": "0px",
+      "--card-rotate": "0deg",
+      "--card-scale": "1",
+      "--card-opacity": "1",
+      "--card-z": "4",
+    };
+  }
+
+  if (distance === 1) {
+    return {
+      "--card-x": "62%",
+      "--card-y": "2px",
+      "--card-rotate": "-10deg",
+      "--card-scale": ".94",
+      "--card-opacity": "1",
+      "--card-z": "2",
+    };
+  }
+
+  return {
+    "--card-x": "132%",
+    "--card-y": "5px",
+    "--card-rotate": "-16deg",
+    "--card-scale": ".88",
+    "--card-opacity": "0",
+    "--card-z": "1",
+  };
+}
+
+export default function CardCarousel({ activeStep = 0 }) {
+  const [assetsReady, setAssetsReady] = useState(false);
+  const cards = useMemo(() => sourceCards, []);
 
   useEffect(() => {
     let cancelled = false;
     setAssetsReady(false);
 
-    if (!sourceCards.length) {
+    if (!cards.length) {
       setAssetsReady(true);
       return () => { cancelled = true; };
     }
 
-    Promise.all(sourceCards.map((card) => preloadImage(card.src))).then(() => {
+    Promise.all(cards.map((card) => preloadImage(card.src))).then(() => {
       if (!cancelled) setAssetsReady(true);
     });
 
     return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || !cards.length || !assetsReady) return undefined;
-
-    const cardNodes = Array.from(root.querySelectorAll(".saraf-card-carousel__card"));
-    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-
-    const paint = (now) => {
-      const width = root.clientWidth || window.innerWidth || 390;
-      const cardWidth = Math.min(164, Math.max(126, width * 0.38));
-      const radius = Math.min(300, Math.max(190, width * 0.6));
-
-      root.style.setProperty("--carousel-card-width", `${cardWidth}px`);
-
-      if (lastFrameRef.current == null) lastFrameRef.current = now;
-      const elapsed = Math.min(64, Math.max(0, now - lastFrameRef.current));
-      lastFrameRef.current = now;
-
-      if (!document.hidden && !reducedMotion?.matches && cards.length > 1) {
-        phaseRef.current = (phaseRef.current + elapsed / SLOT_MS) % cards.length;
-      }
-
-      cardNodes.forEach((node, index) => {
-        const position = wrappedDistance(index - phaseRef.current, cards.length);
-        const angle = position * ANGLE_STEP;
-        const radians = angle * Math.PI / 180;
-        const absAngle = Math.abs(angle);
-        const visible = absAngle <= MAX_VISIBLE_ANGLE;
-
-        const x = Math.sin(radians) * radius;
-        const z = (Math.cos(radians) - 1) * radius;
-        const rotateY = -angle;
-        const scale = 1 - Math.min(0.045, Math.abs(position) * 0.012);
-        const opacity = !visible ? 0 : absAngle > 82 ? Math.max(0, (MAX_VISIBLE_ANGLE - absAngle) / 14) : 1;
-        const depth = Math.cos(radians);
-
-        node.style.setProperty("--card-x", `${x.toFixed(2)}px`);
-        node.style.setProperty("--card-z", `${z.toFixed(2)}px`);
-        node.style.setProperty("--card-rotate-y", `${rotateY.toFixed(2)}deg`);
-        node.style.setProperty("--card-scale", scale.toFixed(4));
-        node.style.opacity = opacity.toFixed(3);
-        node.style.zIndex = String(Math.round(1000 + depth * 100));
-        node.style.visibility = visible ? "visible" : "hidden";
-      });
-
-      frameRef.current = window.requestAnimationFrame(paint);
-    };
-
-    const handleVisibility = () => {
-      lastFrameRef.current = null;
-    };
-
-    document.addEventListener("visibilitychange", handleVisibility);
-    reducedMotion?.addEventListener?.("change", handleVisibility);
-    frameRef.current = window.requestAnimationFrame(paint);
-
-    return () => {
-      window.cancelAnimationFrame(frameRef.current);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      reducedMotion?.removeEventListener?.("change", handleVisibility);
-      lastFrameRef.current = null;
-    };
-  }, [assetsReady, cards]);
+  }, [cards]);
 
   if (!cards.length) return null;
 
+  const activeIndex = ((activeStep % cards.length) + cards.length) % cards.length;
+
   return (
     <div
-      ref={rootRef}
       className={`saraf-card-carousel ${assetsReady ? "is-ready" : "is-loading"}`}
       aria-label="کارت‌های صراف"
     >
       {!assetsReady && <CardLoader />}
       <div className="saraf-card-carousel__stage" aria-hidden={!assetsReady}>
-        {cards.map((card, index) => (
-          <div
-            className="saraf-card-carousel__card"
-            key={`${card.path}-${index}`}
-            aria-hidden="true"
-          >
-            <img src={card.src} alt="" draggable="false" loading="eager" />
-          </div>
-        ))}
+        {cards.map((card, index) => {
+          const distance = wrappedDistance(activeIndex, index, cards.length);
+          const visible = Math.abs(distance) <= 1;
+
+          return (
+            <div
+              className={`saraf-card-carousel__card${visible ? " is-visible" : ""}`}
+              key={card.path}
+              style={slotStyle(distance)}
+              aria-hidden="true"
+            >
+              <img src={card.src} alt="" draggable="false" loading="eager" />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
