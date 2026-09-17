@@ -1,0 +1,68 @@
+.saraf-card-carousel {
+  --carousel-card-width: 250px;
+  position: relative;
+  width: calc(100% + 32px);
+  height: clamp(158px, 43vw, 214px);
+  margin: 0 -16px 2px;
+  overflow: hidden;
+  direction: ltr;
+  perspective: 1180px;
+  perspective-origin: 50% 48%;
+  isolation: isolate;
+  contain: layout paint;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.saraf-card-carousel__stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.saraf-card-carousel__card {
+  --card-x: 0px;
+  --card-z: 0px;
+  --card-rotate-y: 0deg;
+  --card-scale: 1;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--carousel-card-width);
+  aspect-ratio: 1.586 / 1;
+  overflow: hidden;
+  border-radius: clamp(11px, 2.6vw, 16px);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.075);
+  transform:
+    translate3d(calc(-50% + var(--card-x)), -50%, var(--card-z))
+    rotateY(var(--card-rotate-y))
+    scale(var(--card-scale));
+  transform-origin: center center;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform, opacity;
+  transition: opacity 120ms linear;
+}
+
+.saraf-card-carousel__card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+@media (max-width: 380px) {
+  .saraf-card-carousel {
+    height: 154px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saraf-card-carousel__card {
+    transition: none;
+  }
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, CaretLeft, ClipboardText, PaperPlaneTilt, Star } from "@phosphor-icons/react";
 import { api } from "../lib/api";
 import MarketMap from "../components/MarketMapV2";
+import CardCarousel from "../components/CardCarousel";
 
 const LOCATIONS = [
   ["کابل", 1700], ["بامیان", 1700], ["مزار شریف", 1900], ["هرات", 1700],
@@ -56,6 +57,8 @@ export default function Home({ navigate, startTransaction }) {
           </span>
         </h1>
       </section>
+
+      <CardCarousel />
 
       <section className="trade-panel trade-panel-actions-only" aria-label="خرید و فروش رمز ارز">
         <div className="trade-actions trade-actions-premium">
