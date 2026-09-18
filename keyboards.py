@@ -11,7 +11,8 @@ BTN_SILVER = "🥈 نرخ نقره"
 BTN_CRYPTO = "🪙 نرخ رمزارزها"
 BTN_COMPARE = "📊 مقایسه با گذشته"
 BTN_CONVERTER = "🔄 مبدل ارز جهانی"
-BTN_USDT = "خرید و فروش |  USDT / USDC"
+BTN_USDT = "خرید و فروش | USDT/USDC"
+BTN_JUSTMARKETS = "Saraf - JustMarkets"
 BTN_ABOUT = "ℹ️ درباره ربات"
 BTN_ADMIN_POST = "📢 نشر پست (فیسبوک/اینستاگرام)"
 
@@ -38,11 +39,17 @@ def mini_app_web_url(action: str | None = None, asset: str | None = None) -> str
 
 
 def main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
+    justmarkets_button = (
+        KeyboardButton(BTN_JUSTMARKETS, web_app=WebAppInfo(url=mini_app_web_url()))
+        if MINI_APP_URL
+        else KeyboardButton(BTN_JUSTMARKETS)
+    )
     rows = [
-        [BTN_CURRENCY, BTN_GOLD],
-        [BTN_SILVER, BTN_CRYPTO],
-        [BTN_COMPARE, BTN_CONVERTER],
         [BTN_USDT],
+        [justmarkets_button],
+        [BTN_CURRENCY, BTN_GOLD],
+        [BTN_SILVER, BTN_CONVERTER],
+        [BTN_CRYPTO, BTN_COMPARE],
         [BTN_ABOUT],
     ]
     if is_admin:
