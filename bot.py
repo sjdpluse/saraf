@@ -10,7 +10,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from telegram import MenuButtonWebApp, Update, WebAppInfo
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp, Update, WebAppInfo
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -28,7 +28,7 @@ from config import (
     FACEBOOK_CHECK_INTERVAL_MINUTES,
     INSTAGRAM_CHECK_INTERVAL_MINUTES,
 )
-from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_SILVER, BTN_CRYPTO, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT, BTN_ADMIN_POST, mini_app_web_url
+from keyboards import BTN_CURRENCY, BTN_GOLD, BTN_SILVER, BTN_CRYPTO, BTN_COMPARE, BTN_CONVERTER, BTN_ABOUT, BTN_USDT, BTN_JUSTMARKETS, BTN_ADMIN_POST, mini_app_web_url
 from handlers import start, currency, gold, silver, crypto, compare, admin, converter, usdt, kyc
 from jobs import (
     fetch_and_store_snapshot,
@@ -115,6 +115,16 @@ async def main_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await converter.converter_prompt(update, context)
     elif text == BTN_USDT:
         await usdt.usdt_menu(update, context)
+    elif text == BTN_JUSTMARKETS:
+        if MINI_APP_URL:
+            await update.message.reply_text(
+                "Saraf - JustMarkets",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("باز کردن Mini App", web_app=WebAppInfo(url=mini_app_web_url()))]
+                ]),
+            )
+        else:
+            await update.message.reply_text("Mini App در حال حاضر تنظیم نشده است.")
     elif text == BTN_ABOUT:
         await start.about(update, context)
     elif text == BTN_ADMIN_POST:
