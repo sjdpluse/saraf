@@ -1,0 +1,268 @@
+.jm-home-entry,
+.jm-nav-card,
+.jm-deposit-primary,
+.jm-deposit-secondary,
+.jm-code-row button {
+  font-family: inherit;
+}
+
+.jm-home-entry {
+  width: 100%;
+  border: 1px solid rgba(0, 76, 255, 0.16);
+  background: linear-gradient(135deg, #ffffff 0%, #f3f7ff 100%);
+  border-radius: 22px;
+  padding: 15px 16px;
+  display: grid;
+  grid-template-columns: 44px 1fr 20px;
+  align-items: center;
+  gap: 12px;
+  text-align: right;
+  color: #1d1d1f;
+  box-shadow: 0 10px 28px rgba(0, 76, 255, 0.08);
+  cursor: pointer;
+}
+
+.jm-home-entry:active { transform: scale(.985); }
+
+.jm-home-entry-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #004cff;
+  color: #fff;
+}
+
+.jm-home-entry strong,
+.jm-home-entry small { display: block; }
+.jm-home-entry strong { font-size: 14.5px; font-weight: 800; direction: ltr; text-align: right; }
+.jm-home-entry small { margin-top: 3px; color: #6e6e73; font-size: 11.5px; line-height: 1.6; }
+
+.jm-shell {
+  gap: 18px;
+  padding-bottom: calc(105px + env(safe-area-inset-bottom));
+}
+
+.jm-header {
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding: 10px 0 12px;
+  background: rgba(245, 245, 247, .92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.jm-header > div { text-align: center; }
+.jm-header-kicker { display: block; color: #004cff; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
+.jm-header strong { display: block; margin-top: 1px; font-size: 15px; }
+.jm-back-btn { width: 40px; height: 40px; }
+.jm-header-mark { width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; color: #004cff; background: #fff; border: 1px solid rgba(0,0,0,.06); }
+
+.jm-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 22px;
+  color: #fff;
+  background: radial-gradient(circle at 20% 10%, rgba(255,255,255,.2), transparent 34%), linear-gradient(145deg, #0066cc 0%, #004cff 58%, #002f9f 100%);
+  box-shadow: 0 22px 50px rgba(0, 76, 255, .22);
+}
+
+.jm-hero::after {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  left: -100px;
+  bottom: -120px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 0 0 28px rgba(255,255,255,.04), 0 0 0 56px rgba(255,255,255,.025);
+}
+
+.jm-hero > * { position: relative; z-index: 1; }
+.jm-hero h1 { margin: 20px 0 8px; font-size: 28px; line-height: 1.25; font-weight: 900; text-align: left; }
+.jm-hero > p { margin: 0; font-size: 13px; line-height: 2; color: rgba(255,255,255,.86); }
+
+.jm-partnership-badge {
+  width: max-content;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  padding: 8px 11px;
+  font-size: 11px;
+  backdrop-filter: blur(12px);
+}
+
+.jm-hero .jm-notice.info {
+  margin-top: 18px;
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.18);
+  color: #fff;
+}
+
+.jm-section { display: flex; flex-direction: column; gap: 13px; }
+.jm-page-intro { padding-top: 4px; }
+
+.jm-section-title > span { color: #004cff; font-size: 11px; font-weight: 800; }
+.jm-section-title h2 { margin: 4px 0 0; font-size: 20px; line-height: 1.55; font-weight: 900; letter-spacing: -.02em; }
+.jm-section-title p { margin: 7px 0 0; color: #6e6e73; font-size: 12.5px; line-height: 2; }
+
+.jm-service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.jm-service-card {
+  min-width: 0;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 20px;
+  padding: 15px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.045);
+}
+
+.jm-service-icon,
+.jm-nav-icon,
+.jm-step-icon,
+.jm-deposit-cta-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(0,76,255,.08);
+  color: #004cff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jm-service-card strong { display: block; margin-top: 13px; font-size: 13px; }
+.jm-service-card p { margin: 6px 0 0; color: #6e6e73; font-size: 11.5px; line-height: 1.85; }
+
+.jm-notice {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  border-radius: 18px;
+  padding: 14px;
+  border: 1px solid rgba(0,113,227,.16);
+  background: rgba(0,113,227,.07);
+  color: #07589d;
+}
+
+.jm-notice.warning { background: rgba(255,149,0,.09); border-color: rgba(255,149,0,.22); color: #8b5600; }
+.jm-notice strong { display: block; font-size: 12.5px; }
+.jm-notice p { margin: 4px 0 0; font-size: 11.5px; line-height: 1.85; opacity: .9; }
+
+.jm-referral-card,
+.jm-deposit-cta-card,
+.jm-faq-card,
+.jm-checklist {
+  background: #fff;
+  border: 1px solid rgba(0,76,255,.12);
+  border-radius: 24px;
+  padding: 18px;
+  box-shadow: 0 14px 36px rgba(0,76,255,.08);
+}
+
+.jm-referral-head { display: flex; align-items: center; gap: 11px; }
+.jm-referral-head > span { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: rgba(0,76,255,.08); color: #004cff; }
+.jm-referral-head small, .jm-referral-head strong { display: block; }
+.jm-referral-head small { color: #004cff; font-size: 10.5px; font-weight: 800; }
+.jm-referral-head strong { margin-top: 2px; font-size: 15px; }
+.jm-referral-card > p { color: #6e6e73; font-size: 12px; line-height: 1.9; margin: 14px 0; }
+
+.jm-code-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #f5f5f7; border-radius: 15px; padding: 8px 9px 8px 13px; }
+.jm-code-row code { font-size: 14px; font-weight: 800; color: #1d1d1f; }
+.jm-code-row button { border: 0; background: #fff; color: #004cff; border-radius: 11px; padding: 8px 10px; display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; cursor: pointer; }
+
+.jm-primary-link,
+.jm-deposit-primary,
+.jm-deposit-secondary {
+  min-height: 48px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.jm-primary-link { margin-top: 11px; color: #fff; background: #004cff; box-shadow: 0 10px 22px rgba(0,76,255,.2); }
+
+.jm-nav-list,
+.jm-steps { display: flex; flex-direction: column; gap: 10px; }
+
+.jm-nav-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 42px 1fr 20px;
+  gap: 11px;
+  align-items: center;
+  text-align: right;
+  padding: 13px;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,.06);
+  background: #fff;
+  color: #1d1d1f;
+  box-shadow: 0 7px 20px rgba(0,0,0,.04);
+  cursor: pointer;
+}
+
+.jm-nav-card strong, .jm-nav-card small { display: block; }
+.jm-nav-card strong { font-size: 13px; }
+.jm-nav-card small { margin-top: 4px; color: #6e6e73; font-size: 10.5px; }
+.jm-nav-arrow { color: #8e8e93; font-size: 24px; }
+
+.jm-step {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 15px;
+  border-radius: 19px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.06);
+  box-shadow: 0 8px 22px rgba(0,0,0,.04);
+}
+
+.jm-step-icon { font-weight: 900; }
+.jm-step small { display: block; color: #004cff; font-size: 10px; font-weight: 800; }
+.jm-step strong { display: block; margin-top: 2px; font-size: 13px; }
+.jm-step p { margin: 5px 0 0; color: #6e6e73; font-size: 11.5px; line-height: 1.9; }
+
+.jm-risk-note { margin: 2px 8px 8px; color: #8e8e93; text-align: center; font-size: 10.5px; line-height: 1.9; }
+
+.jm-faq-card details { border-top: 1px solid rgba(0,0,0,.06); padding: 12px 0; }
+.jm-faq-card details:first-of-type { margin-top: 10px; }
+.jm-faq-card summary { cursor: pointer; font-size: 12.5px; font-weight: 800; }
+.jm-faq-card details p { margin: 8px 0 0; color: #6e6e73; font-size: 11.5px; line-height: 1.9; }
+
+.jm-checklist { display: flex; flex-direction: column; gap: 12px; }
+.jm-checklist > div { display: grid; grid-template-columns: 21px 1fr; gap: 9px; align-items: flex-start; font-size: 11.5px; line-height: 1.85; }
+.jm-checklist svg { color: #1ca64c; margin-top: 1px; }
+
+.jm-deposit-cta-card { text-align: center; }
+.jm-deposit-cta-icon { margin: 0 auto; width: 50px; height: 50px; border-radius: 16px; }
+.jm-deposit-cta-card h2 { margin: 14px 0 5px; font-size: 18px; }
+.jm-deposit-cta-card p { margin: 0 0 15px; color: #6e6e73; font-size: 11.5px; line-height: 1.9; }
+.jm-deposit-primary { width: 100%; border: 0; color: #fff; background: #004cff; }
+.jm-deposit-secondary { width: 100%; margin-top: 8px; color: #1d1d1f; background: #f5f5f7; border: 1px solid rgba(0,0,0,.06); }
+
+@media (max-width: 360px) {
+  .jm-service-grid { grid-template-columns: 1fr; }
+  .jm-hero h1 { font-size: 25px; }
+  .jm-home-entry { grid-template-columns: 40px 1fr 18px; padding-inline: 13px; }
+}
