@@ -77,6 +77,15 @@
   z-index: 30;
 }
 
+.home-card-carousel-shell {
+  position: relative;
+  width: 100%;
+  height: clamp(180px, 50vw, 230px);
+  max-width: 100%;
+  overflow: hidden;
+  contain: layout paint;
+}
+
 .market-map-with-cards {
   position: relative;
   width: 100%;
@@ -103,11 +112,19 @@
     top: 52%;
     border-radius: 14px;
   }
+
+  .home-card-carousel-shell {
+    height: 190px;
+  }
 }
 
 @media (max-width: 340px) {
   .saraf-card-carousel {
     --carousel-card-width: 224px;
+  }
+
+  .home-card-carousel-shell {
+    height: 176px;
   }
 }
 
