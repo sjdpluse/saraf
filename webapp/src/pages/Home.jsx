@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, CaretLeft, ClipboardText, Handshake, PaperPlaneTilt, Star } from "@phosphor-icons/react";
 import { api } from "../lib/api";
-import MarketMap from "../components/MarketMapV2";
 import CardCarousel from "../components/CardCarousel";
 
 const LOCATIONS = [
@@ -39,8 +38,7 @@ export default function Home({ navigate, startTransaction }) {
   return (
     <main className="app-shell home-shell">
       <section className="home-intro" aria-labelledby="home-title">
-        <div className="market-map-with-cards">
-          <MarketMap activeLocation={location} />
+        <div className="home-card-carousel-shell">
           <CardCarousel activeStep={locationIndex} />
         </div>
         <h1 id="home-title" className="home-title-stack">
