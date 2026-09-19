@@ -1,9 +1,9 @@
 import { useState } from "react";
 import {
   ArrowRight,
+  ArrowUpRight,
   Check,
   Copy,
-  ExternalLink,
   Handshake,
   Info,
   ShieldCheck,
@@ -124,7 +124,7 @@ export function JMReferralCard() {
       </div>
       <a className="jm-primary-link" href={JM_REFERRAL_URL} target="_blank" rel="noreferrer">
         افتتاح حساب با لینک صراف
-        <ExternalLink size={18} weight="bold" />
+        <ArrowUpRight size={18} weight="bold" />
       </a>
     </section>
   );
