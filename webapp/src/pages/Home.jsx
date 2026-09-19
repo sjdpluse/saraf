@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, CaretLeft, ClipboardText, PaperPlaneTilt, Star } from "@phosphor-icons/react";
+import { ArrowDownLeft, ArrowUpRight, CaretLeft, ClipboardText, Handshake, PaperPlaneTilt, Star } from "@phosphor-icons/react";
 import { api } from "../lib/api";
 import MarketMap from "../components/MarketMapV2";
 import CardCarousel from "../components/CardCarousel";
@@ -73,6 +73,12 @@ export default function Home({ navigate, startTransaction }) {
           </button>
         </div>
       </section>
+
+      <button className="jm-home-entry" onClick={() => navigate("justmarkets")}>
+        <span className="jm-home-entry-icon"><Handshake size={24} weight="duotone" /></span>
+        <span><strong>Saraf IB – JustMarkets</strong><small>راهنمای ثبت‌نام، وریفیکیشن و دیپازیت</small></span>
+        <CaretLeft size={18} />
+      </button>
 
       <button className="remittance-entry" onClick={() => navigate("remittance")}>
         <span className="remittance-entry-icon"><PaperPlaneTilt size={25} /></span>
