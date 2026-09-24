@@ -9,8 +9,10 @@
   - ۲۰٪ حاشیهٔ بازار: تخفیف مشتری
 
 کالیبراسیون فعلی بر اساس Quoteهای واقعی تأمین‌کنندگان محلی کاربر است:
-  - سفارش‌های تا ۵۰ USDT/USDC: حاشیهٔ کل بازار ۲ دالر
-  - بالاتر از ۵۰: حاشیهٔ کل بازار ۲.۵٪ از مقدار معامله
+  - حداقل حاشیهٔ کل بازار برای سفارش‌های کوچک: ۲ دالر
+  - حاشیهٔ درصدی بازار: ۲.۵٪ از مقدار معامله
+  - همیشه مقدار بزرگ‌تر بین ۲ دالر و ۲.۵٪ استفاده می‌شود؛ بنابراین قیمت‌گذاری
+    با افزایش مقدار سفارش هرگز کاهش ناگهانی ندارد. نقطهٔ برابری این دو مدل ۸۰ دالر است.
 
 Binance عمداً مبنای قیمت‌گذاری نیست؛ خرید کارتی Binance فقط می‌تواند منبع پشتیبان
 تأمین نقدینگی باشد و هزینهٔ بالاتر آن نباید روی نرخ عادی مشتری تحمیل شود.
@@ -31,9 +33,8 @@ ASSET_NAMES_FA = {
 }
 
 # مدل فعلی بازار محلی. این مقادیر باید فقط با Quote واقعی تأمین‌کنندگان به‌روزرسانی شوند.
-SMALL_ORDER_MAX = Decimal("50")
-SMALL_ORDER_MARKET_MARGIN_USD = Decimal("2")
-LARGE_ORDER_MARKET_MARGIN_PERCENT = Decimal("2.5")
+MIN_MARKET_MARGIN_USD = Decimal("2")
+MARKET_MARGIN_PERCENT = Decimal("2.5")
 
 SUPPLIER_SHARE_PERCENT = Decimal("50")
 SARAF_SHARE_PERCENT = Decimal("30")
@@ -69,11 +70,15 @@ def validate_amount(amount: float, asset: str = "USDT") -> None:
 
 
 def get_market_margin_usd(amount: float | Decimal) -> Decimal:
-    """حاشیهٔ کل بازار قبل از تقسیم بین تأمین‌کننده/صراف/مشتری."""
+    """حاشیهٔ کل بازار قبل از تقسیم بین تأمین‌کننده/صراف/مشتری.
+
+    حاشیه هیچ‌وقت کمتر از ۲ دالر نمی‌شود و هر زمان ۲.۵٪ مبلغ از این حداقل
+    بیشتر شود، حاشیهٔ درصدی جایگزین می‌شود. این روش از افت ناگهانی هزینه در
+    مرزهای مقدار سفارش جلوگیری می‌کند.
+    """
     amount_d = D(amount)
-    if amount_d <= SMALL_ORDER_MAX:
-        return SMALL_ORDER_MARKET_MARGIN_USD
-    return amount_d * LARGE_ORDER_MARKET_MARGIN_PERCENT / D(100)
+    percentage_margin = amount_d * MARKET_MARGIN_PERCENT / D(100)
+    return max(MIN_MARKET_MARGIN_USD, percentage_margin)
 
 
 def build_buy_pricing(amount: float | Decimal, usd_rate: float | Decimal) -> dict:
