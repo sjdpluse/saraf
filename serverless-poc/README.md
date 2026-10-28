@@ -36,7 +36,7 @@ Telegram's native Serverless runtime (Oct 2026) runs **JavaScript modules** in V
 3. Run `npx tgcloud login`; provide the **Serverless CLI token** from BotFather (it is different from the Bot API token).
 4. Inspect local status with `npx tgcloud status` / `npx tgcloud diff`.
 5. Deploy **only to the test bot** with `npx tgcloud push`.
-6. Create the **test-only** SQLite table with `npx tgcloud migrate --dry-run`, then `npx tgcloud migrate --safe`.
+6. Create the **test-only** SQLite table with `npx tgcloud migrate` and carefully review and confirm the migration prompt.
 7. Verify `npx tgcloud webhook`, then use `npx tgcloud webhook sync` if needed. Test /start and /ping twice; counter must persist between invocations.
 
 ## Production exit criteria (not yet met)
