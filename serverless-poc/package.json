@@ -7,7 +7,7 @@
     "status": "tgcloud status",
     "diff": "tgcloud diff",
     "deploy:test": "tgcloud push",
-    "migrate:dry-run": "tgcloud migrate --dry-run",
+    "migrate": "tgcloud migrate",
     "webhook": "tgcloud webhook"
   },
   "devDependencies": {
