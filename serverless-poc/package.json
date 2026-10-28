@@ -1,0 +1,16 @@
+{
+  "name": "saraf-telegram-serverless-poc",
+  "private": true,
+  "type": "module",
+  "description": "TEST-ONLY proof of concept, not a production replacement for Saraf",
+  "scripts": {
+    "status": "tgcloud status",
+    "diff": "tgcloud diff",
+    "deploy:test": "tgcloud push",
+    "migrate:dry-run": "tgcloud migrate --dry-run",
+    "webhook": "tgcloud webhook"
+  },
+  "devDependencies": {
+    "@tgcloud/cli": "^0.2.0"
+  }
+}
