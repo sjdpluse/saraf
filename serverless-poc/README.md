@@ -39,6 +39,38 @@ Telegram's native Serverless runtime (Oct 2026) runs **JavaScript modules** in V
 6. Create the **test-only** SQLite table with `npx tgcloud migrate` and carefully review and confirm the migration prompt.
 7. Verify `npx tgcloud webhook`, then use `npx tgcloud webhook sync` if needed. Test /start and /ping twice; counter must persist between invocations. Then test the read-only buttons for currencies, gold, silver, crypto and `/convert USD AFN 100`. No trading functionality is enabled.
 
+
+## Phase 2: test the Telegram-hosted Mini App (READ-ONLY)
+
+This test UI is **not** the production React Mini App. It proves the static hosting + authenticated RPC workflow first, without moving customer orders or modifying Railway.
+
+New files:
+- `miniapp/index.html`, `miniapp/app.js`, `miniapp/app.css` — static test interface.
+- `tgcloud/endpoints/getReadOnlyMarket.js` — Telegram-authenticated, read-only rate endpoint.
+- `tgcloud.jsonc` now sets `static.source = "miniapp"` (its URL is served at `/` on the test bot's dedicated `tgcloud.ai` host).
+
+On **the local branch linked to a disposable test bot**:
+
+```powershell
+cd "C:\\Users\\Niazi Wall\\Desktop\\saraf-serverless-test"
+git status --short
+git pull --ff-only
+cd .\\serverless-poc
+npx.cmd tgcloud status
+npx.cmd tgcloud diff
+npx.cmd tgcloud push
+```
+
+1. Inspect that the push preview deploys the `miniapp` static files and endpoint **only to the test bot**. It is normal that the CLI deploys changed modules.
+2. Copy the exact `https://app<app_id>.tgcloud.ai/` URL printed by `tgcloud push`. Do not invent an app ID.
+3. In **@BotFather** open the **TEST bot** → Bot Settings → Menu Button (or its Mini App settings), configure its URL to the new host.
+4. Open the test Mini App from that bot **inside Telegram**. A normal external browser lacks signed Telegram init data, so the read-only RPC intentionally refuses to load.
+5. Verify currencies, gold, silver, and crypto. Confirm no buy/sell, payments, remittances or KYC actions are present.
+
+**No database migration is needed for Phase 2**; `schema.js` is unchanged.
+**No production cutover**: leave Railway, the production bot and its Mini App URL unchanged.
+**Runtime caveat**: these files have been committed but have not been tested against your Telegram bot; report CLI errors rather than attempting to deploy them to the production bot.
+
 ## Production exit criteria (not yet met)
 
 - [ ] Both customer and admin bot update handlers ported and tested with dedicated test bots.
