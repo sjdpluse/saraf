@@ -1,6 +1,6 @@
 # Saraf → Telegram Serverless | Safety-first migration
 
-**STATUS: TEST-ONLY POC. DO NOT DEPLOY TO THE LIVE SARAF BOT.**  
+**STATUS: READ-ONLY TEST BOT PILOT; NOT DEPLOYED OR RUNTIME-TESTED. DO NOT DEPLOY TO THE LIVE SARAF BOT.**  
 **This folder is not a full migration and is deliberately isolated from `bot.py`, `admin_bot_remittance.py`, and `api_remittance.py`.**
 
 ## Findings from the existing repo
@@ -37,7 +37,7 @@ Telegram's native Serverless runtime (Oct 2026) runs **JavaScript modules** in V
 4. Inspect local status with `npx tgcloud status` / `npx tgcloud diff`.
 5. Deploy **only to the test bot** with `npx tgcloud push`.
 6. Create the **test-only** SQLite table with `npx tgcloud migrate` and carefully review and confirm the migration prompt.
-7. Verify `npx tgcloud webhook`, then use `npx tgcloud webhook sync` if needed. Test /start and /ping twice; counter must persist between invocations.
+7. Verify `npx tgcloud webhook`, then use `npx tgcloud webhook sync` if needed. Test /start and /ping twice; counter must persist between invocations. Then test the read-only buttons for currencies, gold, silver, crypto and `/convert USD AFN 100`. No trading functionality is enabled.
 
 ## Production exit criteria (not yet met)
 
@@ -54,5 +54,5 @@ Telegram's native Serverless runtime (Oct 2026) runs **JavaScript modules** in V
 
 - Do not call `tgcloud push` against the production bot yet. The platform synchronizes/deletes modules to match your working `tgcloud/` project.
 - Telegram Serverless availability is still access-controlled for some bots.
-- This POC has **no trading capabilities**, accepts **no payment**, and uses its own test database table.
+- This POC has **no trading capabilities**, accepts **no payment**, and uses its own test database table. It now ports display-only international currency rates, precious-metal reference pricing, six crypto tickers and an AFN-based converter. It deliberately does NOT claim parity with local Afghan markets or the production Saraf spread engine. External fetch behavior and real Telegram deployments have not yet been tested.
 - Official docs: https://core.telegram.org/bots/serverless
