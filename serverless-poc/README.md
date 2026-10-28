@@ -1,6 +1,6 @@
 # Saraf → Telegram Serverless | Safety-first migration
 
-**STATUS: READ-ONLY TEST BOT PILOT; NOT DEPLOYED OR RUNTIME-TESTED. DO NOT DEPLOY TO THE LIVE SARAF BOT.**  
+**STATUS: READ-ONLY TEST BOT PILOT. React variant added in source but not tested or deployed by the assistant. DO NOT DEPLOY TO THE LIVE SARAF BOT.**  
 **This folder is not a full migration and is deliberately isolated from `bot.py`, `admin_bot_remittance.py`, and `api_remittance.py`.**
 
 ## Findings from the existing repo
@@ -70,6 +70,44 @@ npx.cmd tgcloud push
 **No database migration is needed for Phase 2**; `schema.js` is unchanged.
 **No production cutover**: leave Railway, the production bot and its Mini App URL unchanged.
 **Runtime caveat**: these files have been committed but have not been tested against your Telegram bot; report CLI errors rather than attempting to deploy them to the production bot.
+
+
+## Phase 3: Branded React pilot built from Saraf's actual frontend assets
+
+**Current configuration:** `tgcloud.jsonc` now selects `react-dist` instead of `miniapp`. This is a **test-bot-only** staging change. The older HTML pilot remains in `miniapp/` as a fallback but no longer deploys after this branch is updated.
+
+The source is under `../webapp/src/telegram-pilot/`. It reuses Saraf's real React/Phosphor setup and its original `CardCarousel`/card assets. This is deliberately **not the original trading App.jsx**: its separate read-only entrypoint does not import the Buy, Sell, KYC, Remittance or Railway REST API clients. It calls the existing, authenticated `getReadOnlyMarket` Telegram RPC endpoint and clearly labels all finance actions disabled. It does not touch Supabase.
+
+### Build + release only to a test bot (PowerShell)
+
+```powershell
+cd "C:\\Users\\Niazi Wall\\Desktop\\saraf-serverless-test"
+git status --short
+git pull --ff-only
+cd .\\webapp
+npm.cmd install
+npm.cmd run build:telegram-pilot
+Test-Path "..\\serverless-poc\\react-dist\\index.html"
+cd ..\\serverless-poc
+npx.cmd tgcloud status
+npx.cmd tgcloud diff
+npx.cmd tgcloud push
+```
+
+Before continuing, ensure `Test-Path` reports `True`, and `tgcloud status` confirms you are targeting the **test** bot. Review the diff before pushing. Do not run the deploy if local changes would be overwritten by `git pull`.
+
+After deploy, open the **already configured test-bot Mini App**. Verify:
+- branded React homepage and original sliding Saraf cards load;
+- currency, gold, silver and crypto reference rates load from the Telegram endpoint;
+- buttons for payments, KYC, remittance, trading or customer order placement are **not present**;
+- an external browser cannot fetch authenticated rates;
+- Railway production bot and production Mini App still operate normally.
+
+### Rollback the test static page
+
+If the React pilot cannot build or works poorly, **do not change the production bot**. On your local test working tree, revert `static.source` to `miniapp` in `tgcloud.jsonc` and push to the **test bot only**. The prior test page remains in the repo.
+
+This does **not** complete the full migration. We still need to port local Afghan market spread, financial quote/fee rules, Supabase access, secure private media uploads, financial idempotency/transaction state machine, admin bot, rate schedulers, blockchain verifier and Meta webhooks before Railway can safely be disabled.
 
 ## Production exit criteria (not yet met)
 
