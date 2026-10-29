@@ -70,7 +70,18 @@ BEGIN
      OR NOT (v_result->>'ready_for_review')::boolean THEN
     RAISE EXCEPTION 'Two independent approvals were not recognized';
   END IF;
-  UPDATE public.remittance_orders SET status='payout_ready' WHERE id=v_id;
+  v_forbidden:=false;
+  BEGIN
+    PERFORM public.saraf_prepare_payout_after_dual_approval(v_id,101);
+  EXCEPTION WHEN raise_exception THEN
+    v_forbidden:=SQLERRM='OPERATOR_NOT_AUTHORIZED' OR SQLERRM='SELF_APPROVAL_FORBIDDEN';
+  END;
+  IF NOT v_forbidden THEN RAISE EXCEPTION 'Customer could queue own payout'; END IF;
+  v_result:=public.saraf_prepare_payout_after_dual_approval(v_id,9002);
+  IF v_result->>'status'<>'payout_ready'
+    OR (v_result->>'funds_paid')::boolean THEN
+    RAISE EXCEPTION 'Queue-only status is not safe';
+  END IF;
 
   v_forbidden:=false;
   BEGIN
@@ -90,6 +101,10 @@ BEGIN
   IF NOT v_forbidden THEN RAISE EXCEPTION 'Completed without bank/cash receipt'; END IF;
 
   IF has_function_privilege('anon',
+    'public.saraf_prepare_payout_after_dual_approval(bigint,bigint)','EXECUTE') OR
+     has_function_privilege('authenticated',
+    'public.saraf_prepare_payout_after_dual_approval(bigint,bigint)','EXECUTE') OR
+     has_function_privilege('anon',
     'public.saraf_approve_verified_payout(bigint,bigint)','EXECUTE') OR
      has_function_privilege('authenticated',
     'public.saraf_approve_verified_payout(bigint,bigint)','EXECUTE') THEN
