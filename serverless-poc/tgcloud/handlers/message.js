@@ -6,7 +6,7 @@ import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
 import { getCryptoPrices, cryptoLabel } from '../lib/cryptos.js';
 import { getLocalMarketRates } from '../lib/local_market_service.js';
-import { currencyList,goldList,silverCalcMode,compareTarget,converterFrom,originalBotMenu,aboutKeyboard } from '../lib/legacy_menus.js';
+import { currencyList,goldList,silverCalcMode,compareTarget,converterFrom,originalBotMenu,aboutKeyboard,originalStablecoinMenu } from '../lib/legacy_menus.js';
 import { handleOriginalCalcReply } from '../lib/legacy_calc.js';
 
 const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
@@ -60,7 +60,8 @@ async function onReadOnlyMessage(chatId, input) {
     case '📊 مقایسه با گذشته': return reply(chatId,
       '📊 چه چیزی را می‌خواهید با گذشته مقایسه کنید؟', compareTarget());
     case 'خرید و فروش | USDT/USDC': return reply(chatId,
-      '🪙 خرید و فروش USDT / USDC\nنسخهٔ اصلی اپلیکیشن و API سفارش‌ها هنوز کامل منتقل نشده است؛ فعلاً سفارشی ثبت نمی‌شود.');
+      '🪙 خرید و فروش USDT / USDC\nدارایی و نوع معامله را انتخاب کنید:',
+      originalStablecoinMenu());
     case 'Saraf - JustMarkets': return reply(chatId,
       'Saraf - JustMarkets\nاین بخش همان Mini App اصلی است و بعد از انتقال کامل در دسترس خواهد بود.');
     case 'ℹ️ درباره ربات':
