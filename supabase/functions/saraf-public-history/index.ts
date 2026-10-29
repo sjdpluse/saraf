@@ -17,7 +17,8 @@ Deno.serve(async request=>{
  const url=new URL(request.url);
  const target=String(url.searchParams.get('target')||'').toLowerCase();
  const days=Number(url.searchParams.get('days'));
- if(!(target==='gold'||CODES.has(target))||!DAYS.has(days))
+ if(url.searchParams.get('mode')!=='spreads'&&
+    (!(target==='gold'||CODES.has(target))||!DAYS.has(days)))
   return respond(400,{error:'INVALID_COMPARE_SELECTION'});
  const service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
  const endpoint=Deno.env.get('SUPABASE_URL');
@@ -25,6 +26,17 @@ Deno.serve(async request=>{
  const db=createClient(endpoint,service,{
   auth:{autoRefreshToken:false,persistSession:false},
  });
+ if(url.searchParams.get('mode')==='spreads'){
+  const r=await db.from('spread_settings').select('currency,spread_percent')
+   .limit(100);
+  if(r.error)return respond(503,{error:'SPREADS_UNAVAILABLE'});
+  const spreads:Record<string,number>={};
+  for(const row of r.data||[]){
+    if(CODES.has(row.currency) && Number.isFinite(Number(row.spread_percent)))
+      spreads[row.currency]=Number(row.spread_percent);
+  }
+  return respond(200,{spreads});
+ }
  const when=new Date(Date.now()-days*86400000).toISOString();
  const before=<T,>(v:{data:T|null;error:unknown})=>{
   if(v.error)throw Error('DATABASE_UNAVAILABLE');
