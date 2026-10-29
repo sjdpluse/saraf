@@ -4,11 +4,14 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
 import { verifyTelegramInitData } from './telegram-auth.mjs';
 
+type DbRow=Record<string,any>; // Supabase legacy tables have dynamic historic columns.
+type TelegramUser={id:number;first_name?:string;last_name?:string;username?:string};
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const BOT_TOKEN = Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN') || Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
-const allowedOrigin = (origin) => /^https:\/\/app[0-9]+\.tgcloud\.ai$/.test(origin || '');
-const resultHeaders = (origin) => ({
+const allowedOrigin = (origin:string):boolean => /^https:\/\/app[0-9]+\.tgcloud\.ai$/.test(origin || '');
+const resultHeaders = (origin:string) => ({
   'content-type':'application/json;charset=utf-8',
   'cache-control':'no-store',
   'vary':'Origin',
@@ -16,20 +19,20 @@ const resultHeaders = (origin) => ({
   'access-control-allow-headers':'content-type,x-telegram-init-data',
   'access-control-allow-methods':'POST,OPTIONS',
 });
-function answer(origin, status, body) {
+function answer(origin:string, status:number, body:unknown):Response {
   return new Response(JSON.stringify(body),{status,headers:resultHeaders(origin)});
 }
-function validString(value,min,max) {
+function validString(value:unknown,min:number,max:number):string {
   const text=String(value ?? '').trim();
   if(text.length<min||text.length>max)throw new Error('INVALID_INPUT');
   return text;
 }
-function validId(raw) {
+function validId(raw:unknown):number {
   const id=Number(raw);
   if(!Number.isSafeInteger(id)||id<=0)throw new Error('INVALID_ID');
   return id;
 }
-function check(error) {
+function check(error:unknown):void {
   if(error)throw new Error('DATABASE_UNAVAILABLE');
 }
 function client() {
@@ -37,7 +40,7 @@ function client() {
     auth:{autoRefreshToken:false,persistSession:false},
   });
 }
-function safeProfile(row) {
+function safeProfile(row:DbRow|null) {
   return {
     has_basic_profile:Boolean(row?.first_name && row?.last_name && row?.phone),
     has_identity_verification:Boolean(row?.id_document_path && row?.selfie_path &&
@@ -51,13 +54,13 @@ function safeProfile(row) {
       selfie:Boolean(row?.selfie_path),receipt:false,beneficiary_id:false},
   };
 }
-function publicOrder(row) {
+function publicOrder(row:DbRow) {
   return {id:row.id,asset:row.asset||'USDT',order_type:row.order_type,
     usdt_amount:row.usdt_amount,total_afn:row.total_afn,usd_rate:row.usd_rate,
     network:row.network,status:row.status,rating:row.rating,
     created_at:row.created_at,completed_at:row.completed_at};
 }
-function publicRemittance(row) {
+function publicRemittance(row:DbRow) {
   return {id:row.id,asset:row.asset,network:row.network,
     crypto_amount:row.crypto_amount,payout_afn:row.payout_afn,
     usd_rate:row.usd_rate,status:row.status,verification_status:row.verification_status,
@@ -65,7 +68,7 @@ function publicRemittance(row) {
     beneficiary_province:row.beneficiary_province,
     beneficiary_city:row.beneficiary_city,created_at:row.created_at};
 }
-async function handler(db,user,action,input) {
+async function handler(db:ReturnType<typeof createClient>,user:TelegramUser,action:string,input:DbRow) {
   if(action==='profile.get'){
     const {data,error}=await db.from('user_profiles')
       .select('first_name,last_name,phone,kyc_status,id_document_path,selfie_path')
@@ -115,11 +118,11 @@ async function handler(db,user,action,input) {
     const {data,error,count}=await db.from('usdt_orders')
       .select('rating',{count:'exact'}).eq('status','completed').limit(1000);
     check(error);
-    const ratings=(data||[]).map(row=>Number(row.rating))
-      .filter(value=>Number.isSafeInteger(value)&&value>=1&&value<=5);
+    const ratings=(data||[]).map((row:DbRow)=>Number(row.rating))
+      .filter((value:number)=>Number.isSafeInteger(value)&&value>=1&&value<=5);
     return {completed_orders:count||0,
       average_rating:ratings.length
-        ?Math.round(100*ratings.reduce((a,b)=>a+b,0)/ratings.length)/100:null};
+        ?Math.round(100*ratings.reduce((a:number,b:number)=>a+b,0)/ratings.length)/100:null};
   }
   if(action==='reviews.list'){
     const limit=Math.min(50,Math.max(1,Number(input?.limit)||20));
@@ -131,7 +134,7 @@ async function handler(db,user,action,input) {
       .eq('is_visible',true).order('created_at',{ascending:false})
       .range(offset,offset+limit-1);
     check(error);
-    const ids=(data||[]).map(row=>row.id);
+    const ids=(data||[]).map((row:DbRow)=>row.id);
     let votes=[];
     if(ids.length){
       const result=await db.from('miniapp_review_votes')
@@ -139,11 +142,11 @@ async function handler(db,user,action,input) {
       check(result.error);
       votes=result.data||[];
     }
-    const items=(data||[]).map(row=>{
-      const myVotes=votes.filter(v=>v.review_id===row.id);
-      return {...row,likes:myVotes.filter(v=>v.vote===1).length,
-        dislikes:myVotes.filter(v=>v.vote===-1).length,
-        user_vote:myVotes.find(v=>String(v.chat_id)===String(user.id))?.vote||0};
+    const items=(data||[]).map((row:DbRow)=>{
+      const myVotes=votes.filter((v:DbRow)=>v.review_id===row.id);
+      return {...row,likes:myVotes.filter((v:DbRow)=>v.vote===1).length,
+        dislikes:myVotes.filter((v:DbRow)=>v.vote===-1).length,
+        user_vote:myVotes.find((v:DbRow)=>String(v.chat_id)===String(user.id))?.vote||0};
     });
     return {items,total:count||0,is_admin:false};
   }
@@ -183,9 +186,9 @@ async function handler(db,user,action,input) {
     const {data,error}=await db.from('miniapp_review_votes')
       .select('chat_id,vote').eq('review_id',id);
     check(error);
-    return {review_id:id,likes:(data||[]).filter(v=>v.vote===1).length,
-      dislikes:(data||[]).filter(v=>v.vote===-1).length,
-      user_vote:(data||[]).find(v=>String(v.chat_id)===String(user.id))?.vote||0};
+    return {review_id:id,likes:(data||[]).filter((v:DbRow)=>v.vote===1).length,
+      dislikes:(data||[]).filter((v:DbRow)=>v.vote===-1).length,
+      user_vote:(data||[]).find((v:DbRow)=>String(v.chat_id)===String(user.id))?.vote||0};
   }
   throw new Error('ACTION_DISABLED');
 }
@@ -219,7 +222,8 @@ Deno.serve(async(req)=>{
       'RATING_NOT_ALLOWED','INVALID_PAGINATION','RATE_LIMIT',
       'INVALID_VOTE','NOT_FOUND','ACTION_DISABLED','DATABASE_UNAVAILABLE',
     ]);
-    const code=safe.has(error?.message)?error.message:'INTERNAL_ERROR';
+    const message=error instanceof Error ? error.message : 'INTERNAL_ERROR';
+    const code=safe.has(message)?message:'INTERNAL_ERROR';
     return answer(origin,code==='DATABASE_UNAVAILABLE'?503:
       code==='ACTION_DISABLED'?403:
       code==='RATE_LIMIT'?429:code==='INTERNAL_ERROR'?500:400,{error:code});
