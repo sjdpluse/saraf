@@ -17,10 +17,15 @@ export function requireOperator(ctx) {
   if (!isOperator(user.id)) throw new EndpointError('اجازهٔ مدیر لازم است.', {code:'FORBIDDEN'});
   return user;
 }
+// The EXISTING Supabase is the sole financial ledger. Do not allow creating
+// a separate ledger in Telegram-native SQLite by changing one boolean flag.
 export function requireFinancialWrites() {
-  if (!FINANCIAL_WRITES_ENABLED)
-    throw new EndpointError('سیستم ثبت معامله هنوز فعال نشده است.', {code:'FINANCIAL_WRITES_DISABLED'});
+  throw new EndpointError(
+    'عملیات مالی باید فقط در Supabase اصلی صراف انجام شود؛ سیستم جدید هنوز برای معاملات فعال نشده است.',
+    {code:'CANONICAL_SUPABASE_REQUIRED'},
+  );
 }
+
 export function invalid(message, code='INVALID_INPUT') {
   throw new EndpointError(message, {code});
 }
