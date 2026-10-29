@@ -1,3 +1,33 @@
+## 2026-10-29 — original calculator and broadcast command parity (latest)
+
+- Restored ORIGINAL `handlers/currency.py` bid/ask calculator semantics
+  in Telegram ForceReply: selling foreign currency multiplies the Saraf
+  **buy** rate, and buying multiplies its **sell** rate; Sarai Shahzada
+  local quote appears separately when available. This replaces the
+  incorrect global reference-only calculation.
+- Extracted pure parity `legacy_calculators.js` for existing gold and
+  silver calculation rules and original rounded per-gram USD/AFN values.
+  Original silver now retains **four decimal USD per gram** before applying
+  the established making charge/deduction. Regression tests cover
+  18k/24k, bid/ask direction, local unavailability and input rejection.
+- Fixed original profile/history bot replies that displayed literal
+  `\\n` instead of line breaks.
+- Original `/broadcast` now opens the already-built signed original
+  admin Mini App composer, with limited optional message prefill and
+  required second confirmation; the chat command never independently
+  sends messages or bypasses the server-side OFF flag / admin allowlist.
+- Added the calculator module to the strict Telegram Serverless
+  preview release allowlist; still **no new ledger or finance handler**
+  in the uploadable release.
+
+**Remaining blockers are unchanged:** full original financial chat callbacks
+and admin/KYC media, customer financial notifications and card assets,
+multi-asset remittance/payout 1:1 semantics, scheduled jobs and Meta
+automation reliability, live original-bot signed full-path testing,
+backup/rollback rehearsal and production cutover. Synthetic CI and static
+builds are not proof of a fully migrated operating service. Production
+publish and webhook switching remain BLOCKED.
+
 ## 2026-10-29 — original admin command migration (this increment)
 
 - Added signed Telegram Mini App admin page in original React navigation and
