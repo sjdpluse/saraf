@@ -1,3 +1,27 @@
+## 2026-10-29 — original remittance valuation preserved (latest)
+
+- Inspected the **existing production Supabase schema read-only** using the
+  Supabase connector; confirmed that `remittance_orders` already contains
+  `asset_price_usd`, `usd_value`, `verification_status`, and the existing
+  audit/status history columns. No production rows or schema were changed.
+- Corrected the staged original remittance RPC to retain
+  `asset_price_usd` and `usd_value` on the **same canonical record**, and
+  to check the $250 original identity threshold on **USD value**, not on raw
+  cryptocurrency quantity. The signed Edge action now supplies those
+  arguments and checks owner KYC at USD value > 250.
+- Extended isolated PostgreSQL 16 synthetic fixtures to call the revised
+  RPC signature; added static regression checks to prevent silent removal of
+  the canonical USD-value fields. No new ledger, bank details or wallet
+  addresses have been created.
+
+**Scope warning:** This change preserves the already-staged USDT/USDC
+remittance pathway only. Existing main:services/remittance_v2.py supports
+additional opt-in assets and networks with CoinGecko USD conversion; these
+are **not** yet supported by the gated serverless Edge function. Do NOT
+activate financial writes or remove the release gate until full parity,
+verified upstream prices/wallets, payout approval, admin bot notifications,
+media handling, and signed original-bot end-to-end testing pass.
+
 ## 2026-10-29 — original calculator and broadcast command parity (latest)
 
 - Restored ORIGINAL `handlers/currency.py` bid/ask calculator semantics
