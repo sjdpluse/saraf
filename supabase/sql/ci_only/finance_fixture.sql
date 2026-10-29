@@ -44,3 +44,29 @@ GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
 ALTER TABLE public.usdt_quotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.usdt_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Remittance fixture mirrors the CURRENT original Supabase table fields.
+CREATE TABLE public.remittance_orders (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  chat_id bigint NOT NULL,
+  idempotency_key text NOT NULL,
+  sender_country text NOT NULL,sender_name text,
+  beneficiary_full_name text NOT NULL,beneficiary_phone text NOT NULL,
+  beneficiary_province text NOT NULL,beneficiary_city text NOT NULL,
+  beneficiary_address text,asset text NOT NULL,network text NOT NULL,
+  crypto_amount numeric NOT NULL,usd_rate numeric NOT NULL,
+  gross_afn numeric NOT NULL,fee_percent numeric NOT NULL DEFAULT 0,
+  fee_afn numeric NOT NULL DEFAULT 0,payout_afn numeric NOT NULL,
+  deposit_wallet text NOT NULL,tx_hash text,status text NOT NULL
+    DEFAULT 'awaiting_transfer',
+  verification_status text NOT NULL DEFAULT 'not_submitted',
+  chain_confirmations integer NOT NULL DEFAULT 0,
+  chain_verified_at timestamptz,chain_verified_asset text,
+  chain_verified_network text,chain_verified_amount numeric,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(chat_id,idempotency_key)
+);
+ALTER TABLE public.remittance_orders ENABLE ROW LEVEL SECURITY;
+GRANT SELECT,INSERT,UPDATE ON public.remittance_orders TO service_role;
+GRANT USAGE,SELECT ON SEQUENCE public.remittance_orders_id_seq TO service_role;
