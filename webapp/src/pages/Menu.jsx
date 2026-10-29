@@ -17,7 +17,7 @@ const ITEMS = [
   ["terms", "قوانین و شرایط استفاده", "مطالعه قوانین و شرایط استفاده از خدمات", FileText],
 ];
 
-export default function Menu({ navigate }) {
+export default function Menu({ navigate, readOnly = false }) {
   return (
     <main className="app-shell menu-page-shell">
       <div className="header">
@@ -25,7 +25,11 @@ export default function Menu({ navigate }) {
       </div>
 
       <section className="menu-page-list" aria-label="منوی صراف">
-        {ITEMS.map(([page, title, description, Icon]) => (
+        {readOnly && <button className="menu-page-item" type="button" onClick={() => navigate("markets")}>
+          <span className="menu-page-item-copy"><strong>💵 نرخ‌های بازار</strong><small>نمایش نرخ مرجع ارز، طلا، نقره و رمزارز</small></span>
+          <CaretLeft size={17}/>
+        </button>}
+        {(readOnly ? ITEMS.filter(([page]) => ["about", "terms"].includes(page)) : ITEMS).map(([page, title, description, Icon]) => (
           <button key={page} className="menu-page-item" onClick={() => navigate(page)}>
             <span className="menu-page-item-icon"><Icon size={22} /></span>
             <span className="menu-page-item-copy">
