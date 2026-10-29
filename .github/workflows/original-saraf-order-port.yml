@@ -1,0 +1,58 @@
+name: Original Saraf financial migration parity (synthetic only)
+on:
+  pull_request:
+    paths:
+      - 'supabase/sql/saraf_original_usdt_order_rpc_STAGED.sql'
+      - 'supabase/sql/ci_only/original_usdt*'
+      - 'supabase/functions/saraf-original-transactions/**'
+      - 'serverless-poc/tgcloud/lib/legacy_stablecoin_pricing.js'
+      - 'serverless-poc/tests/original_stablecoin_pricing.test.js'
+      - '.github/workflows/original-saraf-order-port.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-original-order:
+    name: Original trading order semantics in isolated Postgres 16
+    runs-on: ubuntu-latest
+    services:
+      pg:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_test_only
+          POSTGRES_DB: saraf_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGDATABASE: saraf_synthetic
+      PGUSER: postgres
+      PGPASSWORD: synthetic_test_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pure original 50-30-20 and AFN rounding regression
+        run: node --test serverless-poc/tests/original_stablecoin_pricing.test.js
+      - name: Detect accidental changes between Telegram and Supabase pricing ports
+        run: cmp serverless-poc/tgcloud/lib/legacy_stablecoin_pricing.js supabase/functions/saraf-original-transactions/pricing.mjs
+      - name: Install synthetic legacy tables
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_usdt_fixture.sql
+      - name: Install original order commit RPC in synthetic database ONLY
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_original_usdt_order_rpc_STAGED.sql
+      - name: Assert original order quote, KYC, idempotency and audit invariants
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_usdt_order_invariants.sql
+      - name: Confirm original production Supabase is never a test target
+        run: |
+          if env | grep -E '^(SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY|SARAF_TELEGRAM_BOT_TOKEN)='; then
+            echo "Production secrets must never be injected into migration integration tests."
+            exit 1
+          fi
