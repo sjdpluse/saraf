@@ -16,6 +16,8 @@ const allowlist=Object.freeze([
   'handlers/callback_query.js',
   'lib/legacy_menus.js',
   'lib/legacy_calc.js',
+  'lib/legacy_rate_engine.js',
+  'lib/legacy_compare.js',
   'lib/currencies.js',
   'lib/reference_rates.js',
   'lib/metals.js',
