@@ -1,0 +1,56 @@
+name: Saraf financial backend invariants (no live financial writes)
+on:
+  pull_request:
+    paths:
+      - 'supabase/sql/**'
+      - 'supabase/functions/saraf-finance/**'
+      - 'supabase/functions/saraf-telegram-bridge/telegram-auth.mjs'
+      - '.github/workflows/saraf-finance-safety.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  finance-db:
+    name: Atomic quote/order and authorization SQL tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: saraf_ci_only
+          POSTGRES_DB: saraf_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: saraf_ci_only
+      PGDATABASE: saraf_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create isolated fixtures
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/finance_fixture.sql
+      - name: Install staged atomic transaction engine
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_atomic_finance_staged.sql
+      - name: Assert immutable money calculations and transactional idempotency
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/finance_invariants.sql
+  finance-edge:
+    name: Financial Edge Function static and auth checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck financial Edge Function
+        run: deno check supabase/functions/saraf-finance/index.ts
+      - name: Ensure no CI deploys or activates monetary functions
+        run: |
+          ! grep -R 'tgcloud push' .github/workflows/saraf-finance-safety.yml
+          ! grep -R 'supabase functions deploy' .github/workflows/saraf-finance-safety.yml
+          grep -q "SARAF_FINANCIAL_WRITES_ENABLED" supabase/functions/saraf-finance/index.ts
