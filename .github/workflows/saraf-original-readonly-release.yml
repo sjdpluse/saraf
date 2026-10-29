@@ -1,0 +1,129 @@
+name: Saraf original bot – manually approved read-only Telegram Serverless release
+
+# This workflow lives on MAIN only so GitHub can show "Run workflow".
+# It checks out the separately reviewed migration branch for the actual build.
+# NEVER runs automatically on push or PR.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "preview first; publish only after reviewing the preview"
+        required: true
+        type: choice
+        options:
+          - preview
+          - publish
+        default: preview
+      original_bot_username:
+        description: "Must be exactly sarafiaf_bot"
+        required: true
+        type: string
+        default: sarafiaf_bot
+      expected_app_id:
+        description: "Public app<digits> prefix of the ORIGINAL bot's BotFather Serverless CLI token"
+        required: true
+        type: string
+      confirmation:
+        description: "For publish only: type PUBLISH_READ_ONLY_SARAFIAF_BOT"
+        required: false
+        type: string
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-serverless-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate explicit original-bot identity and manual approval
+        shell: bash
+        env:
+          INPUT_USERNAME: ${{ inputs.original_bot_username }}
+          INPUT_APP_ID: ${{ inputs.expected_app_id }}
+          RELEASE_ACTION: ${{ inputs.action }}
+          APPROVAL: ${{ inputs.confirmation }}
+          CLI_TOKEN: ${{ secrets.SARAF_ORIGINAL_TGCLOUD_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "$INPUT_USERNAME" == "sarafiaf_bot" ]] || { echo "::error::Wrong bot username"; exit 1; }
+          [[ "$INPUT_APP_ID" =~ ^app[0-9]+$ ]] || { echo "::error::Invalid public BotFather app ID"; exit 1; }
+          [[ -n "$CLI_TOKEN" ]] || { echo "::error::Configure SARAF_ORIGINAL_TGCLOUD_TOKEN in GitHub Actions secrets"; exit 1; }
+          [[ "${CLI_TOKEN%%:*}" == "$INPUT_APP_ID" ]] || { echo "::error::Original bot app ID does not match GitHub secret; no deployment allowed"; exit 1; }
+          if [[ "$RELEASE_ACTION" == "publish" ]]; then
+            [[ "$APPROVAL" == "PUBLISH_READ_ONLY_SARAFIAF_BOT" ]] || {
+              echo "::error::Release approval phrase missing"; exit 1;
+            }
+          else
+            [[ "$RELEASE_ACTION" == "preview" ]] || { echo "::error::Invalid mode"; exit 1; }
+          fi
+          echo "Verified original bot target @sarafiaf_bot via selected app ID prefix (no CLI secret printed)"
+      - name: Checkout approved migration branch without merging it
+        uses: actions/checkout@v4
+        with:
+          ref: migration/telegram-native-serverless-poc
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install original React dependencies
+        working-directory: webapp
+        run: npm ci
+      - name: Build original Saraf React Mini App using canonical Supabase bridge
+        working-directory: webapp
+        run: npm run build:telegram-original
+      - name: Build strictly allowlisted Serverless release
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test -s serverless-poc/.release-original/dist/index.html
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeOrder.js
+      - name: Confirm all financial and KYC writes stay disabled
+        run: |
+          grep -q 'FINANCIAL_WRITES_ENABLED = false' serverless-poc/tgcloud/lib/native_config.js
+          grep -q 'IDENTITY_UPLOADS_ENABLED = false' serverless-poc/tgcloud/lib/native_config.js
+      - name: Install pinned Telegram CLI in isolated release folder
+        working-directory: serverless-poc/.release-original
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Fetch remote state and review proposed changes
+        working-directory: serverless-poc/.release-original
+        shell: bash
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.SARAF_ORIGINAL_TGCLOUD_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+          npx --no-install tgcloud diff
+          echo "BotFather-managed cloud baseline was fetched. Review changes in this run before publishing."
+      - name: Publish ONLY on the fully approved manual publish mode
+        if: ${{ inputs.action == 'publish' }}
+        working-directory: serverless-poc/.release-original
+        shell: bash
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.SARAF_ORIGINAL_TGCLOUD_TOKEN }}
+        run: |
+          set -euo pipefail
+          # NEVER --force, NEVER --drop-pending, NEVER migrate shadow SQLite tables.
+          npx --no-install tgcloud push
+          npx --no-install tgcloud webhook
+          npx --no-install tgcloud webhook sync
+      - name: Provide original bot + Mini App host
+        shell: bash
+        env:
+          APP_ID: ${{ inputs.expected_app_id }}
+          RELEASE_ACTION: ${{ inputs.action }}
+        run: |
+          {
+            echo "## Original Saraf read-only Serverless release"
+            echo "Mode: ${RELEASE_ACTION}"
+            echo "Bot: https://t.me/sarafiaf_bot"
+            echo "Mini App host: https://${APP_ID}.tgcloud.ai/"
+            echo "This release has no order, payment, settlement, or KYC upload handlers."
+            echo "For a publish, set the ORIGINAL bot's Mini App menu URL in BotFather only after testing the host."
+          } >> "$GITHUB_STEP_SUMMARY"
