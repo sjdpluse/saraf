@@ -30,8 +30,16 @@ test('original order IDs are parsed without mutation or executing an order',()=>
  assert.ok(invalid.usage);
  assert.equal(invalid.query.get('order_id'),null);
 });
-test('original broadcast remains fail closed until private delivery is migrated',()=>{
+test('original /broadcast opens signed admin composer without directly transmitting',()=>{
  const item=parseOriginalAdminCommand('/broadcast hello all');
  assert.equal(item.name,'broadcast');
- assert.match(item.usage,/غیرفعال/);
+ assert.equal(item.query.get('action'),'admin');
+ assert.equal(item.query.get('admin'),'broadcast');
+ assert.equal(item.query.get('broadcast'),'hello all');
+ assert.match(item.usage,/تایید هویت/);
+ const tooLong=parseOriginalAdminCommand('/broadcast '+'X'.repeat(600));
+ assert.equal(tooLong.query.get('admin'),'broadcast');
+ assert.equal(tooLong.query.get('broadcast'),null);
+ const empty=parseOriginalAdminCommand('/broadcast');
+ assert.equal(empty.query.get('admin'),'broadcast');
 });
