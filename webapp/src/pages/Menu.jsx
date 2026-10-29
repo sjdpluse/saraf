@@ -25,11 +25,15 @@ export default function Menu({ navigate, readOnly = false }) {
       </div>
 
       <section className="menu-page-list" aria-label="منوی صراف">
+        {readOnly && <button className="menu-page-item" type="button" onClick={() => navigate("account")}>
+          <span className="menu-page-item-copy"><strong>👤 پروفایل و احراز هویت</strong><small>ثبت معلومات پایه و ارسال اسناد از طریق ربات تلگرام</small></span>
+          <CaretLeft size={17}/>
+        </button>}
         {readOnly && <button className="menu-page-item" type="button" onClick={() => navigate("markets")}>
           <span className="menu-page-item-copy"><strong>💵 نرخ‌های بازار</strong><small>نمایش نرخ مرجع ارز، طلا، نقره و رمزارز</small></span>
           <CaretLeft size={17}/>
         </button>}
-        {(readOnly ? ITEMS.filter(([page]) => ["about", "terms"].includes(page)) : ITEMS).map(([page, title, description, Icon]) => (
+        {(readOnly ? ITEMS.filter(([page]) => ["about", "terms", "reviews"].includes(page)) : ITEMS).map(([page, title, description, Icon]) => (
           <button key={page} className="menu-page-item" onClick={() => navigate(page)}>
             <span className="menu-page-item-icon"><Icon size={22} /></span>
             <span className="menu-page-item-copy">
