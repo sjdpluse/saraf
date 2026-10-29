@@ -52,7 +52,7 @@ BEGIN
       RAISE EXCEPTION 'IDEMPOTENCY_PAYLOAD_CONFLICT' USING ERRCODE='P0001';
    END IF;
    RETURN jsonb_build_object('order_id',saved.id,
-      'order_code',p_asset||'-'||lpad(saved.id::text,6,'0'),
+      'order_code',p_asset||'-'||lpad(saved.id::text,5,'0'),
       'duplicate',true);
  END IF;
  -- This single row lock serializes a reused quote with DIFFERENT retry keys.
@@ -178,7 +178,7 @@ BEGIN
  VALUES(p_chat_id,'order_created','usdt_order',order_id::text,
    jsonb_build_object('asset',p_asset,'type',p_action,'quote_id',p_quote_id));
  RETURN jsonb_build_object('order_id',order_id,
-   'order_code',p_asset||'-'||lpad(order_id::text,6,'0'),
+   'order_code',p_asset||'-'||lpad(order_id::text,5,'0'),
    'duplicate',false,'status','pending','risk_level',v_risk);
 END $$;
 REVOKE ALL ON FUNCTION public.saraf_original_submit_usdt_order(
