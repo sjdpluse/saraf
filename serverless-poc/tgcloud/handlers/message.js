@@ -8,6 +8,7 @@ import { getCryptoPrices, cryptoLabel } from '../lib/cryptos.js';
 import { getLocalMarketRates } from '../lib/local_market_service.js';
 import { currencyList,goldList,silverCalcMode,compareTarget,converterFrom,originalBotMenu,aboutKeyboard,originalStablecoinMenu } from '../lib/legacy_menus.js';
 import { handleOriginalCalcReply } from '../lib/legacy_calc.js';
+import {handleOriginalAdminCommand} from '../lib/original_admin_entry.js';
 
 const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
 export const currencyText = (rates, codes = VALID_CODES) =>
@@ -91,6 +92,7 @@ export default async function (message) {
   }
   const input = String(message.text ?? '').trim();
   if (!input) return;
+  if (await handleOriginalAdminCommand(message)) return;
   if (await handleOriginalCalcReply(message)) return;
   if (/^\/(?:stop)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) return reply(chatId,'تنظیم دریافت پیام‌های همگانی پس از انتقال سرویس اصلی Supabase در دسترس خواهد بود.');
   if (/^\/(?:start|ping)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) {
