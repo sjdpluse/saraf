@@ -199,6 +199,16 @@ Deno.serve(async req=>{
  try{
   if(!input||typeof input!=='object'||Array.isArray(input))
     deny('INVALID_INPUT');
+  if(action==='payment.info'){
+   // Original main:api.py /api/usdt/payment-info uses BANK_* config.py.
+   // Never invent/hardcode a different settlement bank account.
+   const bank_name=Deno.env.get('BANK_NAME')||'';
+   const bank_account_holder=Deno.env.get('BANK_ACCOUNT_HOLDER')||'';
+   const bank_account_number=Deno.env.get('BANK_ACCOUNT_NUMBER')||'';
+   if(!bank_name||!bank_account_holder||!bank_account_number)
+    return out(origin,503,{error:'ORIGINAL_BANK_DETAILS_NOT_CONFIGURED'});
+   return out(origin,200,{bank_name,bank_account_holder,bank_account_number});
+  }
   if(action==='stablecoins.config'){
    return out(origin,200,Object.fromEntries(
     (['USDT','USDC'] as Asset[]).map(type=>{
