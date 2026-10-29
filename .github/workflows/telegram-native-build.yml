@@ -58,13 +58,11 @@ jobs:
         run: |
           grep -q 'FINANCIAL_WRITES_ENABLED = false' serverless-poc/tgcloud/lib/native_config.js
           grep -q 'IDENTITY_UPLOADS_ENABLED = false' serverless-poc/tgcloud/lib/native_config.js
-      - name: Upload Telegram-ready Saraf assets (no local clone required)
+      - name: Upload precisely allowlisted ORIGINAL Saraf migration preview (no local clone required)
         uses: actions/upload-artifact@v4
         with:
-          name: saraf-native-telegram-build
-          path: |
-            serverless-poc/dist/
-            serverless-poc/tgcloud/
-            serverless-poc/tgcloud.jsonc
-          retention-days: 7
+          name: saraf-original-serverless-preview
+          path: serverless-poc/.release-original/
+          include-hidden-files: true
+          retention-days: 14
           if-no-files-found: error
