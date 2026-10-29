@@ -8,6 +8,7 @@ import { audit, isOperator, invalid } from './native_auth.js';
 import { canTransition } from './order_state_machine.js';
 import { orderCode } from './native_orders.js';
 import { remittanceCode } from './native_remittances.js';
+import { latestMedia } from './native_media.js';
 
 const cleanId=value => {
   const id=Number(value);
@@ -71,8 +72,16 @@ export async function adminCommand(message) {
     const id=cleanId(match[1]);
     const p=await db.select().from(nativeProfiles).where(eq(nativeProfiles.userId,id)).get();
     if(!p || !p.idDocumentFileId || !p.selfieFileId){await send('سند موجود نیست.');return true;}
-    await api.sendPhoto({chat_id:adminId,photo:p.idDocumentFileId,caption:'KYC Document '+id});
-    await api.sendPhoto({chat_id:adminId,photo:p.selfieFileId,caption:'KYC Selfie '+id});
+    const docs=await Promise.all([latestMedia(id,'KYC_ID'),latestMedia(id,'KYC_SELFIE')]);
+    for(let k=0;k<docs.length;k++){
+      const item=docs[k];
+      if(!item)continue;
+      const caption=(k?'KYC Selfie ':'KYC Document ')+id;
+      if(item.mediaCategory==='document')
+        await api.sendDocument({chat_id:adminId,document:item.telegramFileId,caption});
+      else
+        await api.sendPhoto({chat_id:adminId,photo:item.telegramFileId,caption});
+    }
     await send('پس از مشاهده دقیق دو سند، برای تأیید /kyc_confirm '+id+' را بفرستید.');
     return true;
   }
