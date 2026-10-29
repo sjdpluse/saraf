@@ -4,7 +4,7 @@
 // It reuses ORIGINAL usdt_quotes/usdt_orders/user_profiles tables only.
 // Never accepts client-supplied prices, chat_id, payout status or wallets.
 import {createClient} from 'npm:@supabase/supabase-js@2.57.0';
-import {verifyTelegramInitData} from '../saraf-telegram-bridge/telegram-auth.mjs';
+import {verifyTelegramInitData} from './telegram-auth.mjs';
 import {originalBuyPricing,originalSellPricing,originalRemittancePricing}
  from './pricing.mjs';
 import {selectOriginalBasis} from './rates.mjs';
