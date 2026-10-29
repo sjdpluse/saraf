@@ -1,3 +1,38 @@
+## Additional hardened controls — 29 October 2026
+
+The financial release is still **OFF**, but additional independent financial
+controls have now been added to the real Saraf migration branch:
+
+- Two-person payout readiness: `saraf_payout_dual_control_staged.sql`
+  enrolls distinct verified Telegram operators in a database allowlist.
+  A verified blockchain transfer alone is insufficient. Each operator must
+  separately sign off against the **same** immutable on-chain proof snapshot.
+  When token contract, logs or block hash changes, earlier approvals stop
+  qualifying. A recipient cannot approve their own payout.
+- The `saraf_prepare_payout_after_dual_approval` function moves an item
+  into a manual payout **queue**, never transfers customer money.
+  Any new transition to `completed` remains forbidden until a
+  separately verifiable bank/cash settlement system is integrated.
+- `saraf-finance-rate-limit-staged.sql` implements 5-minute quota
+  windows shared between Supabase Edge instances for quotes, orders,
+  remittance TX claims and authorized operator review actions.
+- `saraf-operator-review` Edge Function independently requires a signed
+  original-bot Mini App Telegram identity, two operator IDs enrolled in
+  secure Supabase secrets, enabled DB operator ACL, and a separate
+  **off-by-default** `SARAF_OPERATOR_REVIEW_ENABLED` secret switch.
+- Remittance quote issuance is restricted to EVM networks, because real
+  Tron/Solana proof verification is **not** implemented and must never
+  allow a customer to send funds they cannot prove.
+- `SARAF_FINANCE_ACTIVATION_RUNBOOK.md` records the full live-readiness
+  checklist, verified suppliers, wallet keys, operator enrollment and
+  payout integration blockers.
+- Existing live Supabase still contains 50 historical orders and
+  one unverified `payout_ready` remittance; no data was changed.
+
+**Not deployed to production:** all new SQL, new Edge Functions and operator
+approvals. Only the original read-only Telegram/Supabase bridge remains live.
+A passing test on ephemeral PostgreSQL is NOT authorization to accept real funds.
+
 # Saraf financial backend and transaction security — 29 October 2026
 
 **Scope:** `@sarafiaf_bot`, existing canonical Supabase project `cvernmhpnsgdtegvblyc`.
