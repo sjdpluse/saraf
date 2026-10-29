@@ -133,7 +133,7 @@ async function remittancePreview(input:Json,rate:number,feePercent:number,
     maxUsd:remittanceLimit('REMITTANCE_MAX_USD',10000),
   });
  }catch{deny('ORIGINAL_REMITTANCE_INVALID_QUOTE');}
- return {...quote,basis:'local_or_reference'};
+ return {...quote,basis:'local_or_reference',asset_price_source:price.source};
 }
 function wallets(kind:Asset):Json{
  // Same server-side source as main:services/stablecoin_networks.py.
