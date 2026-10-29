@@ -26,6 +26,9 @@ jobs:
       - name: Build ORIGINAL React Mini App for Telegram
         working-directory: webapp
         run: npm run build:telegram
+      - name: Build ORIGINAL bot Mini App with canonical Supabase bridge enabled
+        working-directory: webapp
+        run: npm run build:telegram-original
       - name: Verify Serverless static content exists
         run: |
           test -s serverless-poc/dist/index.html
