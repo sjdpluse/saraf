@@ -60,6 +60,8 @@ jobs:
           deno check supabase/functions/saraf-original-transactions/index.ts
           deno check supabase/functions/saraf-original-meta-webhook/index.ts
           deno check supabase/functions/saraf-original-admin/index.ts
+          deno check supabase/functions/saraf-original-notifications/index.ts
+          deno check supabase/functions/saraf-original-broadcast-worker/index.ts
       - name: Syntax-check legacy Railway-free workers
         run: |
           python -m py_compile scripts/run_original_saraf_jobs.py
