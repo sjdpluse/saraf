@@ -9,7 +9,7 @@ BEGIN
  '0x1111111111111111111111111111111111111111',
  'Synthetic Sender','Afghanistan','0700000001',
  'Synthetic Beneficiary','0790000000','Kabul','Kabul','Example address',
- 'remittances/101/synthetic_id.jpg',1,75
+ 'remittances/101/synthetic_id.jpg',1,75,250
  );
  v_id:=(r->>'id')::bigint;
  IF (r->>'order_code')<>'REM-000001' OR
@@ -29,7 +29,7 @@ BEGIN
  '0x1111111111111111111111111111111111111111',
  'Synthetic Sender','Afghanistan','0700000001',
  'Synthetic Beneficiary','0790000000','Kabul','Kabul','Example address',
- 'remittances/101/synthetic_id.jpg',1,75
+ 'remittances/101/synthetic_id.jpg',1,75,250
  );
  IF (r->>'id')::bigint<>v_id OR NOT (r->>'duplicate')::boolean THEN
   RAISE EXCEPTION 'ORIGINAL_REMITTANCE_RETRY_NOT_IDEMPOTENT';
@@ -41,7 +41,7 @@ BEGIN
    '0x1111111111111111111111111111111111111111',
    'Synthetic Sender','Afghanistan','0700000001',
    'Synthetic Beneficiary','0790000000','Kabul','Kabul','Example address',
-   'remittances/101/synthetic_id.jpg',1,75);
+   'remittances/101/synthetic_id.jpg',1,75,250);
  EXCEPTION WHEN raise_exception THEN
   blocked:=SQLERRM='REMITTANCE_IDEMPOTENCY_CONFLICT';
  END;
@@ -93,7 +93,7 @@ BEGIN
    'bc1syntheticoriginalwallet000000000',
    'Synthetic Sender','Afghanistan','0700000001',
    'Synthetic Beneficiary','0790000000','Kabul','Kabul','Example address',
-   'remittances/101/btc_synthetic.jpg',70000,7000
+   'remittances/101/btc_synthetic.jpg',70000,7000,250
  );
  IF (r->>'duplicate')::boolean OR
     (SELECT asset_price_usd FROM public.remittance_orders
@@ -112,7 +112,7 @@ BEGIN
      'bc1syntheticoriginalwallet000000000',
      'Synthetic Sender','Afghanistan','0700000002',
      'Synthetic Beneficiary','0790000000','Kabul','Kabul','Example address',
-     'remittances/202/btc_synthetic.jpg',40000,400);
+     'remittances/202/btc_synthetic.jpg',40000,400,250);
  EXCEPTION WHEN raise_exception THEN
    blocked:=SQLERRM='IDENTITY_VERIFICATION_REQUIRED';
  END;
@@ -125,7 +125,7 @@ BEGIN
      '0x1111111111111111111111111111111111111111',
      'Synthetic Sender','Afghanistan','0700000001',
      'Synthetic Beneficiary','0790000000','Kabul','Kabul','Example address',
-     'remittances/101/btc_synthetic.jpg',70000,7000);
+     'remittances/101/btc_synthetic.jpg',70000,7000,250);
  EXCEPTION WHEN raise_exception THEN
    blocked:=SQLERRM='INVALID_ORIGINAL_REMITTANCE';
  END;
