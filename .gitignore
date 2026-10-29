@@ -5,3 +5,5 @@ __pycache__/
 venv/
 serverless-poc/react-dist/
 serverless-poc/dist/
+
+serverless-poc/.release-original/
