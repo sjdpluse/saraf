@@ -9,6 +9,10 @@ import { getLocalMarketRates } from '../lib/local_market_service.js';
 import { currencyList,goldList,silverCalcMode,compareTarget,converterFrom,originalBotMenu,aboutKeyboard,originalStablecoinMenu } from '../lib/legacy_menus.js';
 import { handleOriginalCalcReply } from '../lib/legacy_calc.js';
 import {handleOriginalAdminCommand} from '../lib/original_admin_entry.js';
+const NOTIFICATION_URL='https://app8533795882.tgcloud.ai/?action=notifications';
+const notificationsButton={inline_keyboard:[[{
+  text:'🔔 مدیریت پیام‌های همگانی صراف',web_app:{url:NOTIFICATION_URL}
+}]]};
 
 const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
 export const currencyText = (rates, codes = VALID_CODES) =>
@@ -94,8 +98,11 @@ export default async function (message) {
   if (!input) return;
   if (await handleOriginalAdminCommand(message)) return;
   if (await handleOriginalCalcReply(message)) return;
-  if (/^\/(?:stop)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) return reply(chatId,'تنظیم دریافت پیام‌های همگانی پس از انتقال سرویس اصلی Supabase در دسترس خواهد بود.');
+  if (/^\/(?:stop)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) return reply(chatId,
+    '🔕 برای خروج از دریافت پیام‌های همگانی، وضعیت اشتراک را در Mini App تأیید کنید.\n'+
+    'سفارش‌ها و اطلاعات حساب شما محفوظ می‌ماند.',notificationsButton);
   if (/^\/(?:start|ping)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) {
+    await reply(chatId,'برای فعال‌سازی دریافت پیام‌های همگانی، گزینهٔ زیر را در Mini App انتخاب کنید.',notificationsButton);
     return reply(chatId,'سلام '+String(message.from?.first_name||'دوست عزیز')+' 👋\n\n'+
       'به صراف خوش آمدید.\nپلتفرم هوشمند بازار و خدمات مالی افغانستان.\n\n'+
       'از منوی زیر گزینهٔ مورد نظر خود را انتخاب کنید. 👇',originalBotMenu());
