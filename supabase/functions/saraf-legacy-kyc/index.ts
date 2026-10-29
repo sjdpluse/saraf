@@ -3,7 +3,7 @@
 // NOT a new KYC scheme. Never deploy until original admin review notification
 // path has been confirmed. No cloud-Telegram SQLite or Railway.
 import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
-import { verifyTelegramInitData } from '../saraf-telegram-bridge/telegram-auth.mjs';
+import { verifyTelegramInitData } from './telegram-auth.mjs';
 
 const PROJECT='cvernmhpnsgdtegvblyc';
 const TRUSTED_ORIGIN='https://app8533795882.tgcloud.ai';
