@@ -8,7 +8,15 @@ export class NativeEndpointError extends Error {
     this.code = code;
   }
 }
-const AVAILABLE_ENDPOINTS = new Set(['getMarketSnapshot', 'getSarafCapabilities', 'getReadOnlyMarket']);
+const AVAILABLE_ENDPOINTS = new Set([
+  'getMarketSnapshot','getSarafCapabilities','getReadOnlyMarket','getLocalMarket',
+  'getNativeStats','getNativeProfile','saveBasicProfile','submitNativeIdentity',
+  'getNativeMediaStatus','getNativeOrders','rateNativeOrder',
+  'getNativePaymentInfo','getNativeStablecoinConfig','getNativeQuote',
+  'getNativeRemittanceConfig','getNativeRemittanceQuote','createNativeRemittance',
+  'getNativeRemittances','submitNativeRemittanceTx','createNativeOrder',
+  'getNativeReviews','createNativeReview','voteNativeReview','replyNativeReview',
+]);
 export function nativeCall(name, input = {}) {
   if (!AVAILABLE_ENDPOINTS.has(name)) {
     return Promise.reject(new NativeEndpointError('این خدمت هنوز در Serverless فعال نیست.', 'NOT_MIGRATED'));
