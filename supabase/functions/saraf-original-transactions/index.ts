@@ -102,7 +102,7 @@ function remittancePreview(input:Json,rate:number,feePercent:number){
  const network=String(input.network||'').toUpperCase();
  const configured=remittanceWallets(type);
  if(!configured[network])deny('DEPOSIT_WALLET_NOT_CONFIGURED');
- const math=originalRemittancePricing(String(a),String(rate),String(feePercent));
+ const math=originalRemittancePricing(String(a),String(rate),feePercent);
  return {asset:type,network,crypto_amount:a,usd_rate:math.usd_rate,
    gross_afn:math.gross_afn,fee_percent:math.fee_percent,
    fee_afn:math.fee_afn,payout_afn:math.payout_afn,
@@ -261,7 +261,7 @@ Deno.serve(async req=>{
       p_deposit_wallet:quote.deposit_wallet,
       p_sender_name:beneficiary('sender_full_name'),
       p_sender_country:beneficiary('sender_country'),
-      p_sender_phone:profile.data.phone,
+      p_sender_phone:profile.data!.phone,
       p_beneficiary_name:beneficiary('beneficiary_full_name'),
       p_beneficiary_phone:beneficiary('beneficiary_phone'),
       p_province:beneficiary('beneficiary_province'),
