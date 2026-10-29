@@ -1,3 +1,30 @@
+## 2026-10-29 — original admin command migration (this increment)
+
+- Added signed Telegram Mini App admin page in original React navigation and
+  preserved `/stats`, `/spreads`, `/setspread`, `/usdtpending`,
+  `/usdtconfirm` command names in native Telegram handlers.
+- The bot ONLY provides a link to original Mini App for privileged commands;
+  unsigned `message.from.id` is NEVER forwarded as an authenticated finance
+  actor. The new server-side `saraf-original-admin` Edge Function validates
+  actual Telegram Mini App HMAC and the PRIVATE
+  `SARAF_ADMIN_CHAT_IDS` allowlist. Read and write have independent
+  OFF-by-default server-side toggles
+  `SARAF_ORIGINAL_ADMIN_READ_ENABLED` and
+  `SARAF_ORIGINAL_ADMIN_WRITES_ENABLED`.
+- Added staged service-role-only original existing-table admin SQL RPCs for
+  one-time order confirmation and spread updates, with order state-machine
+  checks and audit history; **no SQL installed on live canonical Supabase**.
+- Synthetic PostgreSQL 16 admin safety tests PASS; original React/Telegram
+  native build and Deno module validation PASS. No customer finance rows
+  touched. Deployed `saraf-original-admin` Edge **ACTIVE v1, disabled**.
+- `/broadcast` remains deliberately OFF until an owned, consent-aware
+  delivery pipeline is tested. The legacy chat-photo KYC/receipt workflows,
+  full financial callback flows, social-trigger reliability, and the complete
+  original FastAPI/JustMarkets utilities are not yet 1:1.
+- **Production release is STILL BLOCKED**; do not remove Railway or switch
+  BotFather webhook because compile and synthetic tests are not real live
+  signed-user/admin/financial parity.
+
 ## Additional Railway removal work (2026-10-29)
 
 - Created a **disabled-by-default** original Facebook/Instagram Meta HTTP
