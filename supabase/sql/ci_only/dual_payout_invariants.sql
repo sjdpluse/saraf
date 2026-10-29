@@ -65,7 +65,26 @@ BEGIN
   END;
   IF NOT v_forbidden THEN RAISE EXCEPTION 'One-operator payout readiness bypass'; END IF;
 
+  -- A chain reorganization or changed contract proof invalidates any old
+  -- approval even before the remittance is placed into payout_ready.
+  UPDATE public.remittance_orders
+    SET chain_verification_meta=jsonb_set(chain_verification_meta,
+      '{blockHash}',to_jsonb('0x'||repeat('e',64)))
+    WHERE id=v_id;
   v_result:=public.saraf_approve_verified_payout(v_id,9002);
+  IF (v_result->>'valid_approvals')::integer<>1 THEN
+    RAISE EXCEPTION 'Changed on-chain proof did not revoke first approval';
+  END IF;
+  v_forbidden:=false;
+  BEGIN
+    UPDATE public.remittance_orders SET status='payout_ready' WHERE id=v_id;
+  EXCEPTION WHEN raise_exception THEN
+    v_forbidden:=SQLERRM='TWO_INDEPENDENT_APPROVALS_REQUIRED';
+  END;
+  IF NOT v_forbidden THEN
+    RAISE EXCEPTION 'Stale first operator approval permitted payout';
+  END IF;
+  v_result:=public.saraf_approve_verified_payout(v_id,9001);
   IF (v_result->>'valid_approvals')::integer<>2
      OR NOT (v_result->>'ready_for_review')::boolean THEN
     RAISE EXCEPTION 'Two independent approvals were not recognized';
