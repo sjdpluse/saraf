@@ -1,3 +1,31 @@
+## Additional Railway removal work (2026-10-29)
+
+- Created a **disabled-by-default** original Facebook/Instagram Meta HTTP
+  webhook receiver at `supabase/functions/saraf-original-meta-webhook/`.
+  It verifies Meta `X-Hub-Signature-256` over raw payload bytes,
+  supports original GET handshake, and only enqueues events for the
+  unchanged original Python Facebook comment / Instagram comment and DM
+  processors. The receiver is **deployed ACTIVE v1** but still OFF without
+  `SARAF_ORIGINAL_META_WEBHOOKS_ENABLED=true`.
+- Added `supabase/sql/saraf_original_meta_transport_STAGED.sql` with a
+  private, locked, de-duplicated Meta event queue and retryable leases. This
+  SQL has **NOT** been applied to production.
+- Added `scripts/run_original_meta_worker.py` and a default-OFF GitHub
+  Actions workflow invoking unchanged Python Meta handlers without Railway;
+  no Meta credentials were installed or AI replies transmitted.
+- Added synthetic PostgreSQL CI for queue ownership/permissions,
+  duplicate deliveries and lease/retry behavior, plus real HMAC tampering
+  tests for the webhook implementation. GitHub tests pass.
+- Original scheduled rate and social-post Python code has an additional
+  disabled GitHub Actions scheduler on the migration branch. GitHub
+  scheduled workflows only operate after the branch is merged to the
+  default branch, properly configured and enabled; timing is best effort.
+- Full Telegram inline financial chat callbacks, administrator command
+  parity, original Media/photo flows, signed production Telegram session
+  test, final BotFather/TGCloud deployment, and safe rollback still
+  remain incomplete. **Do not switch the original webhook or disable
+  Railway yet.**
+
 ## 29 October 2026 — existing finance and Railway replacement progress
 
 - **Original finance backend staged**: `supabase/functions/saraf-original-transactions/`
