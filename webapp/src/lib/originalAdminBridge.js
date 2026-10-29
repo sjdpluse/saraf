@@ -8,7 +8,8 @@ export async function originalAdminCommand(action,input={}){
  if(!ENABLED)throw new Error('دستورات مدیریت هنوز در سرور جدید فعال نشده‌اند.');
  const initData=getInitData();
  if(!initData)throw new Error('پنل مدیریت را از ربات اصلی صراف باز کنید.');
- const allowed=['stats','spreads','orders.pending','spread.set','order.confirm'];
+ const allowed=['stats','spreads','orders.pending','spread.set',
+ 'order.confirm','broadcast.create','broadcast.status'];
  if(!allowed.includes(action))throw new Error('دستور مدیریت پشتیبانی نمی‌شود.');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),15000);
