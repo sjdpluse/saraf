@@ -37,10 +37,13 @@ AS $$
     'tx_hash',lower(r.tx_hash),'asset',r.asset,'network',r.network,
     'deposit_wallet',lower(r.deposit_wallet),
     'crypto_amount',r.crypto_amount,'chain_verified_amount',r.chain_verified_amount,
-    'verified_at',r.chain_verified_at,'chain_verified_asset',r.chain_verified_asset,
+    'verified_epoch',extract(epoch from r.chain_verified_at),
+    'chain_verified_asset',r.chain_verified_asset,
     'chain_verified_network',r.chain_verified_network,
     'chain_block_number',r.chain_block_number,
-    'chain_block_hash',r.chain_verification_meta->>'blockHash');
+    'chain_block_hash',r.chain_verification_meta->>'blockHash',
+    'token_contract',r.chain_verification_meta->>'tokenContract',
+    'transfer_log_indices',r.chain_verification_meta->'logIndexes');
 $$;
 
 CREATE OR REPLACE FUNCTION public.saraf_approve_verified_payout(
