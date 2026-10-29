@@ -1,3 +1,20 @@
+## Verified deployment update — 2026-10-29
+- A NEW, read-only, public-market-data-only Supabase Edge Function
+  `saraf-public-history` was deployed to the existing canonical project
+  `cvernmhpnsgdtegvblyc` (ACTIVE v1). It exposes only historical exchange,
+  gold, local market pricing, and stored currency spread percentages; no
+  customer identities, KYC, wallets, orders, or transfers.
+- The original @sarafiaf_bot **webhook has not been switched**. The Telegram
+  Serverless handler deployment is still blocked by the incomplete
+  original financial workflows and external Meta automation parity.
+- Staged JavaScript replicas of original fixed-point stablecoin pricing,
+  original Saraf bid/ask spreads and 1/7/30/90-day comparison handlers are
+  committed, with no permission for client-side financial order writes.
+- Supabase Edge deployment returned ACTIVE, but an end-to-end HTTP
+  verification could not be performed from the current network.
+- NEVER describe this as a fully migrated trading/settlement system.
+  Existing records were left untouched.
+
 ## Latest migration-only progress — original parity (2026-10-29)
 
 - Pure fixed-point `legacy_stablecoin_pricing.js` now reproduces the
