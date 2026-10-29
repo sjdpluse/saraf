@@ -80,6 +80,11 @@ function rpcFailure(error: {message?:string;code?:string}|null) {
     'IDEMPOTENCY_CONFLICT','QUOTE_INVALID_OR_CONSUMED',
     'PROFILE_REQUIRED_OR_RESTRICTED','VERIFIED_IDENTITY_REQUIRED',
     'DAILY_LIMIT_EXCEEDED','QUOTE_CONCURRENTLY_CONSUMED',
+    'INVALID_TRANSACTION_HASH','INVALID_REMITTANCE_QUOTE','VERIFIED_WALLET_REQUIRED',
+    'INVALID_REMITTANCE_REQUEST','INVALID_BENEFICIARY_DETAILS',
+    'REMITTANCE_IDEMPOTENCY_CONFLICT','REMITTANCE_QUOTE_INVALID',
+    'REMITTANCE_QUOTE_CONCURRENTLY_CONSUMED','REMITTANCE_NOT_FOUND',
+    'REMITTANCE_TX_LOCKED','EVM_VERIFIER_REQUIRED_FOR_NETWORK',
   ]);
   if(error.code==='P0001' && allow.has(error.message||''))
     bad(error.message||'FINANCE_REJECTED',409);
@@ -96,6 +101,11 @@ function safeError(error:unknown) {
     'INVALID_ORDER_DETAILS','UNVERIFIED_DEPOSIT_WALLET','IDEMPOTENCY_CONFLICT',
     'QUOTE_INVALID_OR_CONSUMED','PROFILE_REQUIRED_OR_RESTRICTED',
     'VERIFIED_IDENTITY_REQUIRED','DAILY_LIMIT_EXCEEDED','QUOTE_CONCURRENTLY_CONSUMED',
+    'INVALID_TRANSACTION_HASH','INVALID_REMITTANCE_QUOTE','VERIFIED_WALLET_REQUIRED',
+    'INVALID_REMITTANCE_REQUEST','INVALID_BENEFICIARY_DETAILS',
+    'REMITTANCE_IDEMPOTENCY_CONFLICT','REMITTANCE_QUOTE_INVALID',
+    'REMITTANCE_QUOTE_CONCURRENTLY_CONSUMED','REMITTANCE_NOT_FOUND',
+    'REMITTANCE_TX_LOCKED','EVM_VERIFIER_REQUIRED_FOR_NETWORK',
   ]);
   return {code:errors.has(o.message||'')?o.message:'INTERNAL_ERROR',
     status:Number.isSafeInteger(o.status)?Number(o.status):500};
@@ -159,6 +169,52 @@ Deno.serve(async (request:Request)=>{
         },
       });
       rpcFailure(error);
+      return response(origin,200,{data});
+    }
+    if(body.action==='remittance.quote'){
+      const p=parseInput(input);
+      const network=string(p.network,3,12).toUpperCase();
+      // No browser-provided recipient wallet; it must come from verified DB config.
+      const {data,error}=await db.rpc('saraf_issue_remittance_quote',{
+        p_chat_id:user.id,p_asset:asset(p.asset),p_network:network,
+        p_amount:amount(p.amount),
+      });
+      rpcFailure(error);
+      return response(origin,200,{data});
+    }
+    if(body.action==='remittance.submit'){
+      const p=parseInput(input);
+      const quoteId=id(p.quote_id);
+      const key=idem(p.idempotency_key);
+      const beneficiary={
+        sender_name:string(p.sender_name,3,160),
+        sender_country:string(p.sender_country,2,80),
+        beneficiary_name:string(p.beneficiary_name,3,160),
+        beneficiary_phone:string(p.beneficiary_phone,7,40),
+        beneficiary_province:string(p.beneficiary_province,2,80),
+        beneficiary_city:string(p.beneficiary_city,2,80),
+        beneficiary_address:string(p.beneficiary_address,3,240),
+      };
+      // Price, asset, amount, network, and deposit wallet are loaded from the
+      // locked database quote, not copied from client input.
+      const {data,error}=await db.rpc('saraf_submit_remittance_atomic',{
+        p_chat_id:user.id,p_quote_id:quoteId,p_idempotency_key:key,
+        p_details:beneficiary,
+      });
+      rpcFailure(error);
+      return response(origin,200,{data});
+    }
+    if(body.action==='remittance.claimTx'){
+      const p=parseInput(input);
+      const txHash=string(p.tx_hash,66,66);
+      if(!/^0x[0-9a-fA-F]{64}$/.test(txHash))bad('INVALID_TRANSACTION_HASH');
+      const {data,error}=await db.rpc('saraf_claim_remittance_tx',{
+        p_chat_id:user.id,p_remittance_id:id(p.order_id),
+        p_tx_hash:txHash,
+      });
+      rpcFailure(error);
+      // Never imply "verified" until independently checking token contract,
+      // chain confirmations, deposit wallet, transfer amount, and network.
       return response(origin,200,{data});
     }
     // All monetary release, settlement, payment receipt and admin status
