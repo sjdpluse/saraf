@@ -1,6 +1,6 @@
 import { useEffect,useState } from 'react';
 import { CaretRight,ShieldCheck,ArrowClockwise } from '@phosphor-icons/react';
-import { nativeCall } from '../lib/nativeApi';
+import { api } from '../lib/api';
 
 // Native KYC uses the VERIFIED private Telegram bot chat for images, not the
 // unsupported multipart upload routes. No image bytes are sent to an API.
@@ -15,7 +15,7 @@ export default function NativeAccount({navigate}) {
   async function reload() {
     setLoading(true);setError('');
     try {
-      const result=await nativeCall('getNativeProfile');
+      const result=await api.getProfile();
       setProfile(result);
       setForm(old=>({
         first_name:old.first_name||result.profile?.first_name||'',
@@ -30,16 +30,8 @@ export default function NativeAccount({navigate}) {
     e.preventDefault();
     setBusy(true);setError('');setMessage('');
     try {
-      await nativeCall('saveBasicProfile',form);
+      await api.submitBasicProfile(form);
       setMessage('✅ پروفایل ثبت شد.');
-      await reload();
-    }catch(e){setError(e.message);}finally{setBusy(false);}
-  }
-  async function submitIdentity() {
-    setBusy(true);setError('');setMessage('');
-    try {
-      await nativeCall('submitNativeIdentity');
-      setMessage('✅ مدارک برای بررسی مدیر ثبت شد. تأیید هویت تا بررسی دستی در انتظار است.');
       await reload();
     }catch(e){setError(e.message);}finally{setBusy(false);}
   }
@@ -63,16 +55,11 @@ export default function NativeAccount({navigate}) {
       <h2 style={{fontSize:17}}>🛡 تأیید هویت</h2>
       {profile?.identity_uploads_enabled===false && <p role="alert" className="notice warn">در حال حاضر دریافت سند هویتی غیرفعال است. لطفاً عکس تذکره یا سلفی را ارسال نکنید.</p>}
       <p>وضعیت: <strong>{profile?.kyc_status==='verified'?'✅ تأییدشده':profile?.kyc_status==='rejected'?'❌ ردشده':'⏳ در انتظار بررسی'}</strong></p>
-      <p>برای ثبت مدارک، به چت خصوصی <strong>همین ربات صراف</strong> بروید و دو عکس جداگانه بفرستید:</p>
-      <p><strong>۱.</strong> تصویر مدرک شناسایی با متن توضیح (Caption) دقیق <code>KYC_ID</code></p>
-      <p><strong>۲.</strong> تصویر سلفی با متن توضیح (Caption) دقیق <code>KYC_SELFIE</code></p>
-      <p>سپس به این صفحه بازگردید و دکمهٔ بروزرسانی را بزنید.</p>
-      <button className="btn btn-outline" type="button" onClick={reload}>↻ بررسی دریافت تصاویر</button>
-      <p>مدرک: {profile?.uploaded?.kyc_id?'✅':'❌'} | سلفی: {profile?.uploaded?.selfie?'✅':'❌'}</p>
-      <button type="button" className="btn btn-primary"
-        disabled={busy || !profile?.identity_uploads_enabled || !profile?.has_basic_profile || !profile?.uploaded?.kyc_id || !profile?.uploaded?.selfie}
-        onClick={submitIdentity}>ارسال مدارک برای تأیید مدیر</button>
-      <p className="notice">در این مرحله عکس‌ها فقط به چت خصوصی ربات ارسال می‌شوند. برای حفظ حریم خصوصی، مدارک را در گروه‌ها یا کانال‌ها نفرستید.</p>
+      {profile?.identity_uploads_enabled
+        ? <p className="notice warn">ارسال مدارک از طریق ربات تا تکمیل راه‌اندازی سامانه امن بررسی و تأیید نشده است.</p>
+        : <p className="notice">در حال حاضر از کاربران عکس تذکره یا سلفی دریافت نمی‌شود. مدارک ثبت‌شده قبلی نزد Supabase حفظ می‌مانند.</p>}
+      {profile?.has_identity_verification && <p className="notice">✅ مدارک قبلی شما در Supabase موجود و تأیید شده‌اند.</p>}
+
     </section>
     {error && <p role="alert" className="notice warn">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}
