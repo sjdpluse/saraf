@@ -1,10 +1,12 @@
-import { actor } from '../lib/native_auth.js';
-import { latestMedia } from '../lib/native_media.js';
-export default async function(input,ctx) {
-  const user=actor(ctx);
-  const kind=String(input?.kind || 'RECEIPT').toUpperCase();
-  const row=await latestMedia(user.id,kind);
-  if (!row) return {ready:false};
-  // No file_id or personal document is exposed to the browser.
-  return {ready:true,id:row.id,receivedAt:row.receivedAt};
+// Deprecated native SQLite endpoint. The ORIGINAL Supabase project is the
+// only canonical store for users, orders, remittances and reviews.
+// This handler fails closed rather than creating a parallel record or returning
+// an empty, misleading history. Use saraf-telegram-bridge instead.
+import { EndpointError } from 'sdk';
+export default async function (_input, ctx) {
+  if (!Number.isSafeInteger(ctx?.initData?.user?.id) || ctx.initData.user.id <= 0)
+    throw new EndpointError('Telegram authorization required',{code:'UNAUTHORIZED'});
+  throw new EndpointError('سوابق اصلی صراف فقط در Supabase محفوظ است؛ اتصال امن در حال آماده‌سازی است.',{
+    code:'CANONICAL_SUPABASE_REQUIRED',
+  });
 }
