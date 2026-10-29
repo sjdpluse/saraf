@@ -85,6 +85,7 @@ function rpcFailure(error: {message?:string;code?:string}|null) {
     'REMITTANCE_IDEMPOTENCY_CONFLICT','REMITTANCE_QUOTE_INVALID',
     'REMITTANCE_QUOTE_CONCURRENTLY_CONSUMED','REMITTANCE_NOT_FOUND',
     'REMITTANCE_TX_LOCKED','EVM_VERIFIER_REQUIRED_FOR_NETWORK',
+    'FINANCIAL_RATE_LIMIT_EXCEEDED',
   ]);
   if(error.code==='P0001' && allow.has(error.message||''))
     bad(error.message||'FINANCE_REJECTED',409);
@@ -141,6 +142,18 @@ Deno.serve(async (request:Request)=>{
     }});
     if(!ENABLED)bad('FINANCE_DISABLED',503);
     const db=client();
+    // Shared DB-level throttling across all stateless Edge instances.
+    // Validated Telegram identity is the only source of chat_id.
+    if(['quote.issue','order.submit','remittance.quote',
+        'remittance.submit','remittance.claimTx'].includes(body.action)){
+      const limited=await db.rpc('saraf_limit_finance_api',{
+        p_chat_id:user.id,p_action:body.action,
+      });
+      if(limited.error?.code==='P0001' &&
+         limited.error.message==='FINANCIAL_RATE_LIMIT_EXCEEDED')
+        bad('FINANCIAL_RATE_LIMIT_EXCEEDED',429);
+      rpcFailure(limited.error);
+    }
     if(body.action==='quote.issue'){
       const params=parseInput(input);
       const {data,error}=await db.rpc('saraf_issue_quote_atomic',{
