@@ -40,6 +40,11 @@ function client() {
     auth:{autoRefreshToken:false,persistSession:false},
   });
 }
+function originalReviewsAdmin(userId:number):boolean {
+  // Mirrors original Python ADMIN_CHAT_IDS server-only allowlist.
+  return (Deno.env.get('SARAF_ADMIN_CHAT_IDS')||'').split(',')
+    .some(value=>value.trim()===String(userId));
+}
 function safeProfile(row:DbRow|null) {
   return {
     has_basic_profile:Boolean(row?.first_name && row?.last_name && row?.phone),
@@ -156,15 +161,15 @@ async function handler(db:ReturnType<typeof client>,user:TelegramUser,action:str
         dislikes:myVotes.filter((v:DbRow)=>v.vote===-1).length,
         user_vote:myVotes.find((v:DbRow)=>String(v.chat_id)===String(user.id))?.vote||0};
     });
-    return {items,total:count||0,is_admin:false};
+    return {items,total:count||0,is_admin:originalReviewsAdmin(user.id)};
   }
   if(action==='reviews.create'){
-    const body=validString(input?.body,3,1000);
+    const body=validString(input?.body,3,800).replace(/\\s+/g,' ');
     const previous=await db.from('miniapp_reviews').select('created_at')
       .eq('chat_id',user.id).order('created_at',{ascending:false}).limit(1);
     check(previous.error);
     if(previous.data?.length &&
-       Date.now()-Date.parse(previous.data[0].created_at)<60_000)
+       Date.now()-Date.parse(previous.data[0].created_at)<30_000)
       throw new Error('RATE_LIMIT');
     const display_name=([user.first_name,user.last_name].filter(Boolean).join(' ')||'کاربر صراف').slice(0,100);
     const {data,error}=await db.from('miniapp_reviews').insert({
@@ -173,6 +178,28 @@ async function handler(db:ReturnType<typeof client>,user:TelegramUser,action:str
     }).select('id,display_name,body,admin_reply,admin_replied_at,created_at').single();
     check(error);
     return {...data,likes:0,dislikes:0,user_vote:0};
+  }
+  if(action==='reviews.reply'){
+    if(!originalReviewsAdmin(user.id))throw new Error('ADMIN_NOT_ALLOWED');
+    const id=validId(input?.review_id);
+    const body=validString(input?.body,3,1200).replace(/\\s+/g,' ');
+    const now=new Date().toISOString();
+    const updated=await db.from('miniapp_reviews').update({
+      admin_reply:body,admin_replied_at:now,updated_at:now,
+    }).eq('id',id).eq('is_visible',true)
+      .select('id,display_name,body,admin_reply,admin_replied_at,created_at')
+      .maybeSingle();
+    check(updated.error);
+    if(!updated.data)throw new Error('NOT_FOUND');
+    const votes=await db.from('miniapp_review_votes')
+      .select('chat_id,vote').eq('review_id',id);
+    check(votes.error);
+    const data=votes.data||[];
+    return {...updated.data,
+      likes:data.filter((v:DbRow)=>v.vote===1).length,
+      dislikes:data.filter((v:DbRow)=>v.vote===-1).length,
+      user_vote:data.find((v:DbRow)=>String(v.chat_id)===String(user.id))?.vote||0,
+    };
   }
   if(action==='reviews.vote'){
     const id=validId(input?.review_id), vote=Number(input?.vote);
