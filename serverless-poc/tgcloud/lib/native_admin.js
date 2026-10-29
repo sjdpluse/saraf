@@ -39,8 +39,9 @@ export async function adminCommand(message) {
   }
   if(text==='/admin_kyc') {
     const rows=await db.select().from(nativeProfiles).where(eq(nativeProfiles.kycStatus,'pending')).limit(15).all();
-    await send('👤 احراز هویت‌های در انتظار:\n'+(rows.filter(p=>p.idDocumentFileId && p.selfieFileId)
-      .map(p=>p.userId+' : '+p.firstName+' '+p.lastName).join('\n')||'موردی نیست.');
+    const lines=rows.filter(p=>p.idDocumentFileId && p.selfieFileId)
+      .map(p=>p.userId+' : '+p.firstName+' '+p.lastName).join('\n');
+    await send('👤 احراز هویت‌های در انتظار:\n'+(lines || 'موردی نیست.'));
     return true;
   }
   let match=text.match(/^\/kyc_(approve|reject)\s+(\d+)$/);
