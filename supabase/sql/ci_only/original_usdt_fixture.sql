@@ -48,7 +48,7 @@ CREATE TABLE public.usdt_order_status_history(
 CREATE TABLE public.audit_log(
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  actor bigint,action text NOT NULL,entity text NOT NULL,
- entity_id text,after jsonb
+ entity_id text,before jsonb,after jsonb,reason text
 );
 
 CREATE TABLE public.remittance_orders(
