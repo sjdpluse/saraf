@@ -67,9 +67,10 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
     });
     if (path==='/reviews' && method==='POST') return canonicalCall('reviews.create',body);
     match=path.match(/^\/reviews\/(\d+)\/(reply|vote)$/);
-    if (match && method==='POST') return match[2]==='vote'
-      ? canonicalCall('reviews.vote',{review_id:Number(match[1]),...body})
-      : Promise.reject(new ApiError('پاسخ مدیر هنوز در نسخه Serverless فعال نیست.',403,'ADMIN_NOT_AVAILABLE'));
+    if (match && method==='POST') return canonicalCall(
+      match[2]==='vote'?'reviews.vote':'reviews.reply',
+      {review_id:Number(match[1]),...body},
+    );
     throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
   }
   const headers = { "X-Telegram-Init-Data": getInitData(), ...extraHeaders };
