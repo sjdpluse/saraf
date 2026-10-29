@@ -8,6 +8,7 @@ import {
   ShieldCheck,
 } from "@phosphor-icons/react";
 import { openTelegramChat } from "../lib/telegram";
+import { SARAF_ORIGINAL_BOT_USERNAME } from "../lib/originalBot";
 
 const ITEMS = [
   ["orders", "سفارش‌های من", "مشاهده و پیگیری سفارش‌های خرید و فروش", ClipboardText],
@@ -45,6 +46,15 @@ export default function Menu({ navigate, readOnly = false }) {
         ))}
       </section>
 
+      {readOnly && <button className="menu-page-support" type="button"
+        onClick={() => openTelegramChat(SARAF_ORIGINAL_BOT_USERNAME)}>
+        <span className="menu-page-item-icon"><PaperPlaneTilt size={23} /></span>
+        <span className="menu-page-item-copy">
+          <strong>🤖 ربات اصلی صراف</strong>
+          <small>@sarafiaf_bot — بازگشت به ربات اصلی تلگرام</small>
+        </span>
+        <CaretLeft size={17} />
+      </button>}
       <button className="menu-page-support" onClick={() => openTelegramChat("SJDPLUS")}>
         <span className="menu-page-item-icon"><Headset size={23} /></span>
         <span className="menu-page-item-copy">
