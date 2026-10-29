@@ -2,6 +2,7 @@ import { db, api } from 'sdk';
 import { and, desc, eq, isNull } from 'sdk/db';
 import { nativeMedia } from '../schema.js';
 import { invalid } from './native_auth.js';
+import { IDENTITY_UPLOADS_ENABLED } from './native_config.js';
 
 const LABELS = {
   KYC_ID: 'تذکره/مدرک هویتی',
@@ -19,6 +20,10 @@ export async function acceptMedia(message) {
       chat.id !== user.id || message.forward_origin || message.forward_from) return false;
   const kind=String(message.caption || '').trim().toUpperCase();
   if (!MEDIA_KINDS.includes(kind)) return false;
+  if (!IDENTITY_UPLOADS_ENABLED) {
+    await api.sendMessage({chat_id:user.id,text:'ارسال مدارک و رسیدهای خصوصی تا تکمیل تنظیمات امنیتی غیرفعال است. لطفاً فعلاً سند نفرستید.'});
+    return true;
+  }
   const photos=message.photo;
   const best=Array.isArray(photos) && photos.length ? photos[photos.length - 1] : null;
   const doc=message.document;
