@@ -5,7 +5,17 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), {
+    name: 'saraf-telegram-assets',
+    enforce: 'pre',
+    transform(source, id) {
+      // The original CSS points to Railway /miniapp/fonts.
+      // Only the Telegram build rewrites them to the static host root.
+      if (id.endsWith('peyda-font.css')) {
+        return source.replaceAll('/miniapp/fonts/', '/fonts/');
+      }
+    },
+  }],
   base: '/',
   publicDir: '../assets',
   define: { __SARAF_NATIVE__: JSON.stringify(true) },
