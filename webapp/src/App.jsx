@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home";
+import Markets from "./pages/Markets";
+import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./lib/runtime";
 import Buy from "./pages/Buy";
 import Sell from "./pages/Sell";
 import Orders from "./pages/Orders";
@@ -34,13 +36,17 @@ export default function App() {
     const action = params.get("action");
     const requestedAsset = normalizeAsset(params.get("asset"));
     setAsset(requestedAsset);
-    if (action === "buy" || action === "sell") setPage(action);
-    if (action === "remittance") setPage("remittance");
-    if (action === "remittances") setPage("remittances");
+    if (!IS_TELEGRAM_NATIVE && (action === "buy" || action === "sell")) setPage(action);
+    if (!IS_TELEGRAM_NATIVE && action === "remittance") setPage("remittance");
+    if (!IS_TELEGRAM_NATIVE && action === "remittances") setPage("remittances");
     if (action === "justmarkets") setPage("justmarkets");
   }, []);
 
   function navigate(p) {
+    if (IS_TELEGRAM_NATIVE && ['buy', 'sell', 'orders', 'remittances', 'remittance', 'reviews', 'kyc'].includes(p)) {
+      setError(NATIVE_UNAVAILABLE_MESSAGE);
+      return;
+    }
     if (p !== "remittance") setRemittanceOrder(null);
     setPage(p);
     window.scrollTo(0, 0);
@@ -55,6 +61,10 @@ export default function App() {
   }
 
   function startTransaction(action, nextAsset = asset) {
+    if (IS_TELEGRAM_NATIVE) {
+      setError(NATIVE_UNAVAILABLE_MESSAGE);
+      return;
+    }
     setAsset(normalizeAsset(nextAsset));
     navigate(action);
   }
@@ -110,9 +120,10 @@ export default function App() {
     <>
       <div key={`${page}-${asset}`} className="page-transition">
         {page === "home" && (
-          <Home navigate={navigate} startTransaction={startTransaction} />
+          <Home navigate={navigate} startTransaction={startTransaction} readOnly={IS_TELEGRAM_NATIVE} />
         )}
-        {page === "buy" && (
+        {page === "markets" && IS_TELEGRAM_NATIVE && <Markets navigate={navigate} />}
+        {page === "buy" && !IS_TELEGRAM_NATIVE && (
           <Buy
             asset={asset}
             onSelectAsset={selectAsset}
@@ -124,7 +135,7 @@ export default function App() {
             onNeedVerification={(state, thresholdUsd) => requestIdentityVerification("buy", state, thresholdUsd)}
           />
         )}
-        {page === "sell" && (
+        {page === "sell" && !IS_TELEGRAM_NATIVE && (
           <Sell
             asset={asset}
             onSelectAsset={selectAsset}
@@ -136,7 +147,7 @@ export default function App() {
             onNeedVerification={(state, thresholdUsd) => requestIdentityVerification("sell", state, thresholdUsd)}
           />
         )}
-        {page === "remittance" && (
+        {page === "remittance" && !IS_TELEGRAM_NATIVE && (
           <Remittance
             navigate={navigate}
             showError={showError}
@@ -147,17 +158,17 @@ export default function App() {
             onNeedVerification={(state, thresholdUsd) => requestIdentityVerification("remittance", state, thresholdUsd)}
           />
         )}
-        {page === "orders" && <Orders navigate={navigate} showError={showError} />}
-        {page === "remittances" && <Remittances navigate={navigate} onContinue={(order) => { setRemittanceOrder(order); navigate("remittance"); }} />}
+        {page === "orders" && !IS_TELEGRAM_NATIVE && <Orders navigate={navigate} showError={showError} />}
+        {page === "remittances" && !IS_TELEGRAM_NATIVE && <Remittances navigate={navigate} onContinue={(order) => { setRemittanceOrder(order); navigate("remittance"); }} />}
         {page === "about" && <About navigate={navigate} />}
-        {page === "reviews" && <Reviews navigate={navigate} showError={showError} />}
+        {page === "reviews" && !IS_TELEGRAM_NATIVE && <Reviews navigate={navigate} showError={showError} />}
         {page === "terms" && <Terms navigate={navigate} />}
-        {page === "menu" && <Menu navigate={navigate} />}
+        {page === "menu" && <Menu navigate={navigate} readOnly={IS_TELEGRAM_NATIVE} />}
         {page === "justmarkets" && <JustMarkets navigate={navigate} />}
         {page === "justmarkets-guide" && <JustMarketsGuide navigate={navigate} />}
         {page === "justmarkets-verification" && <JustMarketsVerification navigate={navigate} />}
         {page === "justmarkets-deposit" && <JustMarketsDeposit navigate={navigate} startTransaction={startTransaction} />}
-        {page === "kyc" && (
+        {page === "kyc" && !IS_TELEGRAM_NATIVE && (
           <Kyc
             mode={kycMode}
             thresholdUsd={threshold}
@@ -167,7 +178,7 @@ export default function App() {
           />
         )}
       </div>
-      <BottomNav page={page} navigate={navigate} />
+      <BottomNav page={page} navigate={navigate} readOnly={IS_TELEGRAM_NATIVE} />
       <Toast message={error} onClose={() => setError(null)} />
     </>
   );
