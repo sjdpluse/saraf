@@ -13,7 +13,7 @@ test('staged original remittance RPC keeps the existing schema V2 USD valuation 
 });
 test('signed financial bridge does not silently lose original remittance USD values',()=>{
   assert.match(edge,/p_asset_price_usd:quote\.asset_price_usd,p_usd_value:quote\.usd_value/);
-  assert.match(edge,/if\(quote\.usd_value>250\)/);
+  assert.match(edge,/if\(Number\(quote\.usd_value\)>250\)/);
   assert.match(edge,/IDENTITY_VERIFICATION_REQUIRED/);
   assert.match(edge,/SARAF_ORIGINAL_FINANCIAL_API_ENABLED/);
 });
