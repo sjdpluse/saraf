@@ -1,4 +1,4 @@
-// Original /stats, /spreads, /setspread, /usdtpending, /usdtconfirm.
+// Original /stats, /spreads, /setspread, /usdtpending, /usdtconfirm, /broadcast.
 // Telegram Serverless has no documented server-side secrets store; do NOT
 // forward an unsigned from.id to a privileged Supabase finance endpoint.
 // Instead require Telegram's independently signed Mini App initData + server
@@ -12,10 +12,6 @@ export async function handleOriginalAdminCommand(message){
  const chat=message.chat?.id;
  if(!Number.isSafeInteger(chat)||chat!==message.from?.id||
     message.chat?.type!=='private')return false;
- if(cmd.name==='broadcast'){
-  await api.sendMessage({chat_id:chat,text:cmd.usage});
-  return true;
- }
  // A URL alone gives no privilege. Original Supabase Edge checks HMAC
  // over initData and compares user ID against private SARAF_ADMIN_CHAT_IDS.
  const url=BASE+'?'+cmd.query.toString();
