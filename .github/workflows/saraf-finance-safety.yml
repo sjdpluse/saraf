@@ -4,6 +4,7 @@ on:
     paths:
       - 'supabase/sql/**'
       - 'supabase/functions/saraf-finance/**'
+      - 'supabase/functions/saraf-chain-verifier/**'
       - 'supabase/functions/saraf-telegram-bridge/telegram-auth.mjs'
       - '.github/workflows/saraf-finance-safety.yml'
   workflow_dispatch:
@@ -52,7 +53,11 @@ jobs:
         with:
           deno-version: v2.x
       - name: Typecheck financial Edge Function
-        run: deno check supabase/functions/saraf-finance/index.ts
+        run: |
+          deno check supabase/functions/saraf-finance/index.ts
+          deno check supabase/functions/saraf-chain-verifier/index.ts
+      - name: Test EVM remittance proofs and confirmations
+        run: node --test serverless-poc/tests/evm_chain_verification.test.js
       - name: Ensure no CI deploys or activates monetary functions
         run: |
           ! grep -R 'tgcloud push' .github/workflows/saraf-finance-safety.yml
