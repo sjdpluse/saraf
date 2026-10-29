@@ -4,7 +4,7 @@ DECLARE
  q jsonb;
  rem jsonb;
  same jsonb;
- id bigint;
+ v_remittance_id bigint;
  qid bigint;
  blocked boolean;
 BEGIN
