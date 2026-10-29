@@ -139,3 +139,17 @@ export const nativeAudit = table('saraf_native_audit', {
 }, (t) => ({
   byEntity: index('saraf_native_audit_by_entity').on(t.entityType, t.entityId),
 }));
+
+export const nativeMedia = table('saraf_native_media', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull(),
+  kind: text('kind').notNull(),
+  telegramFileId: text('telegram_file_id').notNull(),
+  mimeType: text('mime_type').notNull(),
+  telegramMessageId: integer('telegram_message_id').notNull(),
+  receivedAt: text('received_at').notNull(),
+  claimedBy: text('claimed_by'),
+}, (t) => ({
+  byUser: index('saraf_native_media_by_user').on(t.userId, t.kind),
+  uniqueMessage: uniqueIndex('saraf_native_media_msg_once').on(t.userId, t.telegramMessageId),
+}));
