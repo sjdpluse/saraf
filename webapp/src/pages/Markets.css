@@ -1,0 +1,18 @@
+/* Scoped to the actual Saraf React Mini App (do not override its global design tokens). */
+.app-shell .pilot-market {background:#fff;border:1px solid var(--color-border,#e3eaf1);border-radius:22px;padding:18px 14px;margin:16px 0 40px;box-shadow:var(--shadow-card,0 7px 26px #12345208)}
+.app-shell .pilot-heading {display:flex;justify-content:space-between;align-items:center;gap:12px}
+.app-shell .pilot-heading small {font-size:11px;color:#7c8c9d}
+.app-shell .pilot-heading h2 {font-size:19px;margin:5px 0 10px}
+.app-shell .pilot-refresh {border:1px solid #dce8f4;background:#f4f9ff;color:#0071e3;border-radius:12px;width:42px;height:42px;display:grid;place-items:center;cursor:pointer}
+.app-shell .pilot-refresh:disabled{opacity:.55}
+.app-shell .pilot-tabs {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:14px 0}
+.app-shell .pilot-tabs button {border:1px solid #dee8f5;background:#f6f9ff;color:#617388;border-radius:12px;padding:12px 2px;font-size:12px;cursor:pointer}
+.app-shell .pilot-tabs button.selected {color:#0071e3;background:#e9f3ff;border-color:#9bcafa;font-weight:bold}
+.app-shell .pilot-items {display:grid;gap:8px}
+.app-shell .pilot-market-card {display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f8fafc;border:1px solid #eaf0f5;border-radius:13px;padding:13px 12px}
+.app-shell .pilot-market-copy strong {font-size:13px}
+.app-shell .pilot-market-value {color:#0071e3;font-size:13px;font-weight:bold;white-space:nowrap}
+.app-shell .pilot-source {font-size:11px;line-height:1.7;color:#70849a;margin:14px 0 0;overflow-wrap:anywhere}
+.app-shell .pilot-info,.app-shell .pilot-alert {padding:14px;background:#f4f8fc;color:#516579;border-radius:12px;font-size:13px;line-height:1.75}
+.app-shell .pilot-alert-error {background:#fff3eb;color:#9a502b}
+@media(max-width:360px){.app-shell .pilot-tabs button{font-size:11px}.app-shell .pilot-market-value{font-size:11px}}
