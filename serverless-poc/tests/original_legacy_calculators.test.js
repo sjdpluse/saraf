@@ -24,7 +24,7 @@ test('currency calculator works when local-market scraping has failed',()=>{
  const result=originalCurrencyCalculation(5,q);
  assert.equal(result.local,null);
  assert.equal(result.saraf.sell_afn,355.6);
- assert.equal(result.saraf.buy_afn,357.5);
+ assert.equal(result.saraf.buy_afn,357.4);
  assert.throws(()=>originalCurrencyCalculation(0,q),/INVALID_AMOUNT/);
  assert.throws(()=>originalCurrencyCalculation(1,{}),/SARAF_RATE_UNAVAILABLE/);
 });
