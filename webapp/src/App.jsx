@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Home from "./pages/Home";
 import Markets from "./pages/Markets";
 import NativeAccount from "./pages/NativeAccount";
+import NativeHistory from "./pages/NativeHistory";
 import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./lib/runtime";
 import Buy from "./pages/Buy";
 import Sell from "./pages/Sell";
@@ -44,7 +45,7 @@ export default function App() {
   }, []);
 
   function navigate(p) {
-    if (IS_TELEGRAM_NATIVE && ['buy', 'sell', 'orders', 'remittances', 'remittance', 'kyc'].includes(p)) {
+    if (IS_TELEGRAM_NATIVE && ['buy', 'sell', 'remittance', 'kyc'].includes(p)) {
       setError(NATIVE_UNAVAILABLE_MESSAGE);
       return;
     }
@@ -125,6 +126,7 @@ export default function App() {
         )}
         {page === "markets" && IS_TELEGRAM_NATIVE && <Markets navigate={navigate} />}
         {page === "account" && IS_TELEGRAM_NATIVE && <NativeAccount navigate={navigate} />}
+        {(page === "orders" || page === "remittances") && IS_TELEGRAM_NATIVE && <NativeHistory navigate={navigate} initialTab={page} />}
         {page === "buy" && !IS_TELEGRAM_NATIVE && (
           <Buy
             asset={asset}
