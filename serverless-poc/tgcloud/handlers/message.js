@@ -9,6 +9,9 @@ import { getCryptoPrices, cryptoLabel } from '../lib/cryptos.js';
 import { getLocalMarketRates } from '../lib/local_market_service.js';
 import { acceptMedia } from '../lib/native_media.js';
 import { adminCommand } from '../lib/native_admin.js';
+import { getProfile,hasBasicProfile } from '../lib/native_auth.js';
+import { getOwnOrders } from '../lib/native_orders.js';
+import { getOwnRemittances } from '../lib/native_remittances.js';
 
 const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
 export const currencyText = (rates, codes = VALID_CODES) =>
@@ -27,6 +30,30 @@ async function onReadOnlyMessage(chatId, input) {
       return reply(chatId, '🏛 نرخ سرای شهزاده (اطلاعات عمومی)\n' +
         (lines.join('\n') || 'نرخی دریافت نشد.') + '\n⚠️ نرخ قطعی معاملات Saraf نیست.');
     }
+
+    case '👤 پروفایل':
+    case '/profile': {
+      const profile=await getProfile(chatId);
+      return reply(chatId,'👤 معلومات پروفایل شما\n'+
+        (hasBasicProfile(profile)?'نام: '+profile.firstName+' '+profile.lastName+'\nشماره: '+profile.phone:
+        'معلومات پایه هنوز ثبت نشده است.')+
+        '\nوضعیت هویت: '+(profile?.kycStatus || 'pending')+
+        '\nبرای ثبت معلومات و مدارک، Mini App همین ربات را باز کنید.');
+    }
+    case '📦 سفارش‌های من':
+    case '/orders': {
+      const orders=await getOwnOrders(chatId);
+      return reply(chatId,'📦 سفارش‌های شما (دیتابیس Serverless)\n'+
+        (orders.map(o=>o.order_code+' | '+o.order_type+' '+o.usdt_amount+' '+o.asset+' | '+o.status).join('\n')||
+        'در دیتابیس جدید سفارشی ثبت نشده است. سوابق Supabase هنوز انتقال داده نشده‌اند.'));
+    }
+    case '💸 حواله‌های من':
+    case '/remittances': {
+      const orders=await getOwnRemittances(chatId);
+      return reply(chatId,'💸 حواله‌های شما (دیتابیس Serverless)\n'+
+        (orders.map(o=>o.order_code+' | '+o.crypto_amount+' '+o.asset+' | '+o.status).join('\n')||
+        'در دیتابیس جدید حواله‌ای ثبت نشده است. سوابق قدیمی هنوز انتقال داده نشده‌اند.'));
+    }
     case '💵 نرخ ارزها': return reply(chatId, 'ارز مورد نظر را انتخاب کنید (نرخ جهانی؛ نه قیمت خرید/فروش صرافی).', currencyKeyboard());
     case '🥇 نرخ طلا':
     case '🥈 نرخ نقره': {
@@ -44,7 +71,7 @@ async function onReadOnlyMessage(chatId, input) {
     case '🔄 مبدل ارز جهانی': return reply(chatId,
       '🔄 برای تبدیل ارز بنویسید:\n/convert USD AFN 100\n/convert EUR USD 250\nنرخ صرفاً مرجع جهانی است.');
     case 'ℹ️ درباره ربات': return reply(chatId,
-      '🏦 Saraf – Telegram Serverless TEST\nاین یک نسخهٔ آزمایشی فقط برای نمایش معلومات بازار است. سفارش مالی، حواله و پرداخت در این نسخه غیرفعال اند.');
+      '🏦 صراف | Saraf\nخدمات بازار، پروفایل، سفارش و حواله در مسیر انتقال به Telegram Serverless هستند. عملیات مالی تا انجام تطبیق اطلاعات و تأیید مدیر غیرفعال است.');
     default: {
       const m = /^\/convert(?:@[a-zA-Z0-9_]+)?\s+([a-zA-Z]{3})\s+([a-zA-Z]{3})\s+(\d+(?:\.\d+)?)$/i.exec(input);
       if (!m) return reply(chatId, 'لطفاً از منو استفاده کنید یا دستور /convert USD AFN 100 را امتحان نمایید.');
@@ -73,7 +100,7 @@ export default async function (message) {
         target: smokeCounters.chatId,
         set: { seen: sql`${smokeCounters.seen} + 1` },
       }).returning().run();
-    return reply(chatId, '🏦 به نسخهٔ آزمایشی Serverless صراف خوش آمدید.\nتست‌های اتصال: ' + row.seen +
+    return reply(chatId, '🏦 به صراف خوش آمدید.\nبازدیدهای شما: ' + row.seen +
       '\n⚠️ معاملات، حواله‌ها و پرداخت‌ها در این نسخه غیرفعال اند.', mainKeyboard());
   }
   // Do not expose trading or KYC controls in the pilot.
