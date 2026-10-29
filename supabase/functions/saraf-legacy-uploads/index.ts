@@ -4,7 +4,7 @@
 // Original source: main:api.py and services/remittance_api_router.py.
 // Staged OFF until Supabase original-bot integration tests pass.
 import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
-import { verifyTelegramInitData } from '../saraf-telegram-bridge/telegram-auth.mjs';
+import { verifyTelegramInitData } from './telegram-auth.mjs';
 const BOT=Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN')||'';
 const KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const ENABLED=Deno.env.get('SARAF_ORIGINAL_UPLOADS_ENABLED')==='true';
