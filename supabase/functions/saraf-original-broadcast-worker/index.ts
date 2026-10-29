@@ -40,11 +40,15 @@ Deno.serve(async request=>{
  if(!BOT||!KEY||!URL)return response(503,{error:'SERVICE_NOT_CONFIGURED'});
  const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
  let sent=0,failed=0,uncertain=0,skipped=0;
+ const started=Date.now();
  try{
-  // At most 200 deliveries / tick. Sequential deliberate 50ms minimum gap
+  // At most 40 deliveries / tick. Short claims keep the 90s lease safe.
+  // A 22s claim budget + 5*7s HTTP timeouts stays under typical Edge limits.
+  // Sequential deliberate 50ms minimum gap
   // matches original main:handlers/admin.py broadcast rate limiting.
   for(let page=0;page<8;page++){
-   const claim=await db.rpc('saraf_original_broadcast_claim',{p_limit:25});
+   if(Date.now()-started>22000)break;
+   const claim=await db.rpc('saraf_original_broadcast_claim',{p_limit:5});
    if(claim.error)throw claim.error;
    const messages=claim.data||[];
    if(!messages.length)break;
