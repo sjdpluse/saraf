@@ -58,6 +58,15 @@ Deno.serve(async(req:Request)=>{
    auth:{persistSession:false,autoRefreshToken:false},
  });
  try{
+   const limit=await db.rpc('saraf_limit_finance_api',{
+     p_chat_id:identity.id,p_action:String(action),
+   });
+   if(limit.error){
+     if(limit.error.code==='P0001' &&
+        limit.error.message==='FINANCIAL_RATE_LIMIT_EXCEEDED')
+       return respond(origin,429,{error:'FINANCIAL_RATE_LIMIT_EXCEEDED'});
+     return respond(origin,503,{error:'DATABASE_UNAVAILABLE'});
+   }
    const {data,error}=await db.rpc(rpc,{
      p_remittance_id:id,p_operator_id:identity.id,
    });
