@@ -60,13 +60,21 @@ function publicOrder(row:DbRow) {
     network:row.network,status:row.status,rating:row.rating,
     created_at:row.created_at,completed_at:row.completed_at};
 }
+// Match services/remittance_service.py:remittance_code and
+// services/remittance_api_router.py:_client_order. Never expose pickup codes
+// before payout_ready/completed or the internal administrative fields.
 function publicRemittance(row:DbRow) {
-  return {id:row.id,asset:row.asset,network:row.network,
+  return {id:row.id,order_code:'REM-'+String(row.id).padStart(6,'0'),
+    asset:row.asset,network:row.network,
     crypto_amount:row.crypto_amount,payout_afn:row.payout_afn,
     usd_rate:row.usd_rate,status:row.status,verification_status:row.verification_status,
     beneficiary_full_name:row.beneficiary_full_name,
     beneficiary_province:row.beneficiary_province,
-    beneficiary_city:row.beneficiary_city,created_at:row.created_at};
+    beneficiary_city:row.beneficiary_city,tx_hash:row.tx_hash||null,
+    created_at:row.created_at,
+    ...(['payout_ready','completed'].includes(row.status)&&row.pickup_code
+      ? {pickup_code:row.pickup_code}:{}),
+  };
 }
 async function handler(db:ReturnType<typeof client>,user:TelegramUser,action:string,input:DbRow) {
   if(action==='profile.get'){
@@ -109,7 +117,7 @@ async function handler(db:ReturnType<typeof client>,user:TelegramUser,action:str
   }
   if(action==='remittances.me'){
     const {data,error}=await db.from('remittance_orders')
-      .select('id,asset,network,crypto_amount,payout_afn,usd_rate,status,verification_status,beneficiary_full_name,beneficiary_province,beneficiary_city,created_at')
+      .select('id,asset,network,crypto_amount,payout_afn,usd_rate,status,verification_status,beneficiary_full_name,beneficiary_province,beneficiary_city,tx_hash,pickup_code,created_at')
       .eq('chat_id',user.id).order('created_at',{ascending:false}).limit(50);
     check(error);
     return (data||[]).map(publicRemittance);
