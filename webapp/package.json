@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:telegram": "vite build --config vite.telegram.config.js",
     "build:telegram-pilot": "vite build --config vite.telegram-pilot.config.js",
     "preview": "vite preview"
   },
