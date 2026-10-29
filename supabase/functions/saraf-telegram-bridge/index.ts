@@ -2,12 +2,11 @@
 // historical Supabase tables. Never expose the service-role key to the Mini App.
 // Financial order creation, settlements, KYC uploads and transfers are disabled.
 import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
+import { verifyTelegramInitData } from './telegram-auth.mjs';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const BOT_TOKEN = Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN') || Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
-const encode = new TextEncoder();
-const maxAgeSeconds = 3600;
 const allowedOrigin = (origin) => /^https:\/\/app[0-9]+\.tgcloud\.ai$/.test(origin || '');
 const resultHeaders = (origin) => ({
   'content-type':'application/json;charset=utf-8',
@@ -19,44 +18,6 @@ const resultHeaders = (origin) => ({
 });
 function answer(origin, status, body) {
   return new Response(JSON.stringify(body),{status,headers:resultHeaders(origin)});
-}
-function equalHex(a,b) {
-  if(a.length!==b.length)return false;
-  let diff=0;
-  for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);
-  return diff===0;
-}
-async function hmac(key, content) {
-  const imported=await crypto.subtle.importKey(
-    'raw',key,{name:'HMAC',hash:'SHA-256'},false,['sign'],
-  );
-  return new Uint8Array(await crypto.subtle.sign('HMAC',imported,encode.encode(content)));
-}
-async function authorizedUser(initData) {
-  if(!BOT_TOKEN || typeof initData!=='string' || initData.length<20 || initData.length>4096)
-    return null;
-  const params=new URLSearchParams(initData);
-  const entries=[...params.entries()];
-  if(new Set(entries.map(([key])=>key)).size!==entries.length)return null;
-  const signature=params.get('hash') || '';
-  if(!/^[a-f0-9]{64}$/i.test(signature))return null;
-  const authDate=Number(params.get('auth_date'));
-  const now=Math.floor(Date.now()/1000);
-  if(!Number.isSafeInteger(authDate) || now-authDate>maxAgeSeconds ||
-      authDate>now+60)return null;
-  const source=entries
-    .filter(([key])=>key!=='hash')
-    .sort(([a],[b])=>a<b?-1:a>b?1:0)
-    .map(([key,value])=>key+'='+value).join('\n');
-  const derived=await hmac(encode.encode('WebAppData'),BOT_TOKEN);
-  const mac=await hmac(derived,source);
-  const computed=[...mac].map(v=>v.toString(16).padStart(2,'0')).join('');
-  if(!equalHex(computed,signature.toLowerCase()))return null;
-  let user;
-  try {user=JSON.parse(params.get('user') || '{}');}
-  catch{return null;}
-  if(!Number.isSafeInteger(user?.id)||user.id<=0)return null;
-  return user;
 }
 function validString(value,min,max) {
   const text=String(value ?? '').trim();
@@ -240,7 +201,7 @@ Deno.serve(async(req)=>{
   if(!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !BOT_TOKEN)
     return answer(origin,503,{error:'SERVER_NOT_CONFIGURED'});
   const initData=req.headers.get('x-telegram-init-data')||'';
-  const user=await authorizedUser(initData);
+  const user=await verifyTelegramInitData(initData,BOT_TOKEN);
   if(!user)return answer(origin,401,{error:'INVALID_TELEGRAM_AUTH'});
   let request;
   try{
