@@ -40,7 +40,9 @@ jobs:
         with:
           deno-version: v2.x
       - name: Check canonical Supabase Edge bridge
-        run: deno check supabase/functions/saraf-telegram-bridge/index.ts
+        run: |
+          deno check supabase/functions/saraf-telegram-bridge/index.ts
+          deno check supabase/dashboard-deploy/saraf-telegram-bridge.ts
       - name: Ensure trading and identity uploads remain explicitly disabled
         run: |
           grep -q 'FINANCIAL_WRITES_ENABLED = false' serverless-poc/tgcloud/lib/native_config.js
