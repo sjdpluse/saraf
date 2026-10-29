@@ -29,6 +29,8 @@ jobs:
         run: |
           test -s serverless-poc/dist/index.html
           test -d serverless-poc/dist/assets
+      - name: Verify native market parsing and financial status invariants
+        run: node --test serverless-poc/tests/*.test.js
       - name: Check Serverless module syntax
         run: |
           find serverless-poc/tgcloud -name '*.js' -type f -print0 |
