@@ -1,7 +1,7 @@
-import { ArrowRight, ClipboardText, House, ChartLineUp } from "@phosphor-icons/react";
+import { ArrowRight, ClipboardText, House } from "@phosphor-icons/react";
 import AppMenu from "./AppMenu";
 
-export default function BottomNav({ page, navigate, readOnly = false }) {
+export default function BottomNav({ page, navigate }) {
   function goBack() {
     const pageBack = Array.from(document.querySelectorAll(".back-btn"))
       .find((button) => !button.disabled);
@@ -31,13 +31,11 @@ export default function BottomNav({ page, navigate, readOnly = false }) {
           <House size={25} weight={page === "home" ? "fill" : "regular"} />
         </button>
         <button
-          className={`bottom-nav-item ${page === (readOnly ? "markets" : "orders") ? "active" : ""}`}
-          onClick={() => navigate(readOnly ? "markets" : "orders")}
-          aria-label={readOnly ? "نرخ‌های بازار" : "سفارش‌های من"}
+          className={`bottom-nav-item ${page === "orders" ? "active" : ""}`}
+          onClick={() => navigate("orders")}
+          aria-label="سفارش‌های من"
         >
-          {readOnly
-            ? <ChartLineUp size={25} weight={page === "markets" ? "fill" : "regular"} />
-            : <ClipboardText size={25} weight={page === "orders" ? "fill" : "regular"} />}
+          <ClipboardText size={25} weight={page === "orders" ? "fill" : "regular"} />
         </button>
         <AppMenu navigate={navigate} triggerClassName={`bottom-nav-item ${page === "menu" ? "active" : ""}`} triggerIconSize={25} />
       </nav>
