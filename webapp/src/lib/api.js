@@ -46,7 +46,7 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
     if (path === '/remittances/upload-beneficiary-id' && method === 'POST')
       return uploadOriginalImage('beneficiary',body);
     if (path === '/usdt/orders/me' && method === 'GET') return canonicalCall('orders.me');
-    if (path === '/usdt/payment-info' && method === 'GET') return nativeCall('getNativePaymentInfo');
+    if (path === '/usdt/payment-info' && method === 'GET') return originalFinanceCall('payment.info');
     if (path === '/stablecoins/config' && method === 'GET') return originalFinanceCall('stablecoins.config');
     if (path === '/remittances/config' && method === 'GET') return originalFinanceCall('remittances.config');
     if (path === '/remittances/me' && method === 'GET') return canonicalCall('remittances.me');
