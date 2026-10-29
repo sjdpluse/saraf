@@ -8,19 +8,19 @@ import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
 // Does NOT trust initDataUnsafe, localStorage, user-provided Telegram IDs or
 // client-side Supabase sessions. Keep bot token only in Edge Function secrets.
 const textEncoder=new TextEncoder();
-async function sign(key,message){
+async function sign(key:Uint8Array,message:string):Promise<Uint8Array>{
   const cryptoKey=await crypto.subtle.importKey(
     'raw',key,{name:'HMAC',hash:'SHA-256'},false,['sign']);
   return new Uint8Array(await crypto.subtle.sign(
     'HMAC',cryptoKey,textEncoder.encode(message)));
 }
-function sameLengthHex(a,b){
+function sameLengthHex(a:string,b:string):boolean{
   if(a.length!==b.length)return false;
   let difference=0;
   for(let i=0;i<a.length;i++)difference|=a.charCodeAt(i)^b.charCodeAt(i);
   return difference===0;
 }
-async function verifyTelegramInitData(raw,botToken,nowSeconds=Math.floor(Date.now()/1000)) {
+async function verifyTelegramInitData(raw:string,botToken:string,nowSeconds:number=Math.floor(Date.now()/1000)) {
   if(typeof botToken!=='string' || !botToken.includes(':') ||
       typeof raw!=='string' || raw.length<20 || raw.length>4096)
     return null;
