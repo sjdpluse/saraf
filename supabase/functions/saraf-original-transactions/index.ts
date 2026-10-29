@@ -102,9 +102,9 @@ async function originalRates(db:ReturnType<typeof createClient>){
    .order('recorded_at',{ascending:false}).limit(1).maybeSingle();
   if(!r.error && Number(r.data?.afn_rate)>0)references.usd=r.data!.afn_rate;
  }
- if(!Number((local as Json)?.sarai_shahzada&&
-   ((local as Json).sarai_shahzada as Json)?.usd
-   &&(((local as Json).sarai_shahzada as Json).usd as Json).buy)){
+ const sarai=(local as Json).sarai_shahzada as Json|undefined;
+ const localUsd=sarai?.usd as Json|undefined;
+ if(!(Number(localUsd?.buy)>0&&Number(localUsd?.sell)>0)){
   const r=await db.from('local_market_history').select('buy,sell')
    .eq('market','sarai_shahzada').eq('currency','usd')
    .gte('recorded_at',freshness).order('recorded_at',{ascending:false})
@@ -182,7 +182,7 @@ Deno.serve(async req=>{
    const localSell=rate.local?.sell;
    const usdRate=side==='buy'
     ?localSell||rate.saraf_quote.sell:rate.saraf_quote.buy;
-   const pricing=side==='buy'
+   const pricing:Json=side==='buy'
     ?originalBuyPricing(String(a),String(usdRate))
     :originalSellPricing(String(a),String(usdRate));
    const values:Json={
@@ -250,7 +250,7 @@ Deno.serve(async req=>{
      const raw=String(input.receipt_url||input.receipt_file_id||'');
      let link:URL;
      try{link=new URL(raw);}catch{deny('OWN_RECEIPT_REQUIRED');}
-     if(link.origin!==SUPABASE ||
+     if(link.origin!==new URL(SUPABASE).origin ||
        !link.pathname.startsWith('/storage/v1/object/sign/usdt-receipts/'+user.id+'_')
        ||!link.searchParams.get('token'))deny('OWN_RECEIPT_REQUIRED');
      // Supabase independently authenticates the signature before accepting
