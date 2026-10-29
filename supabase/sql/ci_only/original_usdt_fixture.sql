@@ -60,6 +60,7 @@ CREATE TABLE public.remittance_orders(
  beneficiary_id_document_path text,relationship text,purpose text,
  asset text NOT NULL,network text NOT NULL,
  crypto_amount numeric NOT NULL,usd_rate numeric NOT NULL,
+ asset_price_usd numeric,usd_value numeric,
  gross_afn numeric NOT NULL,fee_percent numeric NOT NULL,
  fee_afn numeric NOT NULL,payout_afn numeric NOT NULL,
  deposit_wallet text NOT NULL,pickup_code text,
