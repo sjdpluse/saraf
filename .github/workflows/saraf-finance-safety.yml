@@ -37,8 +37,12 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/finance_fixture.sql
       - name: Install staged atomic transaction engine
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_atomic_finance_staged.sql
+      - name: Install staged remittance transaction and payout guards
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_atomic_remittance_staged.sql
       - name: Assert immutable money calculations and transactional idempotency
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/finance_invariants.sql
+      - name: Assert remittance ownership, chain-gated payout and TxID isolation
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/remittance_invariants.sql
   finance-edge:
     name: Financial Edge Function static and auth checks
     runs-on: ubuntu-latest
