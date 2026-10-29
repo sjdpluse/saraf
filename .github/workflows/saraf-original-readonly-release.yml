@@ -1,4 +1,4 @@
-name: Saraf original bot – manually approved read-only Telegram Serverless release
+name: Saraf migration preview ONLY – full parity pending (do not publish)
 
 # This workflow lives on MAIN only so GitHub can show "Run workflow".
 # It checks out the separately reviewed migration branch for the actual build.
@@ -59,6 +59,8 @@ jobs:
             exit 1
           fi
           if [[ "$RELEASE_ACTION" == "publish" ]]; then
+            echo "::error::Full migration parity is NOT achieved. Do not replace the original bot with the incomplete read-only build. Migration-only work must restore the original callback, admin, KYC, order, remittance, and automation flows first."
+            exit 1
             # Deliberate two-phase approval: publish requires typing the exact
             # public app ID displayed in the PREVIEW plus the approval phrase.
             [[ "$INPUT_APP_ID" =~ ^app[0-9]+$ ]] || { echo "::error::For publish, enter the public app ID from preview (app followed by digits)."; exit 1; }
