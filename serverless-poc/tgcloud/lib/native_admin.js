@@ -1,7 +1,7 @@
 // Owner-only operational interface on the SAME Telegram bot. Telegram native
 // DBs are per-bot; a second admin bot cannot access this DB without a bridge.
 import { db,api } from 'sdk';
-import { and,eq,desc } from 'sdk/db';
+import { and,eq,desc,isNotNull } from 'sdk/db';
 import { nativeOrders,nativeRemittances,nativeProfiles } from '../schema.js';
 import { ADMIN_USER_IDS } from './native_config.js';
 import { audit, isOperator, invalid } from './native_auth.js';
@@ -90,7 +90,8 @@ export async function adminCommand(message) {
     const id=cleanId(match[1]);
     const [p]=await db.update(nativeProfiles).set({kycStatus:'verified',
       verifiedBy:adminId,updatedAt:new Date().toISOString()})
-      .where(and(eq(nativeProfiles.userId,id),eq(nativeProfiles.kycStatus,'pending')))
+      .where(and(eq(nativeProfiles.userId,id),eq(nativeProfiles.kycStatus,'pending'),
+        isNotNull(nativeProfiles.idDocumentFileId),isNotNull(nativeProfiles.selfieFileId)))
       .returning().run();
     if(!p || !p.idDocumentFileId || !p.selfieFileId){await send('اسناد یا وضعیت صحیح نیست.');return true;}
     await audit('kyc_verified','user_profile',id,adminId);
