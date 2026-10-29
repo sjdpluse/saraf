@@ -1,5 +1,5 @@
 import { db,api } from 'sdk';
-import { and,eq,desc } from 'sdk/db';
+import { and,eq,desc,isNull } from 'sdk/db';
 import { nativeOrders,nativeQuotes } from '../schema.js';
 import {
   actor,audit,checkAction,checkAsset,checkId,checkIdempotencyKey,
@@ -44,7 +44,7 @@ export async function rateOrder(userId,id,rating,comment) {
   const rows=await db.update(nativeOrders).set({
     rating:score,ratingComment:String(comment || '').slice(0,800),updatedAt:now(),
   }).where(and(eq(nativeOrders.id,orderId),eq(nativeOrders.userId,userId),
-    eq(nativeOrders.status,'completed'),eq(nativeOrders.rating,null))).returning().run();
+    eq(nativeOrders.status,'completed'),isNull(nativeOrders.rating))).returning().run();
   if (!rows.length) invalid('امتیاز قبلاً ثبت شده یا سفارش تکمیل نشده است.', 'INVALID_STATE');
   await audit('order_rated','order',orderId,userId);
   return {ok:true};
