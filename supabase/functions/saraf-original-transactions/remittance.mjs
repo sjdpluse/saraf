@@ -96,11 +96,16 @@ export function originalRemittanceConfig(env={},v2=false) {
   })),
  }));
 }
+// Original main:remittance_price_service.py retains prices for 30s per worker.
+const ORIGINAL_PRICE_CACHE=new Map();
 export async function originalAssetPriceUsd(asset,http=fetch) {
  const normalized=normalizeOriginalRemittanceAsset(asset,true);
  const underlying=PRICE_ALIASES[normalized]||normalized;
  const id=ORIGINAL_PRICE_IDS[underlying];
  if(!id)throw Error('ORIGINAL_REMITTANCE_PRICE_SOURCE_MISSING');
+ const cached=http===fetch?ORIGINAL_PRICE_CACHE.get(id):null;
+ if(cached&&Date.now()-cached.at<30000)
+  return {price:cached.price,source:'CoinGecko-cache'};
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),10000);
  try{
@@ -113,6 +118,7 @@ export async function originalAssetPriceUsd(asset,http=fetch) {
   const n=Number(data?.[id]?.usd);
   if(!Number.isFinite(n)||n<=0||n>1e10)
     throw Error('ORIGINAL_REMITTANCE_PRICE_UNAVAILABLE');
+  if(http===fetch)ORIGINAL_PRICE_CACHE.set(id,{price:n,at:Date.now()});
   return {price:n,source:'CoinGecko'};
  }finally{clearTimeout(timer);}
 }
