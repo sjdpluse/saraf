@@ -1,3 +1,43 @@
+## 2026-10-29 — original V2 remittance provider, network and valuation parity (latest)
+
+- Inspected ORIGINAL `api_remittance.py`, `remittance_v2.py`,
+  `remittance_asset_registry.py`, `remittance_wallet_config.py`,
+  `remittance_price_service.py`, and `money.py` in `main`.
+  The production API installs the original V2 quote function even when
+  optional V2 asset exposure is disabled.
+- Ported the **15 original asset types** and their exact supported networks,
+  including the existing `SOLANA -> SOL` and `BTC -> BITCOIN` normalizations,
+  into pure Edge-compatible `remittance.mjs`. Wrapped BTC/ETH pricing aliases
+  reproduce original CoinGecko IDs. Optional V2 assets stay OFF unless
+  `REMITTANCE_V2_ENABLED=true`, same as the original wallet registry.
+- Ported configured original `REMITTANCE_WALLETS_JSON` and the
+  `REMITTANCE_<ASSET>_<NETWORK>_WALLET` fallback, with no hardcoded
+  additional recipient wallets or fake payout addresses. Missing wallets
+  are not offered.
+- Replaced the **incorrect $1-per-token assumption** in the staged signed
+  remittance Edge handler with server-fetched CoinGecko USD price, original
+  fee percentage, USD-converted amount limits and Decimal-compatible rounding;
+  stored the original price and USD value in the existing
+  `public.remittance_orders` columns. Financial write flag remains OFF.
+- Extended the **staged canonical RPC** to accept only the original 15
+  assets on the original allowed chain list. SQL isolation tests prove that
+  **0.01 BTC at $40,000 triggers the $250 KYC threshold** (not raw token
+  amount), while the verified synthetic account can create its own order.
+  Original idempotency, TX ownership, private pickup code and audit tests
+  remain in place.
+- Ran the original financial migration test workflow in an isolated
+  PostgreSQL 16 container, plus Deno typechecking, React build and native
+  menu tests. See GitHub Actions for the exact per-commit green verdict.
+
+**Still NOT production complete**: exact original in-person pass (PNG download),
+signed preview/customer selfie and order-card media, chat-side financial
+callbacks, separate admin bot operations/settlement and customer alerts,
+end-to-end private file upload/receipt/beneficiary access, scheduled
+snapshots and Meta automation reliability, and a verified rollback/cutover.
+No live finance RPC was installed, no finance secrets were activated,
+the original bot webhook was untouched, and the release publish guard
+must remain active.
+
 ## 2026-10-29 — original remittance valuation preserved (latest)
 
 - Inspected the **existing production Supabase schema read-only** using the
