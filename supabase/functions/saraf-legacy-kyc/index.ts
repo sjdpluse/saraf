@@ -38,7 +38,7 @@ function imageKind(file:File,bytes:Uint8Array){
   if(jpg&&file.type==='image/jpeg')return {extension:'jpg',mime:file.type};
   if(png&&file.type==='image/png')return {extension:'png',mime:file.type};
   if(webp&&file.type==='image/webp')return {extension:'webp',mime:file.type};
-  bad('INVALID_IMAGE_TYPE');
+  return bad('INVALID_IMAGE_TYPE');
 }
 async function adminNotification(userId:number,profile:Record<string,unknown>){
   // The old Python service sends a separate review request to admin IDs.
@@ -80,7 +80,7 @@ Deno.serve(async(request:Request)=>{
     const document=form.get('id_document');
     const selfie=form.get('selfie');
     if(!(document instanceof File)||!(selfie instanceof File))
-      bad('BOTH_FILES_REQUIRED');
+      throw new Error('BOTH_FILES_REQUIRED');
     if(document.size+selfie.size>2*FILE_LIMIT)bad('PAYLOAD_TOO_LARGE',413);
     const payment=String(form.get('payment_info')||'').trim();
     if(payment.length>2000||(payment.length>0&&payment.length<4))
@@ -98,7 +98,7 @@ Deno.serve(async(request:Request)=>{
     if(profileRes.error)bad('DATABASE_UNAVAILABLE',503);
     const p=profileRes.data;
     if(!p||!p.first_name||!p.last_name||!p.phone)
-      bad('BASIC_PROFILE_REQUIRED',403);
+      throw Object.assign(new Error('BASIC_PROFILE_REQUIRED'),{status:403});
     if(p.kyc_status==='restricted')
       bad('ACCOUNT_RESTRICTED',403);
     const random=crypto.randomUUID().replaceAll('-','');
@@ -127,7 +127,7 @@ Deno.serve(async(request:Request)=>{
       await storage.remove([idPath,selfiePath]);
       bad('PROFILE_UPDATE_FAILED',503);
     }
-    await adminNotification(user.id,p);
+    await adminNotification(user.id,p as Record<string,unknown>);
     return answer(origin,200,{data:{ok:true}});
   }catch(error){
     const e=error as {message?:string;status?:number};
