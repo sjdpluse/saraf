@@ -28,7 +28,12 @@ export function parseOriginalAdminCommand(input){
   else out.usage='استفاده: /usdtconfirm 12';
  }
  if(name==='broadcast'){
-  out.usage='ارسال همگانی /broadcast تا تکمیل سیستم صف امن، غیرفعال است.';
+  // The original command is now a signed admin Mini App composer. It never
+  // sends a broadcast by chat-text alone; server-side ACL, separate OFF flag
+  // and a second explicit confirmation gate remain mandatory.
+  out.query.set('admin','broadcast');
+  if(args.length>0 && args.length<=512)out.query.set('broadcast',args);
+  out.usage='ارسال همگانی تنها پس از تایید هویت مدیر و تایید مجدد در پنل مدیریت امکان‌پذیر است.';
  }
  return out;
 }
