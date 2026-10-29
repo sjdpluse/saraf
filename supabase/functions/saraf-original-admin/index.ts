@@ -12,6 +12,7 @@ const URL=Deno.env.get('SUPABASE_URL')||'';
 const KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const READ=Deno.env.get('SARAF_ORIGINAL_ADMIN_READ_ENABLED')==='true';
 const WRITE=Deno.env.get('SARAF_ORIGINAL_ADMIN_WRITES_ENABLED')==='true';
+const BROADCAST=Deno.env.get('SARAF_ORIGINAL_BROADCAST_ENABLED')==='true';
 const ADMINS=(Deno.env.get('SARAF_ADMIN_CHAT_IDS')||'')
  .split(',').map(x=>x.trim()).filter(x=>/^[1-9][0-9]{0,15}$/.test(x));
 const CODES=new Set([
@@ -35,7 +36,7 @@ function isOwner(userId:number){
  return ADMINS.length>0&&ADMINS.includes(String(userId));
 }
 function isWrite(action:string){
- return action==='spread.set'||action==='order.confirm';
+ return action==='spread.set'||action==='order.confirm'||action==='broadcast.create';
 }
 async function notifyOriginalCustomer(orderId:number,chatId:number){
  if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
@@ -113,6 +114,43 @@ Deno.serve(async(req:Request)=>{
      .eq('status','pending').order('created_at',{ascending:true}).limit(20);
    if(r.error)throw r.error;
    return answer(origin,200,{orders:r.data||[]});
+  }
+  if(action==='broadcast.create'){
+   if(!BROADCAST)return answer(origin,503,{error:'ORIGINAL_BROADCAST_DISABLED'});
+   const message=String(input.message||'').trim();
+   const key=String(input.idempotency_key||'').trim();
+   if(message.length<1||message.length>4096||
+      !/^[A-Za-z0-9._:-]{16,120}$/.test(key))
+    return answer(origin,400,{error:'INVALID_BROADCAST'});
+   const r=await db.rpc('saraf_original_broadcast_create',{
+    p_admin:actor.id,p_message:message,p_key:key,
+   });
+   if(r.error){
+    return answer(origin,r.error.code==='P0001'?409:503,{
+     error:r.error.code==='P0001'?r.error.message:'BROADCAST_QUEUE_UNAVAILABLE',
+    });
+   }
+   return answer(origin,200,{result:r.data});
+  }
+  if(action==='broadcast.status'){
+   if(!BROADCAST)return answer(origin,503,{error:'ORIGINAL_BROADCAST_DISABLED'});
+   const id=Number(input.broadcast_id);
+   if(!Number.isSafeInteger(id)||id<1)
+    return answer(origin,400,{error:'INVALID_BROADCAST_ID'});
+   const r=await db.from('saraf_original_broadcasts')
+    .select('id,admin_chat_id,status,audience_size')
+    .eq('id',id).eq('admin_chat_id',actor.id).maybeSingle();
+   if(r.error||!r.data)return answer(origin,404,{error:'BROADCAST_NOT_FOUND'});
+   const rows=await db.from('saraf_original_broadcast_deliveries')
+    .select('state').eq('broadcast_id',id).limit(10000);
+   if(rows.error)return answer(origin,503,{error:'BROADCAST_STATUS_UNAVAILABLE'});
+   const counts:Record<string,number>={};
+   for(const row of rows.data||[])
+    counts[row.state]=(counts[row.state]||0)+1;
+   return answer(origin,200,{result:{
+    broadcast_id:r.data.id,status:r.data.status,audience_size:r.data.audience_size,
+    deliveries:counts,
+   }});
   }
   if(action==='spread.set'){
    const currency=String(input.currency||'').toLowerCase().trim();
