@@ -7,12 +7,16 @@ import './Markets.css';
 
 const tabs = [
   ['currencies', '💵 ارزها'], ['gold', '🥇 طلا'],
-  ['silver', '🥈 نقره'], ['crypto', '🪙 رمزارز'],
+  ['silver', '🥈 نقره'], ['crypto', '🪙 رمزارز'], ['local', '🏛 کابل'],
 ];
 const format = (value, digits = 2) => Number(value).toLocaleString('en-US', {
   minimumFractionDigits: digits, maximumFractionDigits: digits,
 });
 function displayRow(kind, row) {
+  if (kind === 'local') return [
+    row.marketLabel + ' – ' + row.code,
+    'خرید: ' + format(row.buy, 4) + ' | فروش: ' + format(row.sell, 4) + ' افغانی',
+  ];
   if (kind === 'currencies') return [
     `${row.flag} ${row.name}`, `${format(row.afnPerUnit, 4)} افغانی`,
   ];
@@ -74,7 +78,7 @@ export default function Markets({ navigate }) {
       {state.data && <p className="pilot-source">
         منبع: {state.data.source} · بروزرسانی: {state.data.fetchedAt || 'نامشخص'}
       </p>}
-      <p className="pilot-source">⚠️ نرخ‌های فوق مرجع جهانی هستند؛ قیمت خریدوفروش صرافی و بازار محلی نیستند.</p>
+      <p className="pilot-source">⚠️ نرخ‌ها برای اطلاع‌رسانی است؛ پیشنهاد قطعی خرید یا فروش نیستند.</p>
     </div>
   </main>;
 }
