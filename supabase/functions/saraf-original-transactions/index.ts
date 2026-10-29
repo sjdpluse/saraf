@@ -288,7 +288,8 @@ Deno.serve(async req=>{
     // Matches original V2: KYC threshold is USD value, not raw crypto count.
     if(!quote||!Number.isFinite(Number(quote.usd_value)))
       deny('ORIGINAL_REMITTANCE_INVALID_QUOTE',503);
-    if(Number(quote.usd_value)>250){
+    if(Number(quote.usd_value)>
+      remittanceLimit('USDT_IDENTITY_VERIFICATION_THRESHOLD_USD',250)){
       const verified=await db.from('user_profiles').select(
         'kyc_status,id_document_path,selfie_path')
         .eq('chat_id',user.id).maybeSingle();
@@ -309,6 +310,7 @@ Deno.serve(async req=>{
       p_gross_afn:quote.gross_afn,p_fee_percent:quote.fee_percent,
       p_fee_afn:quote.fee_afn,p_payout_afn:quote.payout_afn,
       p_asset_price_usd:quote.asset_price_usd,p_usd_value:quote.usd_value,
+      p_kyc_threshold:remittanceLimit('USDT_IDENTITY_VERIFICATION_THRESHOLD_USD',250),
       p_deposit_wallet:quote.deposit_wallet,
       p_sender_name:beneficiary('sender_full_name'),
       p_sender_country:beneficiary('sender_country'),
