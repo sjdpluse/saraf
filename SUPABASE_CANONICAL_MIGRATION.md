@@ -46,6 +46,34 @@ from the browser or Telegram Serverless JS modules.
 7. GitHub CI builds original React, tests the HMAC verifier and checks the Deno Edge Function.
    The CI does not deploy any production service.
 
+## Deployment confirmed — 29 October 2026
+
+The owner reports registering the ORIGINAL Saraf bot token in Supabase Edge secrets.
+A connector check **independently confirmed**:
+
+- `saraf-telegram-bridge` exists, `ACTIVE`, version 1.
+- `verify_jwt = false` (only this new function; it performs its own HMAC verification).
+- Deployed `index.ts` contains the Telegram HMAC verifier and no financial execution actions.
+- GitHub Actions made two real, non-destructive HTTP calls to the live endpoint:
+  unsigned and forged initData were both rejected with 401 (successful CI check).
+- The existing React Mini App has a new explicit build mode:
+  `cd webapp && npm run build:telegram-original`.
+  That mode enables the browser's *public* Supabase bridge call, **without**
+  ever including the bot token or service-role key in static assets.
+  The `build:telegram` mode remains for isolated tests with the bridge disabled.
+- GitHub CI verified the original-bot build, HMAC tests, React tests and
+  Python remittance tests without deploying or modifying financial records.
+
+**Remaining gate:** authenticated, owner-scoped reads must be exercised with
+a real, fresh `initData` signed by the ORIGINAL bot, and only then may the
+original bot Mini App URL switch to Telegram-hosted static assets.
+The original bot has NOT been deployed or moved by the assistant;
+we do not have the native Telegram cloud bot deployment credentials.
+
+**No changes to financial orders, remittances, Vault secrets or KYC document
+storage were made by these checks.** Financial writes and identity uploads
+remain explicitly disabled.
+
 ## Launch prerequisites (in this order)
 
 1. Protect and verify the **existing** Supabase SQL data and storage; take a point-in-time
