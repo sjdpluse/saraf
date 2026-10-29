@@ -3,6 +3,7 @@ import { normalizeAsset } from "./brand";
 import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./runtime";
 import { nativeCall } from "./nativeApi";
 import { canonicalCall } from "./supabaseBridge";
+import { financeCall } from "./financeBridge";
 
 class ApiError extends Error {
   constructor(message, status, code) {
@@ -43,22 +44,28 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
     if (path === '/stablecoins/config' && method === 'GET') return nativeCall('getNativeStablecoinConfig');
     if (path === '/remittances/config' && method === 'GET') return nativeCall('getNativeRemittanceConfig');
     if (path === '/remittances/me' && method === 'GET') return canonicalCall('remittances.me');
-    if (path === '/remittances/quote' && method === 'POST') return nativeCall('getNativeRemittanceQuote',body);
-    if (path === '/remittances' && method === 'POST') return nativeCall('createNativeRemittance', {
-      ...body, idempotency_key:extraHeaders['Idempotency-Key'],
+    if (path === '/remittances/quote' && method === 'POST') return financeCall('remittance.quote',body);
+    if (path === '/remittances' && method === 'POST') return financeCall('remittance.submit', {
+      quote_id:body.quote_id, sender_name:body.sender_full_name,
+      sender_country:body.sender_country, beneficiary_name:body.beneficiary_full_name,
+      beneficiary_phone:body.beneficiary_phone,beneficiary_province:body.beneficiary_province,
+      beneficiary_city:body.beneficiary_city,beneficiary_address:body.beneficiary_address,
+      idempotency_key:extraHeaders['Idempotency-Key'],
     });
-    if (path === '/usdt/quote' && method === 'POST') return nativeCall('getNativeQuote',body);
-    if (path === '/usdt/orders/buy' && method === 'POST' ||
-        path === '/usdt/orders/sell' && method === 'POST') return nativeCall('createNativeOrder', {
-      ...body, idempotency_key:extraHeaders['Idempotency-Key'],
-      receipt_media_id:Number(body.receipt_url)||null,
+    if (path === '/usdt/quote' && method === 'POST') return financeCall('quote.issue',body);
+    if ((path === '/usdt/orders/buy' || path === '/usdt/orders/sell') && method === 'POST') return financeCall('order.submit', {
+      quote_id:body.quote_id,action:path.endsWith('/buy')?'buy':'sell',
+      asset:body.asset,network:body.network,
+      payment_method:path.endsWith('/buy')?body.payment_method:body.receive_method,
+      exchange_name:body.exchange_name,wallet_address:body.wallet_address,
+      idempotency_key:extraHeaders['Idempotency-Key'],
     });
     let match=path.match(/^\/usdt\/orders\/(\d+)\/rate$/);
     if (match && method==='POST') return canonicalCall('orders.rate', {
       order_id:Number(match[1]),...body,
     });
     match=path.match(/^\/remittances\/(\d+)\/tx$/);
-    if (match && method==='POST') return nativeCall('submitNativeRemittanceTx', {
+    if (match && method==='POST') return financeCall('remittance.claimTx', {
       order_id:Number(match[1]),...body,
     });
     match=path.match(/^\/reviews(?:\?limit=(\d+)&offset=(\d+))?$/);
