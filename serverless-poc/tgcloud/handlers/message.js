@@ -6,6 +6,7 @@ import { CURRENCIES, VALID_CODES, label, money, currencyKeyboard, mainKeyboard }
 import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.js';
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
 import { getCryptoPrices, cryptoLabel } from '../lib/cryptos.js';
+import { getLocalMarketRates } from '../lib/local_market_service.js';
 
 const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
 export const currencyText = (rates, codes = VALID_CODES) =>
@@ -16,6 +17,14 @@ export const goldText = (rows, labelText) =>
 
 async function onReadOnlyMessage(chatId, input) {
   switch (input) {
+    case '🏛 نرخ بازار کابل': {
+      const result = await getLocalMarketRates();
+      const prices = result.markets.sarai_shahzada || {};
+      const lines = Object.entries(prices).map(([code, quote]) =>
+        code.toUpperCase() + ': خرید ' + money(quote.buy, 4) + ' | فروش ' + money(quote.sell, 4) + ' افغانی');
+      return reply(chatId, '🏛 نرخ سرای شهزاده (اطلاعات عمومی)\n' +
+        (lines.join('\n') || 'نرخی دریافت نشد.') + '\n⚠️ نرخ قطعی معاملات Saraf نیست.');
+    }
     case '💵 نرخ ارزها': return reply(chatId, 'ارز مورد نظر را انتخاب کنید (نرخ جهانی؛ نه قیمت خرید/فروش صرافی).', currencyKeyboard());
     case '🥇 نرخ طلا':
     case '🥈 نرخ نقره': {
