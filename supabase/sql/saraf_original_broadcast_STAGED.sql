@@ -32,7 +32,7 @@ REVOKE ALL ON public.saraf_original_broadcasts FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON public.saraf_original_broadcast_deliveries FROM PUBLIC,anon,authenticated;
 GRANT SELECT,INSERT,UPDATE ON public.saraf_original_broadcasts TO service_role;
 GRANT SELECT,INSERT,UPDATE ON public.saraf_original_broadcast_deliveries TO service_role;
-GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT USAGE,SELECT ON SEQUENCE public.saraf_original_broadcasts_id_seq TO service_role;
 
 CREATE OR REPLACE FUNCTION public.saraf_original_broadcast_create(
  p_admin bigint,p_message text,p_key text)
