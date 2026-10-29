@@ -114,7 +114,8 @@ function remittanceLimit(name:string,defaultValue:number){
   deny('ORIGINAL_REMITTANCE_LIMIT_INVALID',503);
  return value;
 }
-async function remittancePreview(input:Json,rate:number,feePercent:number){
+async function remittancePreview(input:Json,rate:number,feePercent:number,
+  assetPrice?:{price:number,source:string}){
  const v2=remittanceV2Enabled();
  const asset=String(input.asset||'').toUpperCase();
  const network=String(input.network||'').toUpperCase();
@@ -122,7 +123,7 @@ async function remittancePreview(input:Json,rate:number,feePercent:number){
  const net=network==='SOLANA'?'SOL':network==='BTC'?'BITCOIN':network;
  const deposit=wallets?.[asset]?.[net];
  if(!deposit)deny('DEPOSIT_WALLET_NOT_CONFIGURED',503);
- const price=await originalAssetPriceUsd(asset);
+ const price=assetPrice||await originalAssetPriceUsd(asset);
  let quote;
  try{
   quote=originalRemittanceValuation({
@@ -255,8 +256,13 @@ Deno.serve(async req=>{
     });
   }
   if(action==='remittances.quote'||action==='remittances.create'){
-    const rate=await originalRates(db),fee=remittancePercent();
-    const quote=await remittancePreview(input,rate.saraf_quote.buy,fee);
+    const fee=remittancePercent();
+    // Original live USD FX and CoinGecko asset prices are independent.
+    // Fetch them concurrently so the 18s signed Mini App timeout is respected.
+    const [rate,price]=await Promise.all([
+      originalRates(db),originalAssetPriceUsd(String(input.asset||'').toUpperCase()),
+    ]);
+    const quote=await remittancePreview(input,rate.saraf_quote.buy,fee,price);
     quote.basis=rate.saraf_quote.basis;
     if(action==='remittances.quote')return out(origin,200,quote);
     if(!ADMINS.length||!ADMIN_TOKEN)
