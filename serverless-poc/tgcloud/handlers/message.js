@@ -1,14 +1,11 @@
 // Saraf read-only Telegram-native bot. The existing Supabase database is the
 // canonical financial store; do not read shadow Telegram SQLite order tables.
-import { api, db } from 'sdk';
-import { sql } from 'sdk/db';
-import { smokeCounters } from '../schema.js';
+import { api } from 'sdk';
 import { CURRENCIES, VALID_CODES, label, money, currencyKeyboard, mainKeyboard } from '../lib/currencies.js';
 import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.js';
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
 import { getCryptoPrices, cryptoLabel } from '../lib/cryptos.js';
 import { getLocalMarketRates } from '../lib/local_market_service.js';
-import { acceptMedia } from '../lib/native_media.js';
 
 const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
 export const currencyText = (rates, codes = VALID_CODES) =>
@@ -76,18 +73,18 @@ export default async function (message) {
   if (!Number.isSafeInteger(chatId) || message.chat?.type !== 'private') return;
   // Message ownership is the canonical Telegram identity for media and admin actions.
   if (!Number.isSafeInteger(message?.from?.id) || message.from.id !== chatId) return;
-  if (await acceptMedia(message)) return;
+  if (message?.photo || message?.document) {
+    return reply(chatId,
+      '⚠️ دریافت اسناد هویتی و رسیدهای مالی فعلاً فعال نیست. لطفاً مدارک شخصی یا رسیدها را ارسال نکنید.');
+  }
   const input = String(message.text ?? '').trim();
   if (!input) return;
   if (/^\/(?:start|ping)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) {
-    const [row] = await db.insert(smokeCounters)
-      .values({ chatId, seen: 1 })
-      .onConflictDoUpdate({
-        target: smokeCounters.chatId,
-        set: { seen: sql`${smokeCounters.seen} + 1` },
-      }).returning().run();
-    return reply(chatId, '🏦 به صراف خوش آمدید.\nبازدیدهای شما: ' + row.seen +
-      '\n⚠️ معاملات، حواله‌ها و پرداخت‌ها در این نسخه غیرفعال اند.', mainKeyboard());
+    return reply(chatId, '🏦 به صراف خوش آمدید.\\n'+
+      '🤖 ربات اصلی: @sarafiaf_bot\\n'+
+      'برای مشاهده نرخ ارز، طلا و رمزارز از منوی زیر استفاده کنید.\\n'+
+      '💼 سوابق مالی قبلی در Supabase محفوظ است و پس از اتصال کامل Mini App نمایش داده می‌شود.\\n'+
+      '⚠️ معاملات، حواله‌ها و پرداخت‌ها هنوز فعال نیستند.', mainKeyboard());
   }
   // Do not expose financial actions or ambiguous shadow records in the customer bot.
   try {
