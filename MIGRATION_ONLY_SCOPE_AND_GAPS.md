@@ -1,3 +1,39 @@
+## 2026-10-29 — original remittance RPC integration and production readiness (latest)
+
+- Repaired the isolated PostgreSQL 16 fixture to include canonical
+  `asset_price_usd` and `usd_value` columns (verified read-only against
+  the real Supabase schema); original order/remittance CI is green.
+- Preserved the complete ORIGINAL `api_remittance.py` -> `remittance_v2.py`
+  15-asset registry, optional V2 exposure flag, original network aliases,
+  configured wallet precedence and CoinGecko pricing aliases (including
+  WBTC/BTCB -> BTC and WETH -> ETH). No new asset or custom settlement
+  policy was introduced.
+- Prevented the original V2 financial bug in the staged port where
+  `USDT=1 USD` was assumed for ALL tokens. Price comes from server-side
+  CoinGecko, and the quote is saved to canonical existing remittance
+  `asset_price_usd` and `usd_value` fields. Original 30s worker price
+  cache now exists, without stale payout quotes.
+- Made independent CoinGecko and live AFN FX fetches concurrent to
+  keep original signed Mini App requests inside the 18s client timeout.
+  Uses Decimal-compatible ROUND_HALF_UP for the USD display/identity
+  value rather than JS Math.round.
+- The originally configurable
+  `USDT_IDENTITY_VERIFICATION_THRESHOLD_USD` is now enforced consistently
+  by the signed Edge handler and staged SQL RPC; neither token quantity
+  nor a hardcoded threshold may bypass original KYC policy.
+- Added pure V2 registry and value regression tests and isolated PG16
+  integration tests proving owner isolation, asset/network whitelist,
+  BTC KYC USD threshold, idempotency, audit history and pickup privacy.
+  These tests never use production credentials.
+
+**Production remains blocked** pending faithful in-person PNG pass/download,
+KYC selfie/order-card rendering and notifications, exact chat USDT/USDC
+callback coverage, separate admin settlement workflow, signed media
+and customer money E2E tests, scheduled original jobs/Meta, BotFather
+deployment and rollback rehearsal. No production finance data or webhook was
+changed in this commit series. Read-only bridge deployments are unrelated
+to financial activation, and green synthetic CI alone is insufficient.
+
 ## 2026-10-29 — original V2 remittance provider, network and valuation parity (latest)
 
 - Inspected ORIGINAL `api_remittance.py`, `remittance_v2.py`,
