@@ -5,6 +5,7 @@ on:
       - 'supabase/sql/**'
       - 'supabase/functions/saraf-finance/**'
       - 'supabase/functions/saraf-chain-verifier/**'
+      - 'supabase/functions/saraf-operator-review/**'
       - 'supabase/functions/saraf-telegram-bridge/telegram-auth.mjs'
       - '.github/workflows/saraf-finance-safety.yml'
   workflow_dispatch:
@@ -62,6 +63,7 @@ jobs:
         run: |
           deno check supabase/functions/saraf-finance/index.ts
           deno check supabase/functions/saraf-chain-verifier/index.ts
+          deno check supabase/functions/saraf-operator-review/index.ts
       - name: Test EVM remittance proofs and confirmations
         run: node --test serverless-poc/tests/evm_chain_verification.test.js
       - name: Ensure no CI deploys or activates monetary functions
@@ -69,3 +71,4 @@ jobs:
           ! grep -R 'tgcloud push' .github/workflows/saraf-finance-safety.yml
           ! grep -R 'supabase functions deploy' .github/workflows/saraf-finance-safety.yml
           grep -q "SARAF_FINANCIAL_WRITES_ENABLED" supabase/functions/saraf-finance/index.ts
+          grep -q "SARAF_OPERATOR_REVIEW_ENABLED" supabase/functions/saraf-operator-review/index.ts
