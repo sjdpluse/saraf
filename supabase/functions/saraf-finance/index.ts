@@ -61,9 +61,10 @@ function id(input:unknown) {
   if(!Number.isSafeInteger(n)||n<=0)bad('INVALID_ID');
   return n;
 }
-function idem(input:unknown) {
-  return string(input,16,128).match(/^[A-Za-z0-9_.:-]{16,128}$/)
-    ? input : bad('IDEMPOTENCY_KEY_INVALID');
+function idem(input:unknown):string {
+  const value=string(input,16,128);
+  if(!/^[A-Za-z0-9_.:-]{16,128}$/.test(value))bad('IDEMPOTENCY_KEY_INVALID');
+  return value;
 }
 function client() {
   return createClient(API_URL,SERVICE_KEY,{
