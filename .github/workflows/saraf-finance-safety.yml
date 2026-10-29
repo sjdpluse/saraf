@@ -43,6 +43,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_atomic_remittance_staged.sql
       - name: Install two-person payout readiness guard
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_payout_dual_control_staged.sql
+      - name: Install shared database-level financial rate limits
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_finance_rate_limit_staged.sql
+      - name: Assert identity-scoped API quotas and denied retries
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/finance_rate_limit_invariants.sql
       - name: Assert immutable money calculations and transactional idempotency
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/finance_invariants.sql
       - name: Assert remittance ownership, chain-gated payout and TxID isolation
