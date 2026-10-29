@@ -13,6 +13,9 @@ const target=path.join(projectRoot,'.release-original');
 const originalBot='sarafiaf_bot';
 const allowlist=Object.freeze([
   'handlers/message.js',
+  'handlers/callback_query.js',
+  'lib/legacy_menus.js',
+  'lib/legacy_calc.js',
   'lib/currencies.js',
   'lib/reference_rates.js',
   'lib/metals.js',
