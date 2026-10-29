@@ -36,6 +36,7 @@ export async function acceptMedia(message) {
   if (!fileId || !Number.isSafeInteger(message.message_id)) return true;
   await db.insert(nativeMedia).values({
     userId: user.id, kind, telegramFileId:fileId, mimeType,
+    mediaCategory:doc?'document':'photo',
     telegramMessageId:message.message_id, receivedAt:new Date().toISOString(),
   }).onConflictDoNothing().run();
   await api.sendMessage({chat_id:user.id,
