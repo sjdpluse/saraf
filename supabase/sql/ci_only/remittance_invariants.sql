@@ -11,6 +11,20 @@ BEGIN
  INSERT INTO public.saraf_finance_wallets(
    asset,network,address,verified_by,enabled)
  VALUES('USDT','ERC20','0x2222222222222222222222222222222222222222',99001,true);
+ blocked:=false;
+ BEGIN
+   PERFORM public.saraf_issue_remittance_quote(101,'USDT','TRC20',50);
+ EXCEPTION WHEN raise_exception THEN
+   blocked:=SQLERRM='INVALID_REMITTANCE_QUOTE';
+ END;
+ IF NOT blocked THEN RAISE EXCEPTION 'Tron deposit accepted without verifier'; END IF;
+ blocked:=false;
+ BEGIN
+   PERFORM public.saraf_issue_remittance_quote(101,'USDC','SOLANA',50);
+ EXCEPTION WHEN raise_exception THEN
+   blocked:=SQLERRM='INVALID_REMITTANCE_QUOTE';
+ END;
+ IF NOT blocked THEN RAISE EXCEPTION 'Solana deposit accepted without verifier'; END IF;
  q:=public.saraf_issue_remittance_quote(101,'USDT','ERC20',75);
  qid:=(q->>'quote_id')::bigint;
  IF (q->>'deposit_wallet')<>'0x2222222222222222222222222222222222222222'
