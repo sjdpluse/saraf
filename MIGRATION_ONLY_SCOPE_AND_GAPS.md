@@ -1,3 +1,36 @@
+## Latest migration-only progress — original parity (2026-10-29)
+
+- Pure fixed-point `legacy_stablecoin_pricing.js` now reproduces the
+  EXISTING Python `money.py` and `usdt_service.py` 50/30/20 supplier/Saraf/
+  customer breakdown, USD/Afghani rounding and original remittance fee maths.
+  It performs **no** order, balance or payout writes. Regression tests included.
+- `legacy_rate_engine.js` reproduces original Sarai Shahzada-first reference
+  rate selection, spread defaults, historical local-first logic and original
+  USD-only threshold for social auto-post decisions.
+- `legacy_live_rates.js` now uses that original spread + local market
+  logic for the Telegram bot's `cur:` callbacks rather than falsely showing
+  only global reference prices.
+- `legacy_compare.js` restores the original 1/7/30/90-day comparison flow.
+  A **staged** public-price-only Supabase Edge function
+  `supabase/functions/saraf-public-history/index.ts` reads **only**
+  `currency_history`, `gold_history`, `local_market_history` and
+  `spread_settings`; it does not query customer/finance/KYC data.
+  This new Edge function has **NOT** been deployed.
+- Supabase Telegram history bridge source was restricted from any
+  `app*.tgcloud.ai` origin to the original
+  `https://app8533795882.tgcloud.ai` host. The patched source is staged
+  in GitHub, NOT deployed to the live bridge.
+- The Telegram build packaging includes required callback, legacy rates
+  and historical comparison modules; tests run on GitHub without cloning.
+- This migration retains original history and UI; current production
+  trading endpoints still explicitly fail closed pending exact original
+  order/quote/callback state-machine port and live end-to-end testing.
+
+**NO complete Railway exit can be claimed while financial endpoints,
+admin commands, background jobs, Meta webhooks and complete signed original
+Telegram Mini App session tests remain unfinished.** The production
+BotFather webhook and existing customer data have not been changed.
+
 ## Follow-up migration changes (same original functionality, no new finance)
 
 - Removed the previously invented `saraf-finance` Edge Function, chain
