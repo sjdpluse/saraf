@@ -3,6 +3,8 @@
 // historic Supabase reconciliation. Never put secrets in this module.
 export const ADMIN_USER_IDS = Object.freeze([]); // Owner supplies Telegram numeric IDs.
 export const FINANCIAL_WRITES_ENABLED = false;
+// Identity documents are sensitive: no collection until operators and retention policy are ready.
+export const IDENTITY_UPLOADS_ENABLED = false;
 export const REQUIRE_VERIFIED_KYC = true;
 export const IDENTITY_THRESHOLD_USD = 250;
 export const MIN_STABLECOIN_USD = 10;
