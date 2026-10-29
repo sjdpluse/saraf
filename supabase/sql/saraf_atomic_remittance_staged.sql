@@ -78,7 +78,10 @@ DECLARE
   q public.saraf_remittance_quotes%ROWTYPE;
 BEGIN
   IF p_chat_id IS NULL OR p_chat_id<=0 OR p_asset NOT IN('USDT','USDC') OR
-     p_network IS NULL OR p_amount IS NULL OR p_amount<10 OR p_amount>1000 OR
+     p_network NOT IN ('ERC20','BEP20','ARBITRUM','BASE','POLYGON',
+                       'AVALANCHE','OPTIMISM') OR
+     (p_asset='USDT' AND p_network NOT IN ('ERC20','BEP20')) OR
+     p_amount IS NULL OR p_amount<10 OR p_amount>1000 OR
      p_amount<>round(p_amount,2) THEN
      RAISE EXCEPTION 'INVALID_REMITTANCE_QUOTE' USING ERRCODE='P0001';
   END IF;
