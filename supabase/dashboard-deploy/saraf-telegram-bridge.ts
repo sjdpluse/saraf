@@ -9,8 +9,10 @@ import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
 // client-side Supabase sessions. Keep bot token only in Edge Function secrets.
 const textEncoder=new TextEncoder();
 async function sign(key:Uint8Array,message:string):Promise<Uint8Array>{
+  const safeKey=new Uint8Array(new ArrayBuffer(key.byteLength));
+  safeKey.set(key);
   const cryptoKey=await crypto.subtle.importKey(
-    'raw',key,{name:'HMAC',hash:'SHA-256'},false,['sign']);
+    'raw',safeKey,{name:'HMAC',hash:'SHA-256'},false,['sign']);
   return new Uint8Array(await crypto.subtle.sign(
     'HMAC',cryptoKey,textEncoder.encode(message)));
 }
