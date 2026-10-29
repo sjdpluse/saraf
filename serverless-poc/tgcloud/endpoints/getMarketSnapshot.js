@@ -38,7 +38,7 @@ export default async function (_input, ctx) {
     return {
       symbol,
       updated_at: valid(updatedAt) ? updatedAt : null,
-      change_24h: valid(delta) && valid(updatedAt) && age >= -60 && age <= 900
+      change_24h: valid(delta) && valid(updatedAt) && age >= -60 && age <= 300
         ? delta : null,
     };
   });
