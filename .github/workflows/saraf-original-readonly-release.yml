@@ -20,9 +20,10 @@ on:
         type: string
         default: sarafiaf_bot
       expected_app_id:
-        description: "Public app<digits> prefix of the ORIGINAL bot's BotFather Serverless CLI token"
-        required: true
+        description: "Leave EMPTY for preview. For publish enter public app<digits> ID shown by the successful preview."
+        required: false
         type: string
+        default: ""
       confirmation:
         description: "For publish only: type PUBLISH_READ_ONLY_SARAFIAF_BOT"
         required: false
@@ -39,6 +40,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Validate explicit original-bot identity and manual approval
+        id: identity
         shell: bash
         env:
           INPUT_USERNAME: ${{ inputs.original_bot_username }}
@@ -49,17 +51,28 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$INPUT_USERNAME" == "sarafiaf_bot" ]] || { echo "::error::Wrong bot username"; exit 1; }
-          [[ "$INPUT_APP_ID" =~ ^app[0-9]+$ ]] || { echo "::error::Invalid public BotFather app ID"; exit 1; }
           [[ -n "$CLI_TOKEN" ]] || { echo "::error::Configure SARAF_ORIGINAL_TGCLOUD_TOKEN in GitHub Actions secrets"; exit 1; }
-          [[ "${CLI_TOKEN%%:*}" == "$INPUT_APP_ID" ]] || { echo "::error::Original bot app ID does not match GitHub secret; no deployment allowed"; exit 1; }
+          # Read the PUBLIC app ID from the CI secret without ever exposing its private suffix.
+          PUBLIC_APP_ID="${CLI_TOKEN%%:*}"
+          if [[ ! "$PUBLIC_APP_ID" =~ ^app[0-9]+$ || "$CLI_TOKEN" != *:* ]]; then
+            echo "::error::GitHub secret must be the BotFather Serverless CLI Access token, not the regular bot API token."
+            exit 1
+          fi
           if [[ "$RELEASE_ACTION" == "publish" ]]; then
+            # Deliberate two-phase approval: publish requires typing the exact
+            # public app ID displayed in the PREVIEW plus the approval phrase.
+            [[ "$INPUT_APP_ID" =~ ^app[0-9]+$ ]] || { echo "::error::For publish, enter the public app ID from preview (app followed by digits)."; exit 1; }
+            [[ "$PUBLIC_APP_ID" == "$INPUT_APP_ID" ]] || { echo "::error::App ID does not match BotFather CLI token; no deployment allowed"; exit 1; }
             [[ "$APPROVAL" == "PUBLISH_READ_ONLY_SARAFIAF_BOT" ]] || {
               echo "::error::Release approval phrase missing"; exit 1;
             }
           else
             [[ "$RELEASE_ACTION" == "preview" ]] || { echo "::error::Invalid mode"; exit 1; }
+            # The app ID field is optional for preview; it can be left blank.
           fi
-          echo "Verified original bot target @sarafiaf_bot via selected app ID prefix (no CLI secret printed)"
+          echo "public_app_id=$PUBLIC_APP_ID" >> "$GITHUB_OUTPUT"
+          echo "Validated Serverless CLI token type. Public App ID: $PUBLIC_APP_ID"
+          echo "Bot username was selected by the user; only the BotFather CLI token can establish deployment identity."
       - name: Checkout approved migration branch without merging it
         uses: actions/checkout@v4
         with:
@@ -116,7 +129,7 @@ jobs:
       - name: Provide original bot + Mini App host
         shell: bash
         env:
-          APP_ID: ${{ inputs.expected_app_id }}
+          APP_ID: ${{ steps.identity.outputs.public_app_id }}
           RELEASE_ACTION: ${{ inputs.action }}
         run: |
           {
