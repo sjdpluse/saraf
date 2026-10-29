@@ -160,7 +160,7 @@ GRANT EXECUTE ON FUNCTION public.saraf_chain_proof_snapshot(public.remittance_or
 CREATE OR REPLACE FUNCTION public.saraf_prepare_payout_after_dual_approval(
  p_remittance_id bigint,p_operator_id bigint
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path=''
-AS $
+AS $$
 DECLARE
  r public.remittance_orders%ROWTYPE;
 BEGIN
@@ -195,7 +195,7 @@ BEGIN
  RETURN jsonb_build_object('remittance_id',r.id,'status',r.status,
    'funds_paid',false,'manual_disbursement_required',true);
 END;
-$;
+$$;
 REVOKE ALL ON FUNCTION public.saraf_prepare_payout_after_dual_approval(bigint,bigint)
  FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.saraf_prepare_payout_after_dual_approval(bigint,bigint)
