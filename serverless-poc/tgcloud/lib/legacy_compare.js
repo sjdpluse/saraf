@@ -74,7 +74,7 @@ export async function getOriginalCompareReport(target,days){
   return formatOriginalCompare(target,days,history,{
    gold:rows.find(r=>r.karat===24)?.afnGram});
  }
- const {rates}=await getReferenceRates();
+ const {rates}=await getReferenceRates().catch(()=>({rates:{}}));
  let market={};
  try{market=(await getLocalMarketRates()).markets;}catch{
   // Original rate_engine.py falls back to global reference source.
