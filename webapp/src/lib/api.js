@@ -27,7 +27,47 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
     // Only explicitly migrated reads are routed to native Telegram Serverless.
     // No financial API call can silently fall back to Railway or expose initData.
     if (path === '/market/snapshot' && method === 'GET') return nativeCall('getMarketSnapshot');
-    if (path === '/usdt/stats' && method === 'GET') return { average_rating: null, completed_orders: null };
+    if (path === '/usdt/stats' && method === 'GET') return nativeCall('getNativeStats');
+    if (path === '/usdt/profile' && method === 'GET') return nativeCall('getNativeProfile');
+    if (path === '/usdt/profile' && method === 'POST') {
+      if (!isForm || !body) throw new ApiError('معلومات پروفایل معتبر نیست.', 400);
+      return nativeCall('saveBasicProfile', {
+        first_name: body.get('first_name'),
+        last_name: body.get('last_name'),
+        phone: body.get('phone'),
+      });
+    }
+    if (path === '/usdt/orders/me' && method === 'GET') return nativeCall('getNativeOrders');
+    if (path === '/usdt/payment-info' && method === 'GET') return nativeCall('getNativePaymentInfo');
+    if (path === '/stablecoins/config' && method === 'GET') return nativeCall('getNativeStablecoinConfig');
+    if (path === '/remittances/config' && method === 'GET') return nativeCall('getNativeRemittanceConfig');
+    if (path === '/remittances/me' && method === 'GET') return nativeCall('getNativeRemittances');
+    if (path === '/remittances/quote' && method === 'POST') return nativeCall('getNativeRemittanceQuote',body);
+    if (path === '/remittances' && method === 'POST') return nativeCall('createNativeRemittance', {
+      ...body, idempotency_key:extraHeaders['Idempotency-Key'],
+    });
+    if (path === '/usdt/quote' && method === 'POST') return nativeCall('getNativeQuote',body);
+    if (path === '/usdt/orders/buy' && method === 'POST' ||
+        path === '/usdt/orders/sell' && method === 'POST') return nativeCall('createNativeOrder', {
+      ...body, idempotency_key:extraHeaders['Idempotency-Key'],
+      receipt_media_id:Number(body.receipt_url)||null,
+    });
+    let match=path.match(/^\/usdt\/orders\/(\d+)\/rate$/);
+    if (match && method==='POST') return nativeCall('rateNativeOrder', {
+      order_id:Number(match[1]),...body,
+    });
+    match=path.match(/^\/remittances\/(\d+)\/tx$/);
+    if (match && method==='POST') return nativeCall('submitNativeRemittanceTx', {
+      order_id:Number(match[1]),...body,
+    });
+    match=path.match(/^\/reviews(?:\?limit=(\d+)&offset=(\d+))?$/);
+    if (match && method==='GET') return nativeCall('getNativeReviews', {
+      limit:Number(match[1])||20,offset:Number(match[2])||0,
+    });
+    if (path==='/reviews' && method==='POST') return nativeCall('createNativeReview',body);
+    match=path.match(/^\/reviews\/(\d+)\/(reply|vote)$/);
+    if (match && method==='POST') return nativeCall(match[2]==='reply'?
+      'replyNativeReview':'voteNativeReview', {review_id:Number(match[1]),...body});
     throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
   }
   const headers = { "X-Telegram-Init-Data": getInitData(), ...extraHeaders };
