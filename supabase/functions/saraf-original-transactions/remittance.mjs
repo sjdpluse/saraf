@@ -70,6 +70,7 @@ export function originalRemittanceWallets(env={},v2=false){
  let usdtFallback={};
  try{usdtFallback=JSON.parse(env.SARAF_USDT_DEPOSIT_WALLETS_JSON||
   env.USDT_DEPOSIT_WALLETS_JSON||'{}');}catch{}
+ /** @type {Record<string,Record<string,string>>} */
  const available={};
  for(const [asset,meta] of Object.entries(ORIGINAL_ASSETS)){
   if(!v2&&!LEGACY.includes(asset))continue;
