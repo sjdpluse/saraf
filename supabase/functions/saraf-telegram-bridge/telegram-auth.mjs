@@ -27,7 +27,7 @@ export async function verifyTelegramInitData(raw,botToken,nowSeconds=Math.floor(
   if(!Number.isSafeInteger(authDate) ||
       nowSeconds-authDate>3600 || nowSeconds-authDate< -60)return null;
   const dataCheck=entries.filter(([key])=>key!=='hash')
-    .sort(([a],[b])=>a.localeCompare(b,'en'))
+    .sort(([a],[b])=>a<b?-1:a>b?1:0)
     .map(([key,value])=>key+'='+value).join('\n');
   const secret=await sign(textEncoder.encode('WebAppData'),botToken);
   const computed=Array.from(await sign(secret,dataCheck),
