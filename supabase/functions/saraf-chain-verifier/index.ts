@@ -68,7 +68,7 @@ Deno.serve(async(req:Request)=>{
       const now=new Date().toISOString();
       const base={chain_last_checked_at:now};
       let changes:Record<string,unknown>=base;
-      if(result.status==='verified'){
+      if(result.status==='verified' && result.proof){
         const proof=result.proof;
         changes={...base,verification_status:'verified',
           chain_confirmations:proof.confirmations,
@@ -79,7 +79,7 @@ Deno.serve(async(req:Request)=>{
           chain_verification_meta:{blockHash:proof.blockHash,
             tokenContract:proof.tokenContract,logIndexes:proof.logIndexes}};
         verified++;
-      }else if(result.status==='confirming') {
+      }else if(result.status==='confirming' && result.proof) {
         changes={...base,verification_status:'confirming',
           chain_confirmations:result.proof.confirmations,
           chain_verification_error:null};
