@@ -146,6 +146,7 @@ export const nativeMedia = table('saraf_native_media', {
   kind: text('kind').notNull(),
   telegramFileId: text('telegram_file_id').notNull(),
   mimeType: text('mime_type').notNull(),
+  mediaCategory: text('media_category').notNull().default('photo'),
   telegramMessageId: integer('telegram_message_id').notNull(),
   receivedAt: text('received_at').notNull(),
   claimedBy: text('claimed_by'),
