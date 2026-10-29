@@ -88,11 +88,11 @@ function wallets(kind:Asset):Json{
  }
  return map;
 }
-async function originalRates(db:ReturnType<typeof createClient>){
+async function originalRates(db:any):Promise<any>{
  // Match original rate_engine: LIVE Sarai Shahzada first, LIVE reference
  // second; last cached history is allowed only within 20 minutes.
- let references:Json={};
- let local:Json={};
+ let references:any={};
+ let local:any={};
  try{references=await fetchOriginalCurrencyRates();}catch{}
  try{local=await fetchOriginalLocalMarkets();}catch{}
  const freshness=new Date(Date.now()-20*60*1000).toISOString();
@@ -182,7 +182,7 @@ Deno.serve(async req=>{
    const localSell=rate.local?.sell;
    const usdRate=side==='buy'
     ?localSell||rate.saraf_quote.sell:rate.saraf_quote.buy;
-   const pricing:Json=side==='buy'
+   const pricing:any=side==='buy'
     ?originalBuyPricing(String(a),String(usdRate))
     :originalSellPricing(String(a),String(usdRate));
    const values:Json={
@@ -203,7 +203,7 @@ Deno.serve(async req=>{
    }
    const stored=await db.from('usdt_quotes').insert(values)
     .select('id,expires_at').single();
-   if(stored.error)deny('QUOTE_STORE_FAILED',503);
+   if(stored.error || !stored.data)deny('QUOTE_STORE_FAILED',503);
    return out(origin,200,safeQuote({
     ...pricing,asset:type,amount:a,
     usd_rate:values.usd_rate,fee_percent:0,
@@ -248,8 +248,9 @@ Deno.serve(async req=>{
     details.wallet_address=wallet;
     if(method==='online'){
      const raw=String(input.receipt_url||input.receipt_file_id||'');
-     let link:URL;
+     let link:URL|null=null;
      try{link=new URL(raw);}catch{deny('OWN_RECEIPT_REQUIRED');}
+     if(!link)deny('OWN_RECEIPT_REQUIRED');
      if(link.origin!==new URL(SUPABASE).origin ||
        !link.pathname.startsWith('/storage/v1/object/sign/usdt-receipts/'+user.id+'_')
        ||!link.searchParams.get('token'))deny('OWN_RECEIPT_REQUIRED');
