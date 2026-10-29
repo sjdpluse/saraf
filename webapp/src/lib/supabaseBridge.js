@@ -7,7 +7,7 @@ const CANONICAL_REF='cvernmhpnsgdtegvblyc';
 const EDGE_URL='https://'+CANONICAL_REF+'.supabase.co/functions/v1/saraf-telegram-bridge';
 const ALLOWED_ACTIONS=new Set([
   'profile.get','profile.save','orders.me','orders.rate','remittances.me',
-  'stats.get','reviews.list','reviews.create','reviews.vote',
+  'stats.get','reviews.list','reviews.create','reviews.vote','reviews.reply',
 ]);
 
 export class CanonicalBridgeError extends Error {
