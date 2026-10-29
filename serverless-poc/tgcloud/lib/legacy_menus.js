@@ -3,6 +3,23 @@
 import { CURRENCIES, VALID_CODES } from './currencies.js';
 
 const button=(text,callback_data)=>({text,callback_data});
+const MINI_APP_URL='https://app8533795882.tgcloud.ai/';
+export const originalMiniAppLink=(action=null,asset=null)=>{
+  const query=new URLSearchParams({v:'20260905-v3'});
+  if(['buy','sell'].includes(action))query.set('action',action);
+  if(['USDT','USDC'].includes(asset))query.set('asset',asset);
+  return MINI_APP_URL+'?'+query;
+};
+export const originalStablecoinMenu=()=>({
+  inline_keyboard:[
+    [{text:'🚀 باز کردن اپلیکیشن USDT / USDC',web_app:{url:originalMiniAppLink()}}],
+    [{text:'🟢 خرید USDT',web_app:{url:originalMiniAppLink('buy','USDT')}},
+     {text:'🔴 فروش USDT',web_app:{url:originalMiniAppLink('sell','USDT')}}],
+    [{text:'🔵 خرید USDC',web_app:{url:originalMiniAppLink('buy','USDC')}},
+     {text:'🔷 فروش USDC',web_app:{url:originalMiniAppLink('sell','USDC')}}],
+  ],
+});
+
 const grouped=(items,size=2)=> {
   const groups=[];
   for(let i=0;i<items.length;i+=size)groups.push(items.slice(i,i+size));
@@ -74,7 +91,7 @@ export const converterAmounts=(from,to)=>({
 export const originalBotMenu=()=>({
   keyboard:[
     [{text:'خرید و فروش | USDT/USDC'}],
-    [{text:'Saraf - JustMarkets'}],
+    [{text:'Saraf - JustMarkets',web_app:{url:originalMiniAppLink('justmarkets')}}],
     [{text:'💵 نرخ ارزها'},{text:'🥇 نرخ طلا'}],
     [{text:'🥈 نرخ نقره'},{text:'🔄 مبدل ارز جهانی'}],
     [{text:'🪙 نرخ رمزارزها'},{text:'📊 مقایسه با گذشته'}],
