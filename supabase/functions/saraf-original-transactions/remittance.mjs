@@ -58,7 +58,7 @@ function validWallet(value) {
  return text.length>=8 && text.length<=180 && !/\s/.test(text);
 }
 function originalWalletObject(env) {
- const raw=env.REMITTANCE_WALLETS_JSON??env.SARAF_REMITTANCE_WALLETS_JSON??'{}';
+ const raw=env.REMITTANCE_WALLETS_JSON||env.SARAF_REMITTANCE_WALLETS_JSON||'{}';
  let parsed;
  try{parsed=JSON.parse(raw);}catch{throw Error('ORIGINAL_REMITTANCE_WALLETS_INVALID');}
  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
