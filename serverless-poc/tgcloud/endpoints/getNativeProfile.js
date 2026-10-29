@@ -1,5 +1,5 @@
 import { actor, getProfile, hasApprovedIdentity, hasBasicProfile } from '../lib/native_auth.js';
-import { IDENTITY_THRESHOLD_USD } from '../lib/native_config.js';
+import { IDENTITY_THRESHOLD_USD,IDENTITY_UPLOADS_ENABLED } from '../lib/native_config.js';
 import { latestMedia } from '../lib/native_media.js';
 export default async function (_input,ctx) {
   const user=actor(ctx);
@@ -14,6 +14,7 @@ export default async function (_input,ctx) {
     has_identity_documents:Boolean(profile?.idDocumentFileId && profile?.selfieFileId),
     identity_verification_threshold_usd:IDENTITY_THRESHOLD_USD,
     kyc_status:profile?.kycStatus || 'pending',
+    identity_uploads_enabled:IDENTITY_UPLOADS_ENABLED,
     profile:profile?{
       first_name:profile.firstName, last_name:profile.lastName,
       phone:profile.phone, kyc_status:profile.kycStatus,
