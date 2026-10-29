@@ -1,4 +1,5 @@
-// READ-ONLY pilot for a SEPARATE TEST BOT. Financial actions deliberately disabled.
+// Saraf read-only Telegram-native bot. The existing Supabase database is the
+// canonical financial store; do not read shadow Telegram SQLite order tables.
 import { api, db } from 'sdk';
 import { sql } from 'sdk/db';
 import { smokeCounters } from '../schema.js';
@@ -8,10 +9,6 @@ import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
 import { getCryptoPrices, cryptoLabel } from '../lib/cryptos.js';
 import { getLocalMarketRates } from '../lib/local_market_service.js';
 import { acceptMedia } from '../lib/native_media.js';
-import { adminCommand } from '../lib/native_admin.js';
-import { getProfile,hasBasicProfile } from '../lib/native_auth.js';
-import { getOwnOrders } from '../lib/native_orders.js';
-import { getOwnRemittances } from '../lib/native_remittances.js';
 
 const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
 export const currencyText = (rates, codes = VALID_CODES) =>
@@ -32,28 +29,18 @@ async function onReadOnlyMessage(chatId, input) {
     }
 
     case '👤 پروفایل':
-    case '/profile': {
-      const profile=await getProfile(chatId);
-      return reply(chatId,'👤 معلومات پروفایل شما\n'+
-        (hasBasicProfile(profile)?'نام: '+profile.firstName+' '+profile.lastName+'\nشماره: '+profile.phone:
-        'معلومات پایه هنوز ثبت نشده است.')+
-        '\nوضعیت هویت: '+(profile?.kycStatus || 'pending')+
-        '\nبرای ثبت معلومات و مدارک، Mini App همین ربات را باز کنید.');
-    }
+    case '/profile': return reply(chatId,
+      '👤 معلومات حساب اصلی صراف در Supabase نگهداری می‌شود.\\n'+
+      'برای مشاهده اطلاعات واقعی، Mini App همین ربات را باز کنید.\\n'+
+      '⚠️ حساب آزمایشی دیتابیس جداگانه نیست.');
     case '📦 سفارش‌های من':
-    case '/orders': {
-      const orders=await getOwnOrders(chatId);
-      return reply(chatId,'📦 سفارش‌های شما (دیتابیس Serverless)\n'+
-        (orders.map(o=>o.order_code+' | '+o.order_type+' '+o.usdt_amount+' '+o.asset+' | '+o.status).join('\n')||
-        'در دیتابیس جدید سفارشی ثبت نشده است. سوابق Supabase هنوز انتقال داده نشده‌اند.'));
-    }
+    case '/orders': return reply(chatId,
+      '📦 سفارش‌های قبلی شما در Supabase حفظ شده‌اند.\\n'+
+      'نمایش امن تاریخچه از طریق Mini App پس از فعال‌شدن اتصال Supabase در دسترس خواهد بود.');
     case '💸 حواله‌های من':
-    case '/remittances': {
-      const orders=await getOwnRemittances(chatId);
-      return reply(chatId,'💸 حواله‌های شما (دیتابیس Serverless)\n'+
-        (orders.map(o=>o.order_code+' | '+o.crypto_amount+' '+o.asset+' | '+o.status).join('\n')||
-        'در دیتابیس جدید حواله‌ای ثبت نشده است. سوابق قدیمی هنوز انتقال داده نشده‌اند.'));
-    }
+    case '/remittances': return reply(chatId,
+      '💸 حواله‌های قبلی شما در Supabase حفظ شده‌اند.\\n'+
+      'نمایش امن سوابق از طریق Mini App پس از فعال‌شدن اتصال Supabase در دسترس خواهد بود.');
     case '💵 نرخ ارزها': return reply(chatId, 'ارز مورد نظر را انتخاب کنید (نرخ جهانی؛ نه قیمت خرید/فروش صرافی).', currencyKeyboard());
     case '🥇 نرخ طلا':
     case '🥈 نرخ نقره': {
@@ -90,7 +77,6 @@ export default async function (message) {
   // Message ownership is the canonical Telegram identity for media and admin actions.
   if (!Number.isSafeInteger(message?.from?.id) || message.from.id !== chatId) return;
   if (await acceptMedia(message)) return;
-  if (await adminCommand(message)) return;
   const input = String(message.text ?? '').trim();
   if (!input) return;
   if (/^\/(?:start|ping)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) {
@@ -103,7 +89,7 @@ export default async function (message) {
     return reply(chatId, '🏦 به صراف خوش آمدید.\nبازدیدهای شما: ' + row.seen +
       '\n⚠️ معاملات، حواله‌ها و پرداخت‌ها در این نسخه غیرفعال اند.', mainKeyboard());
   }
-  // Do not expose trading or KYC controls in the pilot.
+  // Do not expose financial actions or ambiguous shadow records in the customer bot.
   try {
     await onReadOnlyMessage(chatId, input);
   } catch (error) {
