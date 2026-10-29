@@ -5,6 +5,7 @@ import { VALID_CODES, money } from '../lib/currencies.js';
 import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.js';
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
 import { getOriginalCompareReport } from '../lib/legacy_compare.js';
+import { originalLiveQuotes,originalCurrencyText } from '../lib/legacy_live_rates.js';
 import { codeLabel,hasValidCurrency,validKarat,currencyList,currencyQuote,
   goldCalcMode,goldCalcKarat,comparePeriod,converterFrom,converterTo,
   converterAmounts,aboutKeyboard,originalStablecoinMenu } from '../lib/legacy_menus.js';
@@ -46,12 +47,13 @@ export default async function(query){
     }
     if(type==='cur'||type==='ref'){
       if(a==='list')return edit(chat,id,'کدام ارز مدنظر شماست؟',currencyList());
-      const {rates}=await getReferenceRates();
-      if(a==='all')return edit(chat,id,'💵 نرخ مرجع جهانی ارزها\n'+
-        VALID_CODES.filter(c=>rates[c]).map(c=>codeLabel(c)+': '+fmt(rates[c],4)+' افغانی').join('\n'));
-      if(!hasValidCurrency(a)||!rates[a])return;
-      return edit(chat,id,codeLabel(a)+'\n🌍 نرخ مرجع جهانی: '+
-        fmt(rates[a],4)+' افغانی',currencyQuote(a));
+      const quotes=await originalLiveQuotes(a==='all'?VALID_CODES:[a]);
+      if(a==='all')return edit(chat,id,'💵 نرخ خرید و فروش ارزها\n\n'+
+        VALID_CODES.filter(c=>quotes[c]).map(c=>
+          codeLabel(c)+'\n'+originalCurrencyText(c,quotes[c])).join('\n\n'));
+      if(!hasValidCurrency(a)||!quotes[a])return;
+      return edit(chat,id,codeLabel(a)+'\n'+originalCurrencyText(a,quotes[a]),
+        currencyQuote(a));
     }
     if(type==='curcalc'&&hasValidCurrency(a))
       return prompt(chat,'currency:'+a,'مقدار ارز را وارد کنید؛ مثال 100');
