@@ -154,4 +154,51 @@ REVOKE ALL ON FUNCTION public.saraf_chain_proof_snapshot(public.remittance_order
  FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.saraf_chain_proof_snapshot(public.remittance_orders)
  TO service_role;
+
+-- This step is NOT a payment or a final settlement: it only moves a verified
+-- remittance into the manual disbursement queue after two independent reviews.
+CREATE OR REPLACE FUNCTION public.saraf_prepare_payout_after_dual_approval(
+ p_remittance_id bigint,p_operator_id bigint
+) RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path=''
+AS $
+DECLARE
+ r public.remittance_orders%ROWTYPE;
+BEGIN
+ IF p_remittance_id IS NULL OR p_remittance_id<=0 OR p_operator_id IS NULL
+    OR p_operator_id<=0 THEN
+   RAISE EXCEPTION 'INVALID_APPROVAL_INPUT' USING ERRCODE='P0001';
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.saraf_finance_operators
+   WHERE telegram_id=p_operator_id AND role='finance_approver' AND enabled) THEN
+   RAISE EXCEPTION 'OPERATOR_NOT_AUTHORIZED' USING ERRCODE='P0001';
+ END IF;
+ SELECT * INTO r FROM public.remittance_orders
+   WHERE id=p_remittance_id FOR UPDATE;
+ IF NOT FOUND OR r.status<>'transfer_submitted' THEN
+   RAISE EXCEPTION 'REMITTANCE_NOT_READY' USING ERRCODE='P0001';
+ END IF;
+ IF r.chat_id=p_operator_id THEN
+   RAISE EXCEPTION 'SELF_APPROVAL_FORBIDDEN' USING ERRCODE='P0001';
+ END IF;
+ -- The BEFORE UPDATE trigger checks proofs, signatures, distinct reviewers,
+ -- operator activation and freshness while holding the same row lock.
+ UPDATE public.remittance_orders SET status='payout_ready',updated_at=now()
+   WHERE id=p_remittance_id AND status='transfer_submitted'
+   RETURNING * INTO r;
+ IF NOT FOUND THEN
+   RAISE EXCEPTION 'REMITTANCE_CONCURRENTLY_CHANGED' USING ERRCODE='P0001';
+ END IF;
+ INSERT INTO public.saraf_finance_audit(event,actor_id,info)
+ VALUES('payout_queued_for_manual_disbursement',p_operator_id,
+   jsonb_build_object('remittance_id',r.id,
+     'funds_transferred',false,'blockchain_verification',r.verification_status));
+ RETURN jsonb_build_object('remittance_id',r.id,'status',r.status,
+   'funds_paid',false,'manual_disbursement_required',true);
+END;
+$;
+REVOKE ALL ON FUNCTION public.saraf_prepare_payout_after_dual_approval(bigint,bigint)
+ FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.saraf_prepare_payout_after_dual_approval(bigint,bigint)
+ TO service_role;
+
 COMMIT;
