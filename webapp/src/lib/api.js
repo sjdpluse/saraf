@@ -3,7 +3,6 @@ import { normalizeAsset } from "./brand";
 import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./runtime";
 import { nativeCall } from "./nativeApi";
 import { canonicalCall } from "./supabaseBridge";
-import { financeCall } from "./financeBridge";
 import { uploadOriginalIdentity } from "./legacyKycBridge";
 
 class ApiError extends Error {
@@ -46,30 +45,22 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
     if (path === '/stablecoins/config' && method === 'GET') return nativeCall('getNativeStablecoinConfig');
     if (path === '/remittances/config' && method === 'GET') return nativeCall('getNativeRemittanceConfig');
     if (path === '/remittances/me' && method === 'GET') return canonicalCall('remittances.me');
-    if (path === '/remittances/quote' && method === 'POST') return financeCall('remittance.quote',body);
-    if (path === '/remittances' && method === 'POST') return financeCall('remittance.submit', {
-      quote_id:body.quote_id, sender_name:body.sender_full_name,
-      sender_country:body.sender_country, beneficiary_name:body.beneficiary_full_name,
-      beneficiary_phone:body.beneficiary_phone,beneficiary_province:body.beneficiary_province,
-      beneficiary_city:body.beneficiary_city,beneficiary_address:body.beneficiary_address,
-      idempotency_key:extraHeaders['Idempotency-Key'],
-    });
-    if (path === '/usdt/quote' && method === 'POST') return financeCall('quote.issue',body);
-    if ((path === '/usdt/orders/buy' || path === '/usdt/orders/sell') && method === 'POST') return financeCall('order.submit', {
-      quote_id:body.quote_id,action:path.endsWith('/buy')?'buy':'sell',
-      asset:body.asset,network:body.network,
-      payment_method:path.endsWith('/buy')?body.payment_method:body.receive_method,
-      exchange_name:body.exchange_name,wallet_address:body.wallet_address,
-      idempotency_key:extraHeaders['Idempotency-Key'],
-    });
+    // Preserve the ORIGINAL Python pricing/payment semantics. Until those
+    // routes have been ported exactly, do NOT call new speculative money logic
+    // or fall back to the offline Railway service.
+    const originalWritePaths=new Set([
+      '/remittances/quote','/remittances',
+      '/usdt/quote','/usdt/orders/buy','/usdt/orders/sell',
+    ]);
+    if(method==='POST' && originalWritePaths.has(path))
+      throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE,503,'NOT_MIGRATED');
     let match=path.match(/^\/usdt\/orders\/(\d+)\/rate$/);
     if (match && method==='POST') return canonicalCall('orders.rate', {
       order_id:Number(match[1]),...body,
     });
     match=path.match(/^\/remittances\/(\d+)\/tx$/);
-    if (match && method==='POST') return financeCall('remittance.claimTx', {
-      order_id:Number(match[1]),...body,
-    });
+    if(match&&method==='POST')
+      throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE,503,'NOT_MIGRATED');
     match=path.match(/^\/reviews(?:\?limit=(\d+)&offset=(\d+))?$/);
     if (match && method==='GET') return canonicalCall('reviews.list', {
       limit:Number(match[1])||20,offset:Number(match[2])||0,
