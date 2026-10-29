@@ -2,6 +2,7 @@ import { getInitData } from "./telegram";
 import { normalizeAsset } from "./brand";
 import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./runtime";
 import { nativeCall } from "./nativeApi";
+import { canonicalCall } from "./supabaseBridge";
 
 class ApiError extends Error {
   constructor(message, status, code) {
@@ -27,21 +28,21 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
     // Only explicitly migrated reads are routed to native Telegram Serverless.
     // No financial API call can silently fall back to Railway or expose initData.
     if (path === '/market/snapshot' && method === 'GET') return nativeCall('getMarketSnapshot');
-    if (path === '/usdt/stats' && method === 'GET') return nativeCall('getNativeStats');
-    if (path === '/usdt/profile' && method === 'GET') return nativeCall('getNativeProfile');
+    if (path === '/usdt/stats' && method === 'GET') return canonicalCall('stats.get');
+    if (path === '/usdt/profile' && method === 'GET') return canonicalCall('profile.get');
     if (path === '/usdt/profile' && method === 'POST') {
       if (!isForm || !body) throw new ApiError('معلومات پروفایل معتبر نیست.', 400);
-      return nativeCall('saveBasicProfile', {
+      return canonicalCall('profile.save', {
         first_name: body.get('first_name'),
         last_name: body.get('last_name'),
         phone: body.get('phone'),
       });
     }
-    if (path === '/usdt/orders/me' && method === 'GET') return nativeCall('getNativeOrders');
+    if (path === '/usdt/orders/me' && method === 'GET') return canonicalCall('orders.me');
     if (path === '/usdt/payment-info' && method === 'GET') return nativeCall('getNativePaymentInfo');
     if (path === '/stablecoins/config' && method === 'GET') return nativeCall('getNativeStablecoinConfig');
     if (path === '/remittances/config' && method === 'GET') return nativeCall('getNativeRemittanceConfig');
-    if (path === '/remittances/me' && method === 'GET') return nativeCall('getNativeRemittances');
+    if (path === '/remittances/me' && method === 'GET') return canonicalCall('remittances.me');
     if (path === '/remittances/quote' && method === 'POST') return nativeCall('getNativeRemittanceQuote',body);
     if (path === '/remittances' && method === 'POST') return nativeCall('createNativeRemittance', {
       ...body, idempotency_key:extraHeaders['Idempotency-Key'],
@@ -53,7 +54,7 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
       receipt_media_id:Number(body.receipt_url)||null,
     });
     let match=path.match(/^\/usdt\/orders\/(\d+)\/rate$/);
-    if (match && method==='POST') return nativeCall('rateNativeOrder', {
+    if (match && method==='POST') return canonicalCall('orders.rate', {
       order_id:Number(match[1]),...body,
     });
     match=path.match(/^\/remittances\/(\d+)\/tx$/);
@@ -61,13 +62,14 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
       order_id:Number(match[1]),...body,
     });
     match=path.match(/^\/reviews(?:\?limit=(\d+)&offset=(\d+))?$/);
-    if (match && method==='GET') return nativeCall('getNativeReviews', {
+    if (match && method==='GET') return canonicalCall('reviews.list', {
       limit:Number(match[1])||20,offset:Number(match[2])||0,
     });
-    if (path==='/reviews' && method==='POST') return nativeCall('createNativeReview',body);
+    if (path==='/reviews' && method==='POST') return canonicalCall('reviews.create',body);
     match=path.match(/^\/reviews\/(\d+)\/(reply|vote)$/);
-    if (match && method==='POST') return nativeCall(match[2]==='reply'?
-      'replyNativeReview':'voteNativeReview', {review_id:Number(match[1]),...body});
+    if (match && method==='POST') return match[2]==='vote'
+      ? canonicalCall('reviews.vote',{review_id:Number(match[1]),...body})
+      : Promise.reject(new ApiError('پاسخ مدیر هنوز در نسخه Serverless فعال نیست.',403,'ADMIN_NOT_AVAILABLE'));
     throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
   }
   const headers = { "X-Telegram-Init-Data": getInitData(), ...extraHeaders };
