@@ -22,7 +22,7 @@ export async function originalSpreads(http=fetch){
  }catch{return {};}
 }
 export async function originalLiveQuotes(codes=VALID_CODES){
- const refs=await getReferenceRates();
+ const refs=await getReferenceRates().catch(()=>({rates:{}}));
  const [markets,spread]=await Promise.all([
    getLocalMarketRates().then(x=>x.markets).catch(()=>({})),
    originalSpreads(),
