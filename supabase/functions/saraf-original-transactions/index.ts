@@ -75,6 +75,40 @@ const walletShape=(network:string,address:string)=>{
  if(network==='SOLANA')return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v);
  return false;
 };
+function remittanceWallets(kind:Asset):Json{
+ // Mirrors existing main:services/remittance_wallet_config.py data layout:
+ // REMITTANCE_WALLETS_JSON={USDT:{ERC20:"..."},USDC:{BEP20:"..."}}.
+ let all:unknown={};
+ try{all=JSON.parse(Deno.env.get('SARAF_REMITTANCE_WALLETS_JSON')||'{}');}
+ catch{return {};}
+ if(!all||typeof all!=='object'||Array.isArray(all))return {};
+ const block=(all as Json)[kind];
+ if(!block||typeof block!=='object'||Array.isArray(block))return {};
+ const r:Json={};
+ for(const name of kind==='USDT'?['TRC20','ERC20','BEP20']:['BEP20','ERC20']){
+   const v=(block as Json)[name];
+   if(v&&walletShape(name,String(v)))r[name]=String(v);
+ }
+ return r;
+}
+function remittancePercent(){
+ const rate=Number(Deno.env.get('SARAF_REMITTANCE_FEE_PERCENT')||'0');
+ if(!Number.isFinite(rate)||rate<0||rate>25)
+   deny('REMITTANCE_FEE_NOT_CONFIGURED',503);
+ return rate;
+}
+function remittancePreview(input:Json,rate:number,feePercent:number){
+ const a=amount(input.amount),type=asset(input.asset);
+ const network=String(input.network||'').toUpperCase();
+ const configured=remittanceWallets(type);
+ if(!configured[network])deny('DEPOSIT_WALLET_NOT_CONFIGURED');
+ const math=originalRemittancePricing(String(a),String(rate),String(feePercent));
+ return {asset:type,network,crypto_amount:a,usd_rate:math.usd_rate,
+   gross_afn:math.gross_afn,fee_percent:math.fee_percent,
+   fee_afn:math.fee_afn,payout_afn:math.payout_afn,
+   deposit_wallet:configured[network],basis:'local_or_reference',
+   usd_value:a,asset_price_usd:1};
+}
 function wallets(kind:Asset):Json{
  // Same server-side source as main:services/stablecoin_networks.py.
  const env=kind==='USDT'?'SARAF_USDT_DEPOSIT_WALLETS_JSON':'SARAF_USDC_DEPOSIT_WALLETS_JSON';
@@ -173,6 +207,87 @@ Deno.serve(async req=>{
       sell_networks:TYPES[type].filter(n=>addresses[n.code]).map(n=>({
        ...n,deposit_address:addresses[n.code]}))}];
     })));
+  }
+  if(action==='remittances.config'){
+    const pct=remittancePercent();
+    const names:{[key:string]:string}={
+      USDT:'Tether (USDT)',USDC:'USD Coin (USDC)'};
+    const assets=(['USDT','USDC'] as Asset[])
+     .map(type=>({asset:type,name:names[type],
+      networks:Object.keys(remittanceWallets(type))
+       .map(network=>({code:network,label:network}))}))
+     .filter(item=>item.networks.length);
+    return out(origin,200,{
+      assets,fee_percent:pct,identity_verification_threshold_usd:250,
+      min_usd:10,max_usd:10000,
+    });
+  }
+  if(action==='remittances.quote'||action==='remittances.create'){
+    const rate=await originalRates(db),fee=remittancePercent();
+    const quote=remittancePreview(input,rate.saraf_quote.buy,fee);
+    quote.basis=rate.saraf_quote.basis;
+    if(action==='remittances.quote')return out(origin,200,quote);
+    if(!ADMINS.length||!ADMIN_TOKEN)
+      deny('ADMIN_REVIEW_NOT_CONFIGURED',503);
+    const key=String(input.idempotency_key||'').trim();
+    if(key.length<1||key.length>120)deny('IDEMPOTENCY_KEY_REQUIRED');
+    const ownPath=String(input.beneficiary_id_document_path||'').trim();
+    const prefix='remittances/'+user.id+'/';
+    if(!ownPath.startsWith(prefix)||ownPath.includes('..')
+      ||ownPath.length>500)deny('OWN_BENEFICIARY_ID_REQUIRED');
+    const fileName=ownPath.slice(prefix.length);
+    if(!/^[a-f0-9]{32}\.(jpg|png|webp)$/.test(fileName))
+       deny('INVALID_BENEFICIARY_DOCUMENT');
+    const listed=await db.storage.from('usdt-kyc-docs').list(prefix.slice(0,-1),{
+      search:fileName,limit:2,
+    });
+    if(listed.error||!listed.data?.some(x=>x.name===fileName))
+      deny('BENEFICIARY_DOCUMENT_NOT_FOUND');
+    const profile=await db.from('user_profiles').select('phone')
+      .eq('chat_id',user.id).maybeSingle();
+    if(profile.error||!profile.data?.phone)
+      deny('BASIC_PROFILE_REQUIRED',403);
+    const beneficiary=(key:string)=>{
+      const v=String(input[key]||'').trim();
+      if(!v)deny('BENEFICIARY_FIELDS_REQUIRED');
+      return v;
+    };
+    const rpc=await db.rpc('saraf_original_create_remittance',{
+      p_chat_id:user.id,p_idempotency_key:key,
+      p_asset:quote.asset,p_network:quote.network,
+      p_amount:quote.crypto_amount,p_usd_rate:quote.usd_rate,
+      p_gross_afn:quote.gross_afn,p_fee_percent:quote.fee_percent,
+      p_fee_afn:quote.fee_afn,p_payout_afn:quote.payout_afn,
+      p_deposit_wallet:quote.deposit_wallet,
+      p_sender_name:beneficiary('sender_full_name'),
+      p_sender_country:beneficiary('sender_country'),
+      p_sender_phone:profile.data.phone,
+      p_beneficiary_name:beneficiary('beneficiary_full_name'),
+      p_beneficiary_phone:beneficiary('beneficiary_phone'),
+      p_province:beneficiary('beneficiary_province'),
+      p_city:beneficiary('beneficiary_city'),
+      p_address:beneficiary('beneficiary_address'),
+      p_beneficiary_document:ownPath,
+    });
+    if(rpc.error)return out(origin,503,{
+      error:rpc.error.code==='P0001'?rpc.error.message:'DATABASE_UNAVAILABLE'});
+    return out(origin,200,rpc.data);
+  }
+  if(action==='remittances.tx'){
+    const orderId=Number(input.order_id),hash=String(input.tx_hash||'').trim();
+    if(!Number.isSafeInteger(orderId)||orderId<=0
+      ||hash.length<12||hash.length>200)deny('INVALID_TX_HASH');
+    if(!ADMINS.length||!ADMIN_TOKEN)
+      deny('ADMIN_REVIEW_NOT_CONFIGURED',503);
+    const saved=await db.rpc('saraf_original_claim_remittance_tx',{
+     p_chat_id:user.id,p_order_id:orderId,p_tx_hash:hash,
+    });
+    if(saved.error)return out(origin,503,{
+      error:saved.error.code==='P0001'?saved.error.message:'DATABASE_UNAVAILABLE'});
+    await notifyAdmin('💸 حوالهٔ صراف — ثبت TX\n'+
+      'کد: '+saved.data?.order_code+'\nشناسهٔ کاربر: '+user.id+
+      '\nشناسه تراکنش: '+hash+'\nلطفاً حواله را در پنل اصلی بررسی کنید.');
+    return out(origin,200,saved.data);
   }
   if(action==='quote'){
    const type=asset(input.asset),a=amount(input.amount);
