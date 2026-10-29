@@ -44,6 +44,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/finance_invariants.sql
       - name: Assert remittance ownership, chain-gated payout and TxID isolation
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/remittance_invariants.sql
+      - name: Simulate concurrent submissions for one financial quote
+        run: bash supabase/sql/ci_only/test_concurrent_quote.sh
   finance-edge:
     name: Financial Edge Function static and auth checks
     runs-on: ubuntu-latest
