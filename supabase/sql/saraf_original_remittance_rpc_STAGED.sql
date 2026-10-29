@@ -22,9 +22,31 @@ DECLARE
 BEGIN
  IF p_chat_id IS NULL OR p_chat_id<=0
    OR length(coalesce(p_idempotency_key,'')) NOT BETWEEN 1 AND 120
-   OR p_asset NOT IN ('USDT','USDC')
-   OR (p_asset='USDT' AND p_network NOT IN ('TRC20','BEP20','ERC20'))
-   OR (p_asset='USDC' AND p_network NOT IN ('BEP20','ERC20'))
+   -- Original services/remittance_asset_registry.py (15 ORIGINAL assets).
+   -- The signed Edge verifies REMITTANCE_V2_ENABLED before invoking this RPC.
+   OR p_asset NOT IN ('USDT','USDC','DAI','TUSD','TRX','BNB','ETH','SOL',
+     'WBTC','PAXG','PYUSD','WETH','BTCB','POL','BTC')
+   OR (p_asset='USDT' AND p_network NOT IN
+     ('BEP20','TRC20','ERC20','ARBITRUM','BASE','POLYGON','SOL'))
+   OR (p_asset='USDC' AND p_network NOT IN
+     ('BEP20','ERC20','ARBITRUM','BASE','POLYGON','SOL'))
+   OR (p_asset='DAI' AND p_network NOT IN
+     ('ERC20','ARBITRUM','BASE','POLYGON'))
+   OR (p_asset='TUSD' AND p_network NOT IN
+     ('BEP20','ERC20','ARBITRUM','POLYGON'))
+   OR (p_asset='TRX' AND p_network<>'TRC20')
+   OR (p_asset='BNB' AND p_network<>'BEP20')
+   OR (p_asset='ETH' AND p_network NOT IN
+     ('ERC20','ARBITRUM','BASE'))
+   OR (p_asset='SOL' AND p_network<>'SOL')
+   OR (p_asset='WBTC' AND p_network NOT IN
+     ('ERC20','ARBITRUM','POLYGON'))
+   OR (p_asset='PAXG' AND p_network<>'ERC20')
+   OR (p_asset='PYUSD' AND p_network<>'ERC20')
+   OR (p_asset='WETH' AND p_network NOT IN ('BEP20','ERC20'))
+   OR (p_asset='BTCB' AND p_network<>'BEP20')
+   OR (p_asset='POL' AND p_network<>'POLYGON')
+   OR (p_asset='BTC' AND p_network<>'BITCOIN')
    OR p_amount IS NULL OR p_amount<=0
    OR p_asset_price_usd IS NULL OR p_asset_price_usd<=0
    OR p_usd_value IS NULL OR p_usd_value<10 OR p_usd_value>10000
