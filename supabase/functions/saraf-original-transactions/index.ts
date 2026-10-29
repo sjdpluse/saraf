@@ -257,7 +257,17 @@ Deno.serve(async req=>{
       .eq('chat_id',user.id).maybeSingle();
     if(profile.error||!profile.data?.phone)
       deny('BASIC_PROFILE_REQUIRED',403);
-    const beneficiary=(key:string)=>{
+    // Matches original V2: KYC threshold is USD value, not raw crypto count.
+    if(quote.usd_value>250){
+      const verified=await db.from('user_profiles').select(
+        'kyc_status,id_document_path,selfie_path')
+        .eq('chat_id',user.id).maybeSingle();
+      if(verified.error||!['verified','trusted'].includes(
+        String(verified.data?.kyc_status||''))||
+        !verified.data?.id_document_path||!verified.data?.selfie_path)
+        deny('IDENTITY_VERIFICATION_REQUIRED',403);
+    }
+   const beneficiary=(key:string)=>{
       const v=String(input[key]||'').trim();
       if(!v)deny('BENEFICIARY_FIELDS_REQUIRED');
       return v;
@@ -268,6 +278,7 @@ Deno.serve(async req=>{
       p_amount:quote.crypto_amount,p_usd_rate:quote.usd_rate,
       p_gross_afn:quote.gross_afn,p_fee_percent:quote.fee_percent,
       p_fee_afn:quote.fee_afn,p_payout_afn:quote.payout_afn,
+      p_asset_price_usd:quote.asset_price_usd,p_usd_value:quote.usd_value,
       p_deposit_wallet:quote.deposit_wallet,
       p_sender_name:beneficiary('sender_full_name'),
       p_sender_country:beneficiary('sender_country'),
