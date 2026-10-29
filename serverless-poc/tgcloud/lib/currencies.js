@@ -42,6 +42,8 @@ export function mainKeyboard() {
       [{text: '🏛 نرخ بازار کابل'}],
       [{text: '🥈 نرخ نقره'}, {text: '🪙 نرخ رمزارزها'}],
       [{text: '🔄 مبدل ارز جهانی'}, {text: 'ℹ️ درباره ربات'}],
+      [{text: '👤 پروفایل'}, {text: '📦 سفارش‌های من'}],
+      [{text: '💸 حواله‌های من'}],
     ],
     resize_keyboard: true,
   };
