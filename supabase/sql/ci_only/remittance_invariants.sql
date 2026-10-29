@@ -78,7 +78,7 @@ BEGIN
  BEGIN
    UPDATE public.remittance_orders SET status='payout_ready' WHERE id=v_remittance_id;
  EXCEPTION WHEN raise_exception THEN
-   blocked:=SQLERRM='CHAIN_PROOF_REQUIRED_FOR_PAYOUT';
+   blocked:=SQLERRM IN ('CHAIN_PROOF_REQUIRED_FOR_PAYOUT','INDEPENDENT_CHAIN_PROOF_REQUIRED');
  END;
  IF NOT blocked THEN RAISE EXCEPTION 'Unverified remittance payout was allowed';END IF;
  IF has_function_privilege('anon',
