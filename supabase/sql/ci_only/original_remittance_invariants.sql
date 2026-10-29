@@ -9,7 +9,7 @@ BEGIN
  '0x1111111111111111111111111111111111111111',
  'Synthetic Sender','Afghanistan','0700000001',
  'Synthetic Beneficiary','0790000000','Kabul','Kabul','Example address',
- 'remittances/101/synthetic_id.jpg'
+ 'remittances/101/synthetic_id.jpg',1,75
  );
  v_id:=(r->>'id')::bigint;
  IF (r->>'order_code')<>'REM-000001' OR
@@ -29,7 +29,7 @@ BEGIN
  '0x1111111111111111111111111111111111111111',
  'Synthetic Sender','Afghanistan','0700000001',
  'Synthetic Beneficiary','0790000000','Kabul','Kabul','Example address',
- 'remittances/101/synthetic_id.jpg'
+ 'remittances/101/synthetic_id.jpg',1,75
  );
  IF (r->>'id')::bigint<>v_id OR NOT (r->>'duplicate')::boolean THEN
   RAISE EXCEPTION 'ORIGINAL_REMITTANCE_RETRY_NOT_IDEMPOTENT';
@@ -41,7 +41,7 @@ BEGIN
    '0x1111111111111111111111111111111111111111',
    'Synthetic Sender','Afghanistan','0700000001',
    'Synthetic Beneficiary','0790000000','Kabul','Kabul','Example address',
-   'remittances/101/synthetic_id.jpg');
+   'remittances/101/synthetic_id.jpg',1,75);
  EXCEPTION WHEN raise_exception THEN
   blocked:=SQLERRM='REMITTANCE_IDEMPOTENCY_CONFLICT';
  END;
