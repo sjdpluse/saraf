@@ -14,6 +14,7 @@ import JustMarkets from "./pages/JustMarkets";
 import JustMarketsGuide from "./pages/JustMarketsGuide";
 import JustMarketsVerification from "./pages/JustMarketsVerification";
 import JustMarketsDeposit from "./pages/JustMarketsDeposit";
+import OriginalAdmin from "./pages/OriginalAdmin";
 import Toast from "./components/Toast";
 import BottomNav from "./components/BottomNav";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
@@ -38,6 +39,7 @@ export default function App() {
     if (action === "remittance") setPage("remittance");
     if (action === "remittances") setPage("remittances");
     if (action === "justmarkets") setPage("justmarkets");
+    if (action === "admin") setPage("admin");
   }, []);
 
   function navigate(p) {
@@ -153,6 +155,7 @@ export default function App() {
         {page === "reviews" && <Reviews navigate={navigate} showError={showError} />}
         {page === "terms" && <Terms navigate={navigate} />}
         {page === "menu" && <Menu navigate={navigate} />}
+        {page === "admin" && <OriginalAdmin navigate={navigate} />}
         {page === "justmarkets" && <JustMarkets navigate={navigate} />}
         {page === "justmarkets-guide" && <JustMarketsGuide navigate={navigate} />}
         {page === "justmarkets-verification" && <JustMarketsVerification navigate={navigate} />}
