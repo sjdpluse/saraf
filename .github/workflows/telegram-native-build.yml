@@ -58,6 +58,11 @@ jobs:
           deno check supabase/functions/saraf-legacy-uploads/index.ts
           deno check supabase/functions/saraf-public-history/index.ts
           deno check supabase/functions/saraf-original-transactions/index.ts
+          deno check supabase/functions/saraf-original-meta-webhook/index.ts
+      - name: Syntax-check legacy Railway-free workers
+        run: |
+          python -m py_compile scripts/run_original_saraf_jobs.py
+          python -m py_compile scripts/run_original_meta_worker.py
       - name: Ensure trading and identity uploads remain explicitly disabled
         run: |
           grep -q 'FINANCIAL_WRITES_ENABLED = false' serverless-poc/tgcloud/lib/native_config.js
