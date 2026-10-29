@@ -1,3 +1,59 @@
+# Status update — 29 October 2026
+
+The owner confirmed that **Railway is currently NOT deployed/online**. This branch updates
+the real source files directly in GitHub; no local clone, Railway build, or production
+Telegram deployment was performed by the assistant.
+
+## Implemented since the original report below
+
+- Native SQLite schema for profiles, Telegram-owned identity media, quotes,
+  USDT/USDC orders, remittances, reviews, votes and a persistent audit trail.
+- Server-side endpoints for profile registration, capturing KYC ID/selfie via
+  **private chat of the same bot**, and requesting manual verification.
+- Original React Mini App routing and native RPC adapter; read-only reference
+  and Kabul local market data; account and reviews pages.
+- Financial quote calculations using integer minor currency units, persisted
+  asset/user-bound 5-minute quotes, duplicate-resistant order creation and
+  owner-scoped history (pending manual reconciliation).
+- Remittance quote and request records, ownership-scoped TxID submission,
+  unverified chain status, and audit entries.
+- Owner-only commands (/admin, /admin_orders, /admin_remittances,
+  /admin_kyc, /kyc_view, /kyc_confirm, /kyc_reject, /order_review,
+  /order_cancel, /remit_review) on the **customer Telegram bot**.
+- GitHub Actions builds the real React app, runs pure tests and produces a
+  downloadable Telegram-ready build artifact with no local clone.
+
+## Why this code is NOT production-ready / not activated
+
+The code deliberately sets `FINANCIAL_WRITES_ENABLED = false` in
+`serverless-poc/tgcloud/lib/native_config.js`. `ADMIN_USER_IDS = []` and
+`PUBLIC_DEPOSIT_WALLETS = {}`. These are **not placeholders to fill with
+invented data**. They are real launch blockers. You must supply verified
+operator Telegram IDs, validated receiving wallet addresses/payment details,
+the actual historical Supabase reconciliation, and verification for blockchain
+transactions. The native database does not automatically contain old Supabase
+records or old encrypted media. Telegram bot file IDs may not work across two
+different bots.
+
+The legacy Python modules for Meta webhooks, image rendering, and background
+polling **cannot run** in Telegram's JS V8 runtime. These need independent
+functions/schedulers or a conscious decision to remove those features.
+Telegram-native endpoint authorization is for a Telegram Mini App user and
+does NOT replace Meta's public webhook signature validation.
+
+**Do not merge PR #41 as a completed production launch.** This branch is a
+substantial functional port, not a verified copy of every legacy service.
+Even though Railway is offline, historic Supabase data must be preserved.
+Bank payment processing, token transfer execution, automatic blockchain
+confirmation and full social webhooks have NOT been activated.
+
+## No-clone verification
+
+GitHub Actions → `Telegram native Saraf build` → download the
+`saraf-native-telegram-build` artifact from a successful PR check. It contains
+`serverless-poc/dist`, `serverless-poc/tgcloud` and `tgcloud.jsonc`.
+No CLI credentials, bot tokens, or Supabase keys are stored in that artifact.
+
 # Saraf — actual Telegram Serverless migration (work-in-progress)
 
 **Branch:** `migration/telegram-native-serverless-poc` — Draft PR #41  
