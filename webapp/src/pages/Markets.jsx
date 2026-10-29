@@ -2,8 +2,8 @@
 // Informational markets only: never show these as executable USDT/USDC quotes.
 import { useEffect, useState } from 'react';
 import { CaretRight, ArrowClockwise } from '@phosphor-icons/react';
-import { getMarket, isTelegramServerlessAvailable } from '../telegram-pilot/market';
-import '../telegram-pilot/pilot.css';
+import { getMarket } from '../telegram-pilot/market';
+import './Markets.css';
 
 const tabs = [
   ['currencies', '💵 ارزها'], ['gold', '🥇 طلا'],
