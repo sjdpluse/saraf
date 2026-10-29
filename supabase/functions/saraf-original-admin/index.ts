@@ -1,0 +1,158 @@
+// Migration of ORIGINAL main:handlers/admin.py commands to the existing
+// Supabase backend. Admin identity is SERVER-verified against the original
+// bot's Telegram Mini App initData AND a server-only ID allowlist.
+// No Railway, no browser-supplied actor ID, no public finance RPCs.
+// Default OFF: read and write must be enabled separately after E2E.
+import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
+import { verifyTelegramInitData } from './telegram-auth.mjs';
+
+const ORIGIN='https://app8533795882.tgcloud.ai';
+const BOT=Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN')||'';
+const URL=Deno.env.get('SUPABASE_URL')||'';
+const KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
+const READ=Deno.env.get('SARAF_ORIGINAL_ADMIN_READ_ENABLED')==='true';
+const WRITE=Deno.env.get('SARAF_ORIGINAL_ADMIN_WRITES_ENABLED')==='true';
+const ADMINS=(Deno.env.get('SARAF_ADMIN_CHAT_IDS')||'')
+ .split(',').map(x=>x.trim()).filter(x=>/^[1-9][0-9]{0,15}$/.test(x));
+const CODES=new Set([
+ 'usd','eur','gbp','pkr','irr','aed','inr','sar','try','cny',
+ 'aud','cad','chf','sek',
+]);
+const DEFAULT_SPREADS:Record<string,number>={
+ usd:0.6,eur:0.8,gbp:1,aed:0.8,sar:0.8,pkr:1.5,irr:2,
+ inr:1.5,try:1.5,cny:1.5,aud:1.2,cad:1.2,chf:1.2,sek:1.8,
+};
+function answer(origin:string,status:number,body:unknown){
+ return new Response(JSON.stringify(body),{status,headers:{
+  'Content-Type':'application/json; charset=utf-8',
+  'Cache-Control':'no-store','Vary':'Origin',
+  ...(origin===ORIGIN?{'Access-Control-Allow-Origin':ORIGIN}:{}),
+  'Access-Control-Allow-Headers':'Content-Type,X-Telegram-Init-Data',
+  'Access-Control-Allow-Methods':'POST,OPTIONS',
+ }});
+}
+function isOwner(userId:number){
+ return ADMINS.length>0&&ADMINS.includes(String(userId));
+}
+function isWrite(action:string){
+ return action==='spread.set'||action==='order.confirm';
+}
+async function notifyOriginalCustomer(orderId:number,chatId:number){
+ if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
+ try{
+  const r=await fetch('https://api.telegram.org/bot'+BOT+'/sendMessage',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({
+    chat_id:chatId,
+    text:'✅ سفارش شما (USDT-'+String(orderId).padStart(5,'0')+
+       ') تأیید و در حال پردازش نهایی است.',
+   }),
+   signal:AbortSignal.timeout(6500),
+  });
+  return r.ok;
+ }catch{return false;}
+}
+Deno.serve(async(req:Request)=>{
+ const origin=req.headers.get('origin')||'';
+ if(req.method==='OPTIONS')return origin===ORIGIN
+  ?new Response(null,{status:204,headers:{
+    'Access-Control-Allow-Origin':ORIGIN,
+    'Access-Control-Allow-Methods':'POST,OPTIONS',
+    'Access-Control-Allow-Headers':'Content-Type,X-Telegram-Init-Data',
+    'Vary':'Origin',
+  }})
+  :answer('',403,{error:'ORIGIN_NOT_ALLOWED'});
+ if(req.method!=='POST')return answer(origin,405,{error:'METHOD_NOT_ALLOWED'});
+ if(origin!==ORIGIN)return answer('',403,{error:'ORIGIN_NOT_ALLOWED'});
+ if(!BOT||!URL||!KEY||!ADMINS.length)
+  return answer(origin,503,{error:'ORIGINAL_ADMIN_NOT_CONFIGURED'});
+ const actor=await verifyTelegramInitData(
+  req.headers.get('x-telegram-init-data')||'',BOT);
+ if(!actor)return answer(origin,401,{error:'INVALID_TELEGRAM_AUTH'});
+ if(!isOwner(actor.id))return answer(origin,403,{error:'ADMIN_NOT_ALLOWED'});
+ if(!READ)return answer(origin,503,{error:'ORIGINAL_ADMIN_NOT_ENABLED'});
+
+ let body:Record<string,unknown>;
+ try{
+  const raw=await req.text();
+  if(raw.length>3000)return answer(origin,413,{error:'REQUEST_TOO_LARGE'});
+  const parsed=JSON.parse(raw);
+  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
+   return answer(origin,400,{error:'INVALID_REQUEST'});
+  body=parsed;
+ }catch{return answer(origin,400,{error:'INVALID_REQUEST'});}
+ const action=String(body.action||'');
+ const input=(body.input||{}) as Record<string,unknown>;
+ if(!input||typeof input!=='object'||Array.isArray(input))
+  return answer(origin,400,{error:'INVALID_INPUT'});
+ if(isWrite(action)&&!WRITE)
+  return answer(origin,503,{error:'ORIGINAL_ADMIN_WRITES_DISABLED'});
+ const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+
+ try{
+  if(action==='stats'){
+   const r=await db.from('users').select('chat_id',{count:'exact',head:true})
+     .eq('is_active',true);
+   if(r.error)throw r.error;
+   return answer(origin,200,{active_users:r.count||0});
+  }
+  if(action==='spreads'){
+   const r=await db.from('spread_settings').select('currency,spread_percent')
+     .limit(100);
+   if(r.error)throw r.error;
+   const settings={...DEFAULT_SPREADS};
+   for(const row of r.data||[]){
+    if(CODES.has(row.currency)&&Number.isFinite(Number(row.spread_percent)))
+     settings[row.currency]=Number(row.spread_percent);
+   }
+   return answer(origin,200,{spreads:settings});
+  }
+  if(action==='orders.pending'){
+   const r=await db.from('usdt_orders')
+     .select('id,order_type,asset,usdt_amount,total_afn,status,created_at')
+     .eq('status','pending').order('created_at',{ascending:true}).limit(20);
+   if(r.error)throw r.error;
+   return answer(origin,200,{orders:r.data||[]});
+  }
+  if(action==='spread.set'){
+   const currency=String(input.currency||'').toLowerCase().trim();
+   const amount=input.spread_percent;
+   const pct=Number(amount);
+   if(!CODES.has(currency)||typeof amount==='boolean'||amount==null||
+    !Number.isFinite(pct)||pct<0||pct>20){
+    return answer(origin,400,{error:'INVALID_SPREAD_INPUT'});
+   }
+   const r=await db.rpc('saraf_original_admin_set_spread',{
+    p_admin:actor.id,p_currency:currency,p_percent:pct,
+   });
+   if(r.error)throw r.error;
+   return answer(origin,200,{result:r.data});
+  }
+  if(action==='order.confirm'){
+   const orderId=Number(input.order_id);
+   if(!Number.isSafeInteger(orderId)||orderId<=0)
+    return answer(origin,400,{error:'INVALID_ORDER_ID'});
+   const r=await db.rpc('saraf_original_admin_confirm',{
+    p_admin:actor.id,p_order_id:orderId,
+   });
+   if(r.error){
+    const known=new Set(['INVALID_ADMIN_INPUT','ORDER_NOT_FOUND',
+      'INVALID_ORDER_TRANSITION']);
+    const code=known.has(r.error.message)?r.error.message:'CONFIRMATION_FAILED';
+    return answer(origin,code==='ORDER_NOT_FOUND'?404:409,{error:code});
+   }
+   const row=r.data as {order_id:number;chat_id:number;duplicate:boolean};
+   const notified=row?.duplicate?true:
+     await notifyOriginalCustomer(row.order_id,row.chat_id);
+   return answer(origin,200,{result:{
+    order_id:row.order_id,status:'confirmed',
+    duplicate:!!row.duplicate,customer_notified:notified,
+   }});
+  }
+  return answer(origin,404,{error:'ADMIN_COMMAND_NOT_PORTED'});
+ }catch(error){
+  console.warn('Saraf existing admin command failed',
+   String((error as {code?:string})?.code||'DATABASE_UNAVAILABLE'));
+  return answer(origin,503,{error:'ADMIN_DATABASE_UNAVAILABLE'});
+ }
+});
