@@ -34,16 +34,16 @@ async function onReadOnlyMessage(chatId, input) {
 
     case '👤 پروفایل':
     case '/profile': return reply(chatId,
-      '👤 معلومات حساب اصلی صراف در Supabase نگهداری می‌شود.\\n'+
-      'برای مشاهده اطلاعات واقعی، Mini App همین ربات را باز کنید.\\n'+
+      '👤 معلومات حساب اصلی صراف در Supabase نگهداری می‌شود.\n'+
+      'برای مشاهده اطلاعات واقعی، Mini App همین ربات را باز کنید.\n'+
       '⚠️ حساب آزمایشی دیتابیس جداگانه نیست.');
     case '📦 سفارش‌های من':
     case '/orders': return reply(chatId,
-      '📦 سفارش‌های قبلی شما در Supabase حفظ شده‌اند.\\n'+
+      '📦 سفارش‌های قبلی شما در Supabase حفظ شده‌اند.\n'+
       'نمایش امن تاریخچه از طریق Mini App پس از فعال‌شدن اتصال Supabase در دسترس خواهد بود.');
     case '💸 حواله‌های من':
     case '/remittances': return reply(chatId,
-      '💸 حواله‌های قبلی شما در Supabase حفظ شده‌اند.\\n'+
+      '💸 حواله‌های قبلی شما در Supabase حفظ شده‌اند.\n'+
       'نمایش امن سوابق از طریق Mini App پس از فعال‌شدن اتصال Supabase در دسترس خواهد بود.');
     case '💵 نرخ ارزها': return reply(chatId, 'کدام ارز مدنظر شماست؟ یا «نمایش همهٔ نرخ‌ها» را بزنید.', currencyList());
     case '🥇 نرخ طلا':
