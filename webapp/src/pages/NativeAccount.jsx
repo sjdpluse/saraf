@@ -61,6 +61,7 @@ export default function NativeAccount({navigate}) {
     </section>
     <section className="card" style={{padding:18}}>
       <h2 style={{fontSize:17}}>🛡 تأیید هویت</h2>
+      {profile?.identity_uploads_enabled===false && <p role="alert" className="notice warn">در حال حاضر دریافت سند هویتی غیرفعال است. لطفاً عکس تذکره یا سلفی را ارسال نکنید.</p>}
       <p>وضعیت: <strong>{profile?.kyc_status==='verified'?'✅ تأییدشده':profile?.kyc_status==='rejected'?'❌ ردشده':'⏳ در انتظار بررسی'}</strong></p>
       <p>برای ثبت مدارک، به چت خصوصی <strong>همین ربات صراف</strong> بروید و دو عکس جداگانه بفرستید:</p>
       <p><strong>۱.</strong> تصویر مدرک شناسایی با متن توضیح (Caption) دقیق <code>KYC_ID</code></p>
@@ -69,7 +70,7 @@ export default function NativeAccount({navigate}) {
       <button className="btn btn-outline" type="button" onClick={reload}>↻ بررسی دریافت تصاویر</button>
       <p>مدرک: {profile?.uploaded?.kyc_id?'✅':'❌'} | سلفی: {profile?.uploaded?.selfie?'✅':'❌'}</p>
       <button type="button" className="btn btn-primary"
-        disabled={busy || !profile?.has_basic_profile || !profile?.uploaded?.kyc_id || !profile?.uploaded?.selfie}
+        disabled={busy || !profile?.identity_uploads_enabled || !profile?.has_basic_profile || !profile?.uploaded?.kyc_id || !profile?.uploaded?.selfie}
         onClick={submitIdentity}>ارسال مدارک برای تأیید مدیر</button>
       <p className="notice">در این مرحله عکس‌ها فقط به چت خصوصی ربات ارسال می‌شوند. برای حفظ حریم خصوصی، مدارک را در گروه‌ها یا کانال‌ها نفرستید.</p>
     </section>
