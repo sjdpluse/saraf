@@ -143,12 +143,14 @@ export function originalRemittanceValuation({
   throw Error('ORIGINAL_REMITTANCE_USD_LIMIT');
  const quote=originalRemittancePricing(
    money(value),money(usdRate),money(feePercent));
- const quantUsd=n=>Math.round(n*100)/100;
+ // Python money.py uses ROUND_HALF_UP, not JS binary Math.round.
+ const usdValueRounded=exactMoney.toNumber(
+  exactMoney.round(usdValueDecimal,1000000n));
  return {
   asset:type,network:net,crypto_amount:exactMoney.toNumber(units),
   asset_price_usd:Number(priceUsd),
   asset_price_source:'CoinGecko',
-  usd_value:quantUsd(value),usd_rate:quote.usd_rate,
+  usd_value:usdValueRounded,usd_rate:quote.usd_rate,
   gross_afn:quote.gross_afn,fee_percent:quote.fee_percent,
   fee_afn:quote.fee_afn,payout_afn:quote.payout_afn,
   deposit_wallet:String(depositWallet).trim(),
