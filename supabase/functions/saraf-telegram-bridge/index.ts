@@ -68,7 +68,7 @@ function publicRemittance(row:DbRow) {
     beneficiary_province:row.beneficiary_province,
     beneficiary_city:row.beneficiary_city,created_at:row.created_at};
 }
-async function handler(db:ReturnType<typeof createClient>,user:TelegramUser,action:string,input:DbRow) {
+async function handler(db:ReturnType<typeof client>,user:TelegramUser,action:string,input:DbRow) {
   if(action==='profile.get'){
     const {data,error}=await db.from('user_profiles')
       .select('first_name,last_name,phone,kyc_status,id_document_path,selfie_path')
@@ -135,7 +135,7 @@ async function handler(db:ReturnType<typeof createClient>,user:TelegramUser,acti
       .range(offset,offset+limit-1);
     check(error);
     const ids=(data||[]).map((row:DbRow)=>row.id);
-    let votes=[];
+    let votes:DbRow[]=[];
     if(ids.length){
       const result=await db.from('miniapp_review_votes')
         .select('review_id,chat_id,vote').in('review_id',ids);
