@@ -1,24 +1,12 @@
-import { actor, getProfile, hasApprovedIdentity, hasBasicProfile } from '../lib/native_auth.js';
-import { IDENTITY_THRESHOLD_USD,IDENTITY_UPLOADS_ENABLED } from '../lib/native_config.js';
-import { latestMedia } from '../lib/native_media.js';
-export default async function (_input,ctx) {
-  const user=actor(ctx);
-  const [profile,id, selfie,receipt,beneficiary]=await Promise.all([
-    getProfile(user.id), latestMedia(user.id,'KYC_ID'),
-    latestMedia(user.id,'KYC_SELFIE'), latestMedia(user.id,'RECEIPT'),
-    latestMedia(user.id,'BENEFICIARY_ID'),
-  ]);
-  return {
-    has_basic_profile:hasBasicProfile(profile),
-    has_identity_verification:hasApprovedIdentity(profile),
-    has_identity_documents:Boolean(profile?.idDocumentFileId && profile?.selfieFileId),
-    identity_verification_threshold_usd:IDENTITY_THRESHOLD_USD,
-    kyc_status:profile?.kycStatus || 'pending',
-    identity_uploads_enabled:IDENTITY_UPLOADS_ENABLED,
-    profile:profile?{
-      first_name:profile.firstName, last_name:profile.lastName,
-      phone:profile.phone, kyc_status:profile.kycStatus,
-    }:null,
-    uploaded:{kyc_id:!!id,selfie:!!selfie,receipt:!!receipt,beneficiary_id:!!beneficiary},
-  };
+// Deprecated native SQLite endpoint. The ORIGINAL Supabase project is the
+// only canonical store for users, orders, remittances and reviews.
+// This handler fails closed rather than creating a parallel record or returning
+// an empty, misleading history. Use saraf-telegram-bridge instead.
+import { EndpointError } from 'sdk';
+export default async function (_input, ctx) {
+  if (!Number.isSafeInteger(ctx?.initData?.user?.id) || ctx.initData.user.id <= 0)
+    throw new EndpointError('Telegram authorization required',{code:'UNAUTHORIZED'});
+  throw new EndpointError('سوابق اصلی صراف فقط در Supabase محفوظ است؛ اتصال امن در حال آماده‌سازی است.',{
+    code:'CANONICAL_SUPABASE_REQUIRED',
+  });
 }
