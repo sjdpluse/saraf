@@ -12,7 +12,8 @@ CREATE OR REPLACE FUNCTION public.saraf_original_create_remittance(
   p_deposit_wallet text,p_sender_name text,p_sender_country text,
   p_sender_phone text,p_beneficiary_name text,p_beneficiary_phone text,
   p_province text,p_city text,p_address text,p_beneficiary_document text,
-  p_asset_price_usd numeric,p_usd_value numeric
+  p_asset_price_usd numeric,p_usd_value numeric,
+  p_kyc_threshold numeric
 ) RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path=''
 AS $$
 DECLARE
@@ -50,6 +51,8 @@ BEGIN
    OR p_amount IS NULL OR p_amount<=0
    OR p_asset_price_usd IS NULL OR p_asset_price_usd<=0
    OR p_usd_value IS NULL OR p_usd_value<10 OR p_usd_value>10000
+   OR p_kyc_threshold IS NULL OR p_kyc_threshold<=0
+     OR p_kyc_threshold>1000000
    OR p_usd_rate IS NULL OR p_usd_rate<=0
    OR p_gross_afn IS NULL OR p_gross_afn<=0
    OR p_fee_percent IS NULL OR p_fee_percent<0 OR p_fee_percent>25
@@ -89,7 +92,7 @@ BEGIN
   AND last_name IS NOT NULL AND phone IS NOT NULL)
  THEN RAISE EXCEPTION 'BASIC_PROFILE_REQUIRED' USING ERRCODE='P0001';
  END IF;
- IF p_usd_value>250 AND NOT EXISTS(SELECT 1 FROM public.user_profiles
+ IF p_usd_value>p_kyc_threshold AND NOT EXISTS(SELECT 1 FROM public.user_profiles
   WHERE chat_id=p_chat_id AND kyc_status IN ('verified','trusted')
   AND id_document_path IS NOT NULL AND selfie_path IS NOT NULL)
  THEN RAISE EXCEPTION 'IDENTITY_VERIFICATION_REQUIRED' USING ERRCODE='P0001';
@@ -165,13 +168,13 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.saraf_original_create_remittance(
  bigint,text,text,text,numeric,numeric,numeric,numeric,numeric,numeric,
- text,text,text,text,text,text,text,text,text,text,numeric,numeric)
+ text,text,text,text,text,text,text,text,text,text,numeric,numeric,numeric)
  FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.saraf_original_claim_remittance_tx(bigint,bigint,text)
  FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.saraf_original_create_remittance(
  bigint,text,text,text,numeric,numeric,numeric,numeric,numeric,numeric,
- text,text,text,text,text,text,text,text,text,text,numeric,numeric) TO service_role;
+ text,text,text,text,text,text,text,text,text,text,numeric,numeric,numeric) TO service_role;
 GRANT EXECUTE ON FUNCTION public.saraf_original_claim_remittance_tx(bigint,bigint,text)
  TO service_role;
 COMMIT;
