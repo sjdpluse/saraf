@@ -4,6 +4,7 @@ import { api } from 'sdk';
 import { VALID_CODES, money } from '../lib/currencies.js';
 import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.js';
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
+import { getOriginalCompareReport } from '../lib/legacy_compare.js';
 import { codeLabel,hasValidCurrency,validKarat,currencyList,currencyQuote,
   goldCalcMode,goldCalcKarat,comparePeriod,converterFrom,converterTo,
   converterAmounts,aboutKeyboard,originalStablecoinMenu } from '../lib/legacy_menus.js';
@@ -88,8 +89,13 @@ export default async function(query){
     if(type==='cmp_target'&&(a==='gold'||hasValidCurrency(a)))
       return edit(chat,id,(a==='gold'?'🥇 طلا (عیار ۲۴)':codeLabel(a))+
         '\nبا چه زمانی مقایسه شود؟',comparePeriod(a));
-    if(type==='cmp_period')return edit(chat,id,
-      '📊 این مقایسه هنوز به داده‌های تاریخی اصلی Supabase منتقل نشده است.');
+    if(type==='cmp_period'){
+      const days=Number(parts[2]);
+      if(![1,7,30,90].includes(days))return;
+      if(a!=='gold'&&!hasValidCurrency(a))return;
+      const report=await getOriginalCompareReport(a,days);
+      return edit(chat,id,report);
+    }
     // Never fabricate a payment status while original usdt_* callbacks are pending.
     if(type.startsWith('usdt_'))return api.sendMessage({chat_id:chat,text:
       'منطق اصلی سفارش هنوز منتقل نشده است؛ سفارشی ثبت نشد.'});
