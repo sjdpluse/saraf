@@ -4,4 +4,4 @@ export const IS_TELEGRAM_NATIVE =
   typeof __SARAF_NATIVE__ !== 'undefined' && __SARAF_NATIVE__ === true;
 
 export const NATIVE_UNAVAILABLE_MESSAGE =
-  'خدمات خریدوفروش، حواله و اطلاعات حساب در حال انتقال امن به Telegram Serverless است. فعلاً از ربات اصلی صراف استفاده کنید.';
+  'ثبت معامله یا حوالهٔ جدید تا تأیید نهایی سیستم مالی غیرفعال است؛ سوابق قبلی پس از اتصال امن Supabase نمایش داده می‌شوند.';
