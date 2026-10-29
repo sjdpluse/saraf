@@ -80,7 +80,7 @@ BEGIN
   IF (SELECT count(*) FROM public.usdt_orders)<>1 THEN
     RAISE EXCEPTION 'Unexpected extra financial orders created';
   END IF;
-  IF (SELECT count(*) FROM public.saraf_finance_attempts WHERE order_id IS NULL)<>0 THEN
+  IF (SELECT count(*) FROM public.saraf_finance_attempts AS x WHERE x.order_id IS NULL)<>0 THEN
     RAISE EXCEPTION 'Failed orders left idempotency side effects';
   END IF;
   IF has_function_privilege('anon','public.saraf_submit_order_atomic(bigint,bigint,text,jsonb)','EXECUTE') OR
