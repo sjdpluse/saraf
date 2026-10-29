@@ -10,7 +10,7 @@ type TelegramUser={id:number;first_name?:string;last_name?:string;username?:stri
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const BOT_TOKEN = Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN') || Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
-const allowedOrigin = (origin:string):boolean => /^https:\/\/app[0-9]+\.tgcloud\.ai$/.test(origin || '');
+const allowedOrigin = (origin:string):boolean => origin === 'https://app8533795882.tgcloud.ai';
 const resultHeaders = (origin:string) => ({
   'content-type':'application/json;charset=utf-8',
   'cache-control':'no-store',
@@ -164,7 +164,7 @@ async function handler(db:ReturnType<typeof client>,user:TelegramUser,action:str
     return {items,total:count||0,is_admin:originalReviewsAdmin(user.id)};
   }
   if(action==='reviews.create'){
-    const body=validString(input?.body,3,800).replace(/\\s+/g,' ');
+    const body=validString(input?.body,3,800).replace(/\s+/g,' ');
     const previous=await db.from('miniapp_reviews').select('created_at')
       .eq('chat_id',user.id).order('created_at',{ascending:false}).limit(1);
     check(previous.error);
@@ -182,7 +182,7 @@ async function handler(db:ReturnType<typeof client>,user:TelegramUser,action:str
   if(action==='reviews.reply'){
     if(!originalReviewsAdmin(user.id))throw new Error('ADMIN_NOT_ALLOWED');
     const id=validId(input?.review_id);
-    const body=validString(input?.body,3,1200).replace(/\\s+/g,' ');
+    const body=validString(input?.body,3,1200).replace(/\s+/g,' ');
     const now=new Date().toISOString();
     const updated=await db.from('miniapp_reviews').update({
       admin_reply:body,admin_replied_at:now,updated_at:now,
