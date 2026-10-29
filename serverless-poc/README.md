@@ -1,5 +1,8 @@
 # Saraf → Telegram Serverless | Safety-first migration
 
+> **CURRENT MIGRATION TRACK (29 Oct 2026):** The actual original React Saraf frontend now builds with `cd webapp && npm run build:telegram`, and `tgcloud.jsonc` serves `serverless-poc/dist`. Historical Phase 2/3 test-page instructions below are superseded. See [../SERVERLESS_MIGRATION_STATUS.md](../SERVERLESS_MIGRATION_STATUS.md). Financial trade/transfer functions are still disabled until the payment and data migration is complete. Do not deploy this branch to the live financial bot or turn off Railway yet.
+
+
 **STATUS: READ-ONLY TEST BOT PILOT. React variant added in source but not tested or deployed by the assistant. DO NOT DEPLOY TO THE LIVE SARAF BOT.**  
 **This folder is not a full migration and is deliberately isolated from `bot.py`, `admin_bot_remittance.py`, and `api_remittance.py`.**
 
