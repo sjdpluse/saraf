@@ -1,3 +1,36 @@
+## Follow-up migration changes (same original functionality, no new finance)
+
+- Removed the previously invented `saraf-finance` Edge Function, chain
+  watcher, two-operator payout SQL, new quote/remittance schema, rate limiter,
+  speculative financial UI adapter, its CI suite and finance rollout notes
+  from the migration branch. Those were not requested and do **not** belong
+  in a faithful Railway exit. No historic database row was changed.
+- Restored original customer financial paths to an explicit `NOT_MIGRATED`
+  response; unlike the prior speculative connector, this does not replace
+  the established financial calculations or quietly create an alternate
+  set of orders.
+- Ported the original **reviews manager reply** to the existing owner-signed
+  Supabase bridge (requires secret `SARAF_ADMIN_CHAT_IDS` to match Python's
+  admin allowlist) and restored the original review character limits and
+  comment cooldown. This revised bridge is staged in GitHub, **not live**.
+- Added **original** KYC document/selfie multipart workflow to the existing
+  `usdt-kyc-docs` private storage bucket, and original 24-hour signed
+  receipt URLs / remittance beneficiary document paths, via staged Supabase
+  Edge adapters. These are **disabled by default** and not deployed.
+  Original admin review/Telegram document-photo workflow and full
+  end-to-end document security verification must pass before enabling.
+- The original React forms route to the staged adapters without switching to
+  Railway. For unsigned or unported actions, clients fail closed. Public
+  bot-user secrets remain on server-side only.
+- The GitHub Telegram native CI now type-checks the staged Edge functions;
+  the actual original bot remains untouched and publishing is still blocked.
+
+**Still incomplete:** original live trading and remittance quote/settlement
+semantics; admin commands, Telegram-native KYC chat, historic local spreads,
+scheduled snapshots and Facebook/Instagram jobs/webhooks. These require
+literal porting of existing Python services and parity/e2e testing. A working
+build of React or a staged upload route does not fulfill this exit criterion.
+
 ## Migration-only changes completed on this branch (2026-10-29)
 
 This update restores existing behavior rather than adding products:
