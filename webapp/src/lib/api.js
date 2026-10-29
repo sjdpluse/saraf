@@ -48,7 +48,7 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
     if (path === '/usdt/orders/me' && method === 'GET') return canonicalCall('orders.me');
     if (path === '/usdt/payment-info' && method === 'GET') return nativeCall('getNativePaymentInfo');
     if (path === '/stablecoins/config' && method === 'GET') return originalFinanceCall('stablecoins.config');
-    if (path === '/remittances/config' && method === 'GET') return nativeCall('getNativeRemittanceConfig');
+    if (path === '/remittances/config' && method === 'GET') return originalFinanceCall('remittances.config');
     if (path === '/remittances/me' && method === 'GET') return canonicalCall('remittances.me');
     // Original signed Telegram / Supabase quote and order API. Supabase and
     // React feature switches remain OFF until original-bot E2E validation.
@@ -60,6 +60,12 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
       });
     if(path==='/usdt/orders/sell'&&method==='POST')
       return originalFinanceCall('order.sell',{
+        ...body,idempotency_key:extraHeaders['Idempotency-Key'],
+      });
+    if(path==='/remittances/quote'&&method==='POST')
+      return originalFinanceCall('remittances.quote',body);
+    if(path==='/remittances'&&method==='POST')
+      return originalFinanceCall('remittances.create',{
         ...body,idempotency_key:extraHeaders['Idempotency-Key'],
       });
     // Preserve the ORIGINAL Python pricing/payment semantics. Until those
@@ -77,7 +83,7 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
     });
     match=path.match(/^\/remittances\/(\d+)\/tx$/);
     if(match&&method==='POST')
-      throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE,503,'NOT_MIGRATED');
+      return originalFinanceCall('remittances.tx',{...body,order_id:Number(match[1])});
     match=path.match(/^\/reviews(?:\?limit=(\d+)&offset=(\d+))?$/);
     if (match && method==='GET') return canonicalCall('reviews.list', {
       limit:Number(match[1])||20,offset:Number(match[2])||0,
