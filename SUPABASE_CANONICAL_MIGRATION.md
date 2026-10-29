@@ -74,6 +74,40 @@ we do not have the native Telegram cloud bot deployment credentials.
 storage were made by these checks.** Financial writes and identity uploads
 remain explicitly disabled.
 
+## Identified original bot and no-clone release path
+
+The owner identified the **original Saraf bot** as `@sarafiaf_bot`.
+The **main** branch now contains a standalone, manually triggered GitHub Actions workflow:
+`.github/workflows/saraf-original-readonly-release.yml`.
+It checks out this migration branch and builds the ORIGINAL React Mini App in
+`build:telegram-original` mode. The safe release packager
+`scripts/prepare_saraf_original_release.mjs` selects ONLY market handlers and
+read-only endpoints. It deploys **no Telegram SQLite schema**, account writes,
+KYC handling, order creation, remittance submission, or admin settlement.
+
+To use this without cloning:
+1. @BotFather → select `@sarafiaf_bot` → **Serverless** → enable →
+   **CLI Access** → copy its `app<id>:<secret>` access token.
+   This is **not** the Bot API token stored in Supabase.
+2. In GitHub repository Settings → Secrets and variables → Actions,
+   create secret **`SARAF_ORIGINAL_TGCLOUD_TOKEN`** with that CLI token.
+3. In GitHub Actions, run **Saraf original bot – manually approved read-only Telegram Serverless release**.
+   First choose `preview`, type `sarafiaf_bot` and the **public** app ID
+   (`app<id>` token prefix), and leave confirmation blank.
+4. Inspect the cloud changes. **Only with a deliberate second manual action** choose
+   `publish` and enter the exact approval phrase
+   `PUBLISH_READ_ONLY_SARAFIAF_BOT`. This calls `tgcloud push` and
+   `tgcloud webhook sync` **without** `--force` or `--drop-pending`.
+5. Once published, point the **original** bot's Mini App menu button to the
+   exact `https://app<id>.tgcloud.ai/` URL displayed by the workflow.
+   Test account ownership on a fresh, signed original-bot Mini App session
+   before announcing the system as ready.
+
+**Do not paste either token into chat or the GitHub repository.**
+GitHub's workflow does not run on push/PR and will not publish automatically.
+The account and existing financial history remain in Supabase and payment writes
+are still disabled.
+
 ## Launch prerequisites (in this order)
 
 1. Protect and verify the **existing** Supabase SQL data and storage; take a point-in-time
