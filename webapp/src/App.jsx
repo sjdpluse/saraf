@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Home from "./pages/Home";
 import Markets from "./pages/Markets";
+import NativeAccount from "./pages/NativeAccount";
 import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./lib/runtime";
 import Buy from "./pages/Buy";
 import Sell from "./pages/Sell";
@@ -43,7 +44,7 @@ export default function App() {
   }, []);
 
   function navigate(p) {
-    if (IS_TELEGRAM_NATIVE && ['buy', 'sell', 'orders', 'remittances', 'remittance', 'reviews', 'kyc'].includes(p)) {
+    if (IS_TELEGRAM_NATIVE && ['buy', 'sell', 'orders', 'remittances', 'remittance', 'kyc'].includes(p)) {
       setError(NATIVE_UNAVAILABLE_MESSAGE);
       return;
     }
@@ -123,6 +124,7 @@ export default function App() {
           <Home navigate={navigate} startTransaction={startTransaction} readOnly={IS_TELEGRAM_NATIVE} />
         )}
         {page === "markets" && IS_TELEGRAM_NATIVE && <Markets navigate={navigate} />}
+        {page === "account" && IS_TELEGRAM_NATIVE && <NativeAccount navigate={navigate} />}
         {page === "buy" && !IS_TELEGRAM_NATIVE && (
           <Buy
             asset={asset}
@@ -161,7 +163,7 @@ export default function App() {
         {page === "orders" && !IS_TELEGRAM_NATIVE && <Orders navigate={navigate} showError={showError} />}
         {page === "remittances" && !IS_TELEGRAM_NATIVE && <Remittances navigate={navigate} onContinue={(order) => { setRemittanceOrder(order); navigate("remittance"); }} />}
         {page === "about" && <About navigate={navigate} />}
-        {page === "reviews" && !IS_TELEGRAM_NATIVE && <Reviews navigate={navigate} showError={showError} />}
+        {page === "reviews" && <Reviews navigate={navigate} showError={showError} />}
         {page === "terms" && <Terms navigate={navigate} />}
         {page === "menu" && <Menu navigate={navigate} readOnly={IS_TELEGRAM_NATIVE} />}
         {page === "justmarkets" && <JustMarkets navigate={navigate} />}
