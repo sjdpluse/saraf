@@ -9,6 +9,11 @@ import {originalBuyPricing,originalSellPricing,originalRemittancePricing}
  from './pricing.mjs';
 import {selectOriginalBasis} from './rates.mjs';
 import {fetchOriginalCurrencyRates,fetchOriginalLocalMarkets} from './markets.mjs';
+import {
+ originalRemittanceWallets,originalRemittanceConfig,originalAssetPriceUsd,
+ ORIGINAL_ASSETS,
+ originalRemittanceValuation,
+} from './remittance.mjs';
 
 const ORIGIN='https://app8533795882.tgcloud.ai';
 const TOKEN=Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN')||'';
@@ -75,39 +80,59 @@ const walletShape=(network:string,address:string)=>{
  if(network==='SOLANA')return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v);
  return false;
 };
-function remittanceWallets(kind:Asset):Json{
- // Mirrors existing main:services/remittance_wallet_config.py data layout:
- // REMITTANCE_WALLETS_JSON={USDT:{ERC20:"..."},USDC:{BEP20:"..."}}.
- let all:unknown={};
- try{all=JSON.parse(Deno.env.get('SARAF_REMITTANCE_WALLETS_JSON')||'{}');}
- catch{return {};}
- if(!all||typeof all!=='object'||Array.isArray(all))return {};
- const block=(all as Json)[kind];
- if(!block||typeof block!=='object'||Array.isArray(block))return {};
- const r:Json={};
- for(const name of kind==='USDT'?['TRC20','ERC20','BEP20']:['BEP20','ERC20']){
-   const v=(block as Json)[name];
-   if(v&&walletShape(name,String(v)))r[name]=String(v);
+function remittanceV2Enabled(){
+ return (Deno.env.get('REMITTANCE_V2_ENABLED')||
+    Deno.env.get('SARAF_REMITTANCE_V2_ENABLED')||'false')
+    .toLowerCase()==='true';
+}
+function remittanceEnv():Record<string,string>{
+ // Original main:services/remittance_wallet_config.py uses environment
+ // configuration supplied by the operator. Never hardcode deposit wallets.
+ const names=['REMITTANCE_WALLETS_JSON','SARAF_REMITTANCE_WALLETS_JSON',
+  'SARAF_USDT_DEPOSIT_WALLETS_JSON','USDT_DEPOSIT_WALLETS_JSON'];
+ const config:Record<string,string>={};
+ for(const name of names)config[name]=Deno.env.get(name)||'';
+ for(const [asset,metadata] of Object.entries(ORIGINAL_ASSETS)){
+  for(const net of metadata.networks){
+   const name='REMITTANCE_'+asset+'_'+net+'_WALLET';
+   config[name]=Deno.env.get(name)||'';
+  }
  }
- return r;
+ return config;
 }
 function remittancePercent(){
- const rate=Number(Deno.env.get('SARAF_REMITTANCE_FEE_PERCENT')||'0');
+ const raw=Deno.env.get('REMITTANCE_FEE_PERCENT')||
+   Deno.env.get('SARAF_REMITTANCE_FEE_PERCENT')||'0';
+ const rate=Number(raw);
  if(!Number.isFinite(rate)||rate<0||rate>25)
    deny('REMITTANCE_FEE_NOT_CONFIGURED',503);
  return rate;
 }
-function remittancePreview(input:Json,rate:number,feePercent:number){
- const a=amount(input.amount),type=asset(input.asset);
+function remittanceLimit(name:string,defaultValue:number){
+ const value=Number(Deno.env.get(name)||String(defaultValue));
+ if(!Number.isFinite(value)||value<=0||value>1000000)
+  deny('ORIGINAL_REMITTANCE_LIMIT_INVALID',503);
+ return value;
+}
+async function remittancePreview(input:Json,rate:number,feePercent:number){
+ const v2=remittanceV2Enabled();
+ const asset=String(input.asset||'').toUpperCase();
  const network=String(input.network||'').toUpperCase();
- const configured=remittanceWallets(type);
- if(!configured[network])deny('DEPOSIT_WALLET_NOT_CONFIGURED');
- const math=originalRemittancePricing(String(a),String(rate),feePercent);
- return {asset:type,network,crypto_amount:a,usd_rate:math.usd_rate,
-   gross_afn:math.gross_afn,fee_percent:math.fee_percent,
-   fee_afn:math.fee_afn,payout_afn:math.payout_afn,
-   deposit_wallet:configured[network],basis:'local_or_reference',
-   usd_value:a,asset_price_usd:1};
+ const wallets=originalRemittanceWallets(remittanceEnv(),v2);
+ const net=network==='SOLANA'?'SOL':network==='BTC'?'BITCOIN':network;
+ const deposit=wallets?.[asset]?.[net];
+ if(!deposit)deny('DEPOSIT_WALLET_NOT_CONFIGURED',503);
+ const price=await originalAssetPriceUsd(asset);
+ let quote;
+ try{
+  quote=originalRemittanceValuation({
+    asset,network:net,amount:input.amount,priceUsd:price.price,
+    usdRate:rate,feePercent,depositWallet:deposit,v2,
+    minUsd:remittanceLimit('REMITTANCE_MIN_USD',10),
+    maxUsd:remittanceLimit('REMITTANCE_MAX_USD',10000),
+  });
+ }catch{deny('ORIGINAL_REMITTANCE_INVALID_QUOTE');}
+ return {...quote,basis:'local_or_reference'};
 }
 function wallets(kind:Asset):Json{
  // Same server-side source as main:services/stablecoin_networks.py.
@@ -220,21 +245,18 @@ Deno.serve(async req=>{
   }
   if(action==='remittances.config'){
     const pct=remittancePercent();
-    const names:{[key:string]:string}={
-      USDT:'Tether (USDT)',USDC:'USD Coin (USDC)'};
-    const assets=(['USDT','USDC'] as Asset[])
-     .map(type=>({asset:type,name:names[type],
-      networks:Object.keys(remittanceWallets(type))
-       .map(network=>({code:network,label:network}))}))
-     .filter(item=>item.networks.length);
+    const assets=originalRemittanceConfig(remittanceEnv(),remittanceV2Enabled());
     return out(origin,200,{
-      assets,fee_percent:pct,identity_verification_threshold_usd:250,
-      min_usd:10,max_usd:10000,
+      assets,fee_percent:pct,
+      identity_verification_threshold_usd:
+       Number(Deno.env.get('USDT_IDENTITY_VERIFICATION_THRESHOLD_USD')||250),
+      min_usd:remittanceLimit('REMITTANCE_MIN_USD',10),
+      max_usd:remittanceLimit('REMITTANCE_MAX_USD',10000),
     });
   }
   if(action==='remittances.quote'||action==='remittances.create'){
     const rate=await originalRates(db),fee=remittancePercent();
-    const quote=remittancePreview(input,rate.saraf_quote.buy,fee);
+    const quote=await remittancePreview(input,rate.saraf_quote.buy,fee);
     quote.basis=rate.saraf_quote.basis;
     if(action==='remittances.quote')return out(origin,200,quote);
     if(!ADMINS.length||!ADMIN_TOKEN)
