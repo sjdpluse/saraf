@@ -1,3 +1,39 @@
+## Migration-only changes completed on this branch (2026-10-29)
+
+This update restores existing behavior rather than adding products:
+
+- Reverted the read-only replacements of the ORIGINAL React `App.jsx`,
+  `Home.jsx`, `Menu.jsx` and `BottomNav.jsx`. Original buy, sell, KYC,
+  orders, remittances, reviews and JustMarkets screens remain visible in the
+  React source. Their API operations are **not yet fully migrated**, so this
+  is preview-only and cannot be presented to paying customers as complete.
+- Ported original `keyboards.py` labels and callback_data into
+  `serverless-poc/tgcloud/lib/legacy_menus.js`. Added JavaScript handlers for
+  original about/currency/gold/silver/converter callbacks, including numeric
+  amount reply prompts. Historical comparisons and transactional flows remain
+  pending; visible rate data is still international reference pricing, not
+  equivalent to original Saraf local bid/ask spreads.
+- Restored original USDT/USDC and JustMarkets Mini App deep links on the
+  original @sarafiaf_bot Telegram-hosted URL.
+- Updated the no-clone preview packager to include callback_query handler and
+  calculators. The CI artifact `saraf-original-serverless-preview` now holds
+  only this allowlisted deployment package, **not the experimental shadow
+  finance modules**.
+- Adapted the **staged** Supabase bridge history response to original
+  `REM-000001` codes, owner TxID and status-dependent pickup-code visibility.
+  This edited Edge source is **not yet redeployed** to Supabase.
+- Tests for original bot keyboard callbacks and original React page coverage
+  pass in GitHub Actions.
+
+**Unported:** full original Python banking and USDT/USDC workflows,
+file uploads/KYC, all admin commands and moderation, background schedules,
+Meta inbound webhooks, historical local-rate comparisons, original bot
+persisted user state, full FastAPI response compatibility.
+
+The `main` workflow still **blocks publish** and does not replace the
+original bot's webhook. A CI build or downloaded preview zip is not a
+working complete replacement for the legacy Railway service.
+
 # SARAF — SCOPE RESET: MIGRATION ONLY (29 Oct 2026)
 
 ## Original user request
