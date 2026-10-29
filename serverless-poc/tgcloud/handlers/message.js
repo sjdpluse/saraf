@@ -7,6 +7,8 @@ import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
 import { getCryptoPrices, cryptoLabel } from '../lib/cryptos.js';
 import { getLocalMarketRates } from '../lib/local_market_service.js';
+import { acceptMedia } from '../lib/native_media.js';
+import { adminCommand } from '../lib/native_admin.js';
 
 const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
 export const currencyText = (rates, codes = VALID_CODES) =>
@@ -58,6 +60,10 @@ async function onReadOnlyMessage(chatId, input) {
 export default async function (message) {
   const chatId = message?.chat?.id;
   if (!Number.isSafeInteger(chatId) || message.chat?.type !== 'private') return;
+  // Message ownership is the canonical Telegram identity for media and admin actions.
+  if (!Number.isSafeInteger(message?.from?.id) || message.from.id !== chatId) return;
+  if (await acceptMedia(message)) return;
+  if (await adminCommand(message)) return;
   const input = String(message.text ?? '').trim();
   if (!input) return;
   if (/^\/(?:start|ping)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) {
