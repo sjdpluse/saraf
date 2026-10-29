@@ -29,6 +29,14 @@ jobs:
       - name: Build ORIGINAL bot Mini App with canonical Supabase bridge enabled
         working-directory: webapp
         run: npm run build:telegram-original
+      - name: Prepare allowlisted ORIGINAL bot release (no shadow DB or finance endpoints)
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test -s serverless-poc/.release-original/dist/index.html
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeOrder.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeRemittance.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/submitNativeIdentity.js
       - name: Verify Serverless static content exists
         run: |
           test -s serverless-poc/dist/index.html
