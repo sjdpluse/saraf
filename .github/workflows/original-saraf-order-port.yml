@@ -15,6 +15,7 @@ on:
       - 'supabase/functions/saraf-original-transactions/**'
       - 'serverless-poc/tgcloud/lib/legacy_stablecoin_pricing.js'
       - 'serverless-poc/tests/original_stablecoin_pricing.test.js'
+      - 'serverless-poc/tests/original_remittance_v2.test.js'
       - '.github/workflows/original-saraf-order-port.yml'
   workflow_dispatch:
 permissions:
@@ -48,8 +49,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Pure original 50-30-20 and AFN rounding regression
-        run: node --test serverless-poc/tests/original_stablecoin_pricing.test.js
+      - name: Original Saraf trading and remittance V2 pricing fixtures
+        run: node --test serverless-poc/tests/original_stablecoin_pricing.test.js serverless-poc/tests/original_remittance_v2.test.js
       - name: Detect accidental changes between Telegram and Supabase pricing ports
         run: cmp serverless-poc/tgcloud/lib/legacy_stablecoin_pricing.js supabase/functions/saraf-original-transactions/pricing.mjs
       - name: Install synthetic legacy tables
