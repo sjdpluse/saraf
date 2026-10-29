@@ -212,7 +212,7 @@ Deno.serve(async req=>{
     total_usd:values.total_usd,
     payable_usd:side==='buy'?values.total_usd:undefined,
     pricing_model:side==='buy'?'local_margin_share_50_30_20':undefined,
-    quote_id:stored.data.id,expires_at:stored.data.expires_at,
+    quote_id:stored.data!.id,expires_at:stored.data!.expires_at,
    }));
   }
   if(action==='order.buy'||action==='order.sell'){
@@ -251,15 +251,15 @@ Deno.serve(async req=>{
      let link:URL|null=null;
      try{link=new URL(raw);}catch{deny('OWN_RECEIPT_REQUIRED');}
      if(!link)deny('OWN_RECEIPT_REQUIRED');
-     if(link.origin!==new URL(SUPABASE).origin ||
-       !link.pathname.startsWith('/storage/v1/object/sign/usdt-receipts/'+user.id+'_')
-       ||!link.searchParams.get('token'))deny('OWN_RECEIPT_REQUIRED');
+     if(link!.origin!==new URL(SUPABASE).origin ||
+       !link!.pathname.startsWith('/storage/v1/object/sign/usdt-receipts/'+user.id+'_')
+       ||!link!.searchParams.get('token'))deny('OWN_RECEIPT_REQUIRED');
      // Supabase independently authenticates the signature before accepting
      // a receipt claim. A fabricated path is NOT sufficient.
-     const image=await fetch(link.href,{method:'GET',
+     const image=await fetch(link!.href,{method:'GET',
       signal:AbortSignal.timeout(5500)});
      if(!image.ok)deny('OWN_RECEIPT_UNAVAILABLE');
-     details.receipt_file_id=link.href;
+     details.receipt_file_id=link!.href;
     }
    }else{
     const proof=String(input.tx_proof||'').trim();
