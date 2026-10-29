@@ -6,7 +6,7 @@ import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
 import { codeLabel,hasValidCurrency,validKarat,currencyList,currencyQuote,
   goldCalcMode,goldCalcKarat,comparePeriod,converterFrom,converterTo,
-  converterAmounts,aboutKeyboard } from '../lib/legacy_menus.js';
+  converterAmounts,aboutKeyboard,originalStablecoinMenu } from '../lib/legacy_menus.js';
 const fmt=(n,d=2)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const edit=(chat,id,text,markup)=>api.editMessageText({
   chat_id:chat,message_id:id,text,...(markup?{reply_markup:markup}:{})});
@@ -38,8 +38,9 @@ export default async function(query){
   try{
     await api.answerCallbackQuery({callback_query_id:query.id});
     if(type==='about'){
-      if(a==='open_usdt')return api.sendMessage({chat_id:chat,text:
-        '🪙 خدمات USDT / USDC در Mini App اصلی پس از انتقال کامل فعال می‌شوند.'});
+      if(a==='open_usdt')return api.sendMessage({chat_id:chat,
+        text:'🪙 خرید و فروش USDT / USDC\nدارایی و نوع معامله را انتخاب کنید:',
+        reply_markup:originalStablecoinMenu()});
       if(ABOUT[a])return edit(chat,id,ABOUT[a],aboutKeyboard(a));
     }
     if(type==='cur'||type==='ref'){
