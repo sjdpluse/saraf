@@ -1,7 +1,7 @@
 import { EndpointError, db } from 'sdk';
 import { eq, desc } from 'sdk/db';
 import { nativeAudit, nativeProfiles } from '../schema.js';
-import { ADMIN_USER_IDS, FINANCIAL_WRITES_ENABLED } from './native_config.js';
+import { ADMIN_USER_IDS, FINANCIAL_WRITES_ENABLED, IDENTITY_THRESHOLD_USD, REQUIRE_VERIFIED_KYC } from './native_config.js';
 
 export function actor(ctx) {
   const user = ctx?.initData?.user;
@@ -79,7 +79,6 @@ export async function checkProfileGate(userId, amountUsd) {
   const profile=await getProfile(userId);
   if (!hasBasicProfile(profile)) invalid('ابتدا پروفایل را تکمیل کنید.', 'PROFILE_REQUIRED');
   if (profile.kycStatus === 'restricted') invalid('حساب شما محدود شده است.', 'ACCOUNT_RESTRICTED');
-  const { IDENTITY_THRESHOLD_USD, REQUIRE_VERIFIED_KYC } = await import('./native_config.js');
   if (amountUsd > IDENTITY_THRESHOLD_USD &&
       !(REQUIRE_VERIFIED_KYC ? hasApprovedIdentity(profile) : Boolean(profile.idDocumentFileId && profile.selfieFileId))) {
     invalid('احراز هویت تأییدشده برای این مبلغ لازم است.', 'IDENTITY_VERIFICATION_REQUIRED');
