@@ -280,7 +280,9 @@ Deno.serve(async req=>{
     if(profile.error||!profile.data?.phone)
       deny('BASIC_PROFILE_REQUIRED',403);
     // Matches original V2: KYC threshold is USD value, not raw crypto count.
-    if(quote.usd_value>250){
+    if(!quote||!Number.isFinite(Number(quote.usd_value)))
+      deny('ORIGINAL_REMITTANCE_INVALID_QUOTE',503);
+    if(Number(quote.usd_value)>250){
       const verified=await db.from('user_profiles').select(
         'kyc_status,id_document_path,selfie_path')
         .eq('chat_id',user.id).maybeSingle();
