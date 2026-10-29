@@ -4,6 +4,8 @@ on:
     paths:
       - 'supabase/sql/saraf_original_usdt_order_rpc_STAGED.sql'
       - 'supabase/sql/saraf_original_remittance_rpc_STAGED.sql'
+      - 'supabase/sql/saraf_original_meta_transport_STAGED.sql'
+      - 'supabase/sql/ci_only/original_meta_queue_invariants.sql'
       - 'supabase/sql/ci_only/original_usdt*'
       - 'supabase/functions/saraf-original-transactions/**'
       - 'serverless-poc/tgcloud/lib/legacy_stablecoin_pricing.js'
@@ -55,6 +57,10 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_usdt_order_invariants.sql
       - name: Verify original beneficiary and TX submission invariants
         run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_remittance_invariants.sql
+      - name: Stage original Meta webhook delivery transport in isolated PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_original_meta_transport_STAGED.sql
+      - name: Assert signed Meta queue is private and idempotent
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_meta_queue_invariants.sql
       - name: Confirm original production Supabase is never a test target
         run: |
           if env | grep -E '^(SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY|SARAF_TELEGRAM_BOT_TOKEN)='; then
