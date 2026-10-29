@@ -1,5 +1,7 @@
 import { getInitData } from "./telegram";
 import { normalizeAsset } from "./brand";
+import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./runtime";
+import { nativeCall } from "./nativeApi";
 
 class ApiError extends Error {
   constructor(message, status, code) {
@@ -21,6 +23,13 @@ const orderRetryKeys = new Map();
 const remittanceRetryKeys = new Map();
 
 async function request(path, { method = "GET", body, isForm = false, headers: extraHeaders = {} } = {}) {
+  if (IS_TELEGRAM_NATIVE) {
+    // Only explicitly migrated reads are routed to native Telegram Serverless.
+    // No financial API call can silently fall back to Railway or expose initData.
+    if (path === '/market/snapshot' && method === 'GET') return nativeCall('getMarketSnapshot');
+    if (path === '/usdt/stats' && method === 'GET') return { average_rating: null, completed_orders: null };
+    throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
+  }
   const headers = { "X-Telegram-Init-Data": getInitData(), ...extraHeaders };
   if (!isForm && body !== undefined) headers["Content-Type"] = "application/json";
 
@@ -37,6 +46,7 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
 }
 
 async function requestBlob(path, body) {
+  if (IS_TELEGRAM_NATIVE) throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
   const res = await fetch(`/api${path}`, {
     method: "POST",
     headers: { "X-Telegram-Init-Data": getInitData(), "Content-Type": "application/json" },
