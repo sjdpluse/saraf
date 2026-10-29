@@ -15,6 +15,8 @@ export default function OriginalAdmin({navigate}){
  const [code,setCode]=useState('usd');
  const [pct,setPct]=useState('0.6');
  const [orderId,setOrderId]=useState('');
+ const [broadcastMessage,setBroadcastMessage]=useState('');
+ const [broadcastKey,setBroadcastKey]=useState('');
  async function load(action,input={}){
   setBusy(true);setError('');
   try{
@@ -27,9 +29,9 @@ export default function OriginalAdmin({navigate}){
  useEffect(()=>{
   const params=new URLSearchParams(location.search);
   const command=params.get('admin')||'';
-  const requested=['stats','spreads','pending','setspread','confirm']
+  const requested=['stats','spreads','pending','setspread','confirm','broadcast']
    .includes(command)?command:'stats';
-  const next=requested==='pending'?'orders.pending':
+  const next=requested==='broadcast'?'broadcast':requested==='pending'?'orders.pending':
    requested==='confirm'?'orders.pending':requested==='setspread'?'spreads':requested;
   setSection(next);
   if(next==='stats'||next==='spreads'||next==='orders.pending')load(next);
@@ -37,6 +39,8 @@ export default function OriginalAdmin({navigate}){
   if(prefillCode&&CODES.includes(prefillCode))setCode(prefillCode);
   const amount=params.get('percent');
   if(amount&&/^\d{1,2}(?:\.\d{1,2})?$/.test(amount))setPct(amount);
+  const prefill=params.get('broadcast');
+  if(prefill&&prefill.length<=1024)setBroadcastMessage(prefill);
   const id=params.get('order_id');
   if(id&&/^[1-9]\d{0,12}$/.test(id))setOrderId(id);
  },[]);
@@ -46,6 +50,21 @@ export default function OriginalAdmin({navigate}){
   if(!await showConfirm('سفارش USDT-'+String(n).padStart(5,'0')+
     ' را مطابق دستور اصلی /usdtconfirm تأیید می‌کنید؟'))return;
   await load('order.confirm',{order_id:n});
+ }
+ async function createBroadcast(event){
+  event.preventDefault();
+  const body=broadcastMessage.trim();
+  if(!body||body.length>4096){
+   setError('متن پیام باید بین ۱ تا ۴۰۹۶ حرف باشد.');return;
+  }
+  if(!await showConfirm('این پیام به تمام کاربران فعال ربات صراف فرستاده شود؟\\n\\n'+
+    body.slice(0,200)))return;
+  let id=broadcastKey;
+  if(!id){id=globalThis.crypto?.randomUUID?.()||'';
+   if(!id){setError('شناسهٔ امن برای جلوگیری از ارسال تکراری در دسترس نیست.');return;}
+   setBroadcastKey(id);
+  }
+  await load('broadcast.create',{message:body,idempotency_key:id});
  }
  async function saveSpread(event){
   event.preventDefault();
@@ -102,6 +121,39 @@ export default function OriginalAdmin({navigate}){
     ✅ اسپرد {result.result?.currency?.toUpperCase()} روی
     {' '}{cash(result.result?.spread_percent)}٪ ثبت شد.
   </p>}
+  <section style={{margin:'24px 0',display:'grid',gap:10}}>
+   <h2 style={{fontSize:17}}>ارسال پیام همگانی (/broadcast)</h2>
+   <form style={{display:'grid',gap:10}} onSubmit={createBroadcast}>
+    <textarea aria-label="متن پیام همگانی" rows={4}
+     maxLength={4096} value={broadcastMessage}
+     onChange={event=>{
+      setBroadcastMessage(event.target.value);
+      setBroadcastKey('');
+     }} placeholder="متن پیام همگانی برای کاربران فعال" />
+    <p>فقط پس از تأیید مدیر، پیام به صف ارسال خصوصی می‌رود.
+     کاربرانی که /stop زده‌اند پیام دریافت نمی‌کنند.</p>
+    <button disabled={busy||!broadcastMessage.trim()} type="submit">
+     تأیید و ثبت پیام در صف
+    </button>
+   </form>
+   {result?.action==='broadcast.create'&&<div className="notice">
+     ✅ پیام در صف قرار گرفت. شناسه: {result.result?.broadcast_id}
+     {' — '}تعداد گیرندگان: {cash(result.result?.audience_size)}
+     {result.result?.duplicate?' (درخواست تکراری)':''}
+     <div style={{marginTop:8}}>
+      <button disabled={busy} onClick={()=>load('broadcast.status',{
+       broadcast_id:result.result?.broadcast_id,
+      })}>مشاهده وضعیت ارسال</button>
+     </div>
+   </div>}
+   {result?.action==='broadcast.status'&&<div className="notice">
+     وضعیت: {result.result?.status}
+     {' | '}ارسال‌شده: {cash(result.result?.deliveries?.sent)}
+     {' | '}ناموفق: {cash(result.result?.deliveries?.failed)}
+     {' | '}نامعلوم: {cash(result.result?.deliveries?.uncertain)}
+     {' | '}انصراف‌داده: {cash(result.result?.deliveries?.skipped)}
+   </div>}
+  </section>
   <form onSubmit={saveSpread} style={{display:'grid',gap:10,marginTop:22}}>
    <h2 style={{fontSize:17}}>تنظیم اسپرد (/setspread)</h2>
    <select value={code} onChange={event=>setCode(event.target.value)}>
@@ -120,7 +172,7 @@ export default function OriginalAdmin({navigate}){
    </button>
   </section>
   <p className="notice" style={{marginTop:24}}>
-   ارسال همگانی (/broadcast) تا انتقال کامل صف پیام‌رسانی غیرفعال است.
+   برای امنیت، ارسال همگانی بدون فعال‌سازی مجزای سرور و بررسی دستی انجام نمی‌شود.
   </p>
  </main>;
 }
