@@ -4,6 +4,7 @@ import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./runtime";
 import { nativeCall } from "./nativeApi";
 import { canonicalCall } from "./supabaseBridge";
 import { uploadOriginalIdentity } from "./legacyKycBridge";
+import { uploadOriginalImage } from "./legacyUploads";
 
 class ApiError extends Error {
   constructor(message, status, code) {
@@ -40,6 +41,9 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
       });
     }
     if (path === '/usdt/kyc' && method === 'POST') return uploadOriginalIdentity(body);
+    if (path === '/usdt/upload-receipt' && method === 'POST') return uploadOriginalImage('receipt',body);
+    if (path === '/remittances/upload-beneficiary-id' && method === 'POST')
+      return uploadOriginalImage('beneficiary',body);
     if (path === '/usdt/orders/me' && method === 'GET') return canonicalCall('orders.me');
     if (path === '/usdt/payment-info' && method === 'GET') return nativeCall('getNativePaymentInfo');
     if (path === '/stablecoins/config' && method === 'GET') return nativeCall('getNativeStablecoinConfig');
