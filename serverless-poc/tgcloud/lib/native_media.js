@@ -2,7 +2,6 @@ import { db, api } from 'sdk';
 import { and, desc, eq, isNull } from 'sdk/db';
 import { nativeMedia } from '../schema.js';
 import { invalid } from './native_auth.js';
-import { IDENTITY_UPLOADS_ENABLED } from './native_config.js';
 
 const LABELS = {
   KYC_ID: 'تذکره/مدرک هویتی',
@@ -12,40 +11,17 @@ const LABELS = {
 };
 export const MEDIA_KINDS=Object.freeze(Object.keys(LABELS));
 
+// Legacy user documents live in private Supabase Storage. Until the owner
+// approves a secure canonical upload flow, never save Telegram file IDs in a
+// parallel SQLite media table; this guard does not depend on a feature flag.
 export async function acceptMedia(message) {
-  const user=message?.from;
-  const chat=message?.chat;
-  // Never receive private identity media from a group or forwarded message.
-  if (chat?.type !== 'private' || !Number.isSafeInteger(user?.id) ||
-      chat.id !== user.id || message.forward_origin || message.forward_from) return false;
-  const kind=String(message.caption || '').trim().toUpperCase();
+  const user=message?.from, chat=message?.chat;
+  if (chat?.type!=='private' || !Number.isSafeInteger(user?.id) ||
+      chat?.id!==user.id) return false;
+  const kind=String(message?.caption || '').trim().toUpperCase();
   if (!MEDIA_KINDS.includes(kind)) return false;
-  if (!IDENTITY_UPLOADS_ENABLED) {
-    await api.sendMessage({chat_id:user.id,text:'ارسال مدارک و رسیدهای خصوصی تا تکمیل تنظیمات امنیتی غیرفعال است. لطفاً فعلاً سند نفرستید.'});
-    return true;
-  }
-  const photos=message.photo;
-  const best=Array.isArray(photos) && photos.length ? photos[photos.length - 1] : null;
-  const doc=message.document;
-  if (!best && !doc) {
-    await api.sendMessage({chat_id:user.id,text:'فقط عکس یا فایل تصویری ارسال کنید.'});
-    return true;
-  }
-  const mimeType=doc?.mime_type || 'image/jpeg';
-  if (!['image/jpeg','image/png','image/webp'].includes(mimeType) ||
-      (doc?.file_size || best?.file_size || 0)>8*1024*1024) {
-    await api.sendMessage({chat_id:user.id,text:'فرمت یا حجم فایل معتبر نیست. حداکثر ۸ مگابایت.'});
-    return true;
-  }
-  const fileId=best?.file_id || doc?.file_id;
-  if (!fileId || !Number.isSafeInteger(message.message_id)) return true;
-  await db.insert(nativeMedia).values({
-    userId: user.id, kind, telegramFileId:fileId, mimeType,
-    mediaCategory:doc?'document':'photo',
-    telegramMessageId:message.message_id, receivedAt:new Date().toISOString(),
-  }).onConflictDoNothing().run();
-  await api.sendMessage({chat_id:user.id,
-    text:'✅ '+LABELS[kind]+' دریافت شد. برای تکمیل، به Mini App صراف بازگردید.'});
+  await api.sendMessage({chat_id:user.id,text:
+    '⚠️ ارسال عکس مدارک و رسیدها در ربات فعلاً فعال نیست. لطفاً عکس شخصی، تذکره یا رسید پرداخت را نفرستید. سوابق قبلی شما در Supabase محفوظ است.'});
   return true;
 }
 export async function latestMedia(userId, kind) {
