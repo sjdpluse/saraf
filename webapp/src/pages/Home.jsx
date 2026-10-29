@@ -15,15 +15,15 @@ const LOCATIONS = [
   ["لوگر", 1700], ["ارزگان", 1700],
 ];
 
-export default function Home({ navigate, startTransaction, readOnly = false }) {
+export default function Home({ navigate, startTransaction }) {
   const [stats, setStats] = useState(null);
   const [locationIndex, setLocationIndex] = useState(0);
 
   useEffect(() => {
     let mounted = true;
-    if (!readOnly) api.getStats().then((value) => mounted && setStats(value)).catch(() => {});
+    api.getStats().then((value) => mounted && setStats(value)).catch(() => {});
     return () => { mounted = false; };
-  }, [readOnly]);
+  }, []);
 
   useEffect(() => {
     const duration = LOCATIONS[locationIndex][1];
@@ -59,17 +59,7 @@ export default function Home({ navigate, startTransaction, readOnly = false }) {
         </h1>
       </section>
 
-      {readOnly && <section className="card" aria-label="بازارهای صراف">
-        <h2 style={{ margin: "0 0 12px", fontSize: 17 }}>💵 بازارهای مالی صراف</h2>
-        <p style={{ fontSize: 13, lineHeight: 1.85 }}>
-          نمایش نرخ‌های جهانی روی زیرساخت تلگرام فعال است. خدمات مالی، پرداخت، سفارش و حواله
-          در مرحلهٔ انتقال امن قرار دارند و هنوز در نسخه Serverless فعال نیستند.
-        </p>
-        <button className="btn btn-primary" type="button" onClick={() => navigate("markets")}>
-          مشاهده نرخ ارز، طلا، نقره و رمزارز
-        </button>
-      </section>}
-      {!readOnly && <section className="trade-panel trade-panel-actions-only" aria-label="خرید و فروش رمز ارز">
+      <section className="trade-panel trade-panel-actions-only" aria-label="خرید و فروش رمز ارز">
         <div className="trade-actions trade-actions-premium">
           <button className="trade-cart-btn purchase" onClick={() => startTransaction("buy")}>
             <span className="trade-cart-icon" aria-hidden="true"><ArrowDownLeft size={18} weight="bold" /></span>
@@ -80,7 +70,7 @@ export default function Home({ navigate, startTransaction, readOnly = false }) {
             <span className="trade-cart-text">فروش رمز ارز</span>
           </button>
         </div>
-      </section>}
+      </section>
 
       <button className="jm-home-entry" onClick={() => navigate("justmarkets")}>
         <span className="jm-home-entry-icon"><Handshake size={24} weight="duotone" /></span>
@@ -88,21 +78,21 @@ export default function Home({ navigate, startTransaction, readOnly = false }) {
         <CaretLeft size={18} />
       </button>
 
-      {!readOnly && <button className="remittance-entry" onClick={() => navigate("remittance")}>
+      <button className="remittance-entry" onClick={() => navigate("remittance")}>
         <span className="remittance-entry-icon"><PaperPlaneTilt size={25} /></span>
         <span><strong>حواله از طریق کریپتو</strong><small>ارسال رمزارز؛ دریافت افغانی در افغانستان</small></span>
         <CaretLeft size={18} />
-      </button>}
-      {!readOnly && <nav className="home-shortcuts" aria-label="پیگیری درخواست‌ها">
+      </button>
+      <nav className="home-shortcuts" aria-label="پیگیری درخواست‌ها">
         <button onClick={() => navigate("orders")}><ClipboardText size={20} /><span>سفارش‌های من</span><CaretLeft size={15} /></button>
         <button onClick={() => navigate("remittances")}><PaperPlaneTilt size={20} /><span>حواله‌های من</span><CaretLeft size={15} /></button>
-      </nav>}
-      {!readOnly && <button className="home-social-proof" onClick={() => navigate("reviews")}>
+      </nav>
+      <button className="home-social-proof" onClick={() => navigate("reviews")}>
         <Star size={17} weight="fill" />
         <span>{stats?.average_rating > 0 ? <><b className="num">{Number(stats.average_rating).toFixed(1)}</b> امتیاز کاربران</> : "نظرات کاربران"}</span>
         {Number.isFinite(Number(stats?.completed_orders)) && stats?.completed_orders != null && <small>{Number(stats.completed_orders).toLocaleString("fa-AF")} معاملهٔ تکمیل‌شده</small>}
         <CaretLeft size={15} />
-      </button>}
+      </button>
     </main>
   );
 }
