@@ -31,7 +31,7 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON public.saraf_payout_approvals TO service_ro
 -- changes, even when an older approval row is not proactively deleted.
 CREATE OR REPLACE FUNCTION public.saraf_chain_proof_snapshot(
  r public.remittance_orders
-) RETURNS jsonb LANGUAGE sql IMMUTABLE SECURITY INVOKER SET search_path=''
+) RETURNS jsonb LANGUAGE sql STABLE SECURITY INVOKER SET search_path=''
 AS $$
   SELECT jsonb_build_object(
     'tx_hash',lower(r.tx_hash),'asset',r.asset,'network',r.network,
