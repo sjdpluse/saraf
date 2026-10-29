@@ -39,6 +39,7 @@ export function mainKeyboard() {
   return {
     keyboard: [
       [{text: '💵 نرخ ارزها'}, {text: '🥇 نرخ طلا'}],
+      [{text: '🏛 نرخ بازار کابل'}],
       [{text: '🥈 نرخ نقره'}, {text: '🪙 نرخ رمزارزها'}],
       [{text: '🔄 مبدل ارز جهانی'}, {text: 'ℹ️ درباره ربات'}],
     ],
