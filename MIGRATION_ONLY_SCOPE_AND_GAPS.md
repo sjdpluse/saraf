@@ -1,3 +1,45 @@
+## 29 October 2026 — existing finance and Railway replacement progress
+
+- **Original finance backend staged**: `supabase/functions/saraf-original-transactions/`
+  ports the existing original USDT/USDC quote logic, the original 50/30/20
+  pricing, original networks, quote persistence in existing `usdt_quotes`,
+  original buy/sell requests and remittance create / submit TX into existing
+  `usdt_orders` and `remittance_orders`. Original React API calls are routed
+  through a single feature-gated signed Telegram Supabase adapter.
+- **Synthetic atomic PostgreSQL tests PASS** for original quote ownership,
+  one-use consumption, 5-digit order references, idempotent retries, KYC
+  threshold, remittance receiver privacy, and TX ownership. Tests run
+  exclusively against disposable PG16, **not actual customer records**.
+- `saraf_original_usdt_order_rpc_STAGED.sql` and
+  `saraf_original_remittance_rpc_STAGED.sql` use existing financial tables.
+  **These SQL functions have NOT been deployed to production Supabase.**
+- **Deployed as disabled Supabase Edge Functions** (ACTIVE means serving a
+  disabled response when the feature flag is false):
+  `saraf-original-transactions` v1,
+  `saraf-legacy-kyc` v1,
+  `saraf-legacy-uploads` v1.
+  Original bot HMAC signature verification is required, and separate
+  server-only enablement secrets default to **OFF**:
+  `SARAF_ORIGINAL_FINANCIAL_API_ENABLED`,
+  `SARAF_ORIGINAL_KYC_ENABLED`, and
+  `SARAF_ORIGINAL_UPLOADS_ENABLED`.
+  **Deployed does NOT mean enabled or safe for live financial traffic**.
+- Existing React frontend financial route remains OFF unless
+  `VITE_SARAF_ORIGINAL_TRANSACTIONS_ENABLED=true` at build time.
+  Never enable without the original SQL functions and full E2E validation.
+- Original Python `jobs.py` can now execute through an ephemeral GitHub
+  Actions runner using unchanged business logic and original provider
+  credentials; its scheduled job workflow defaults OFF and is untested with
+  real Meta tokens. This is not a guarantee of reliable cron timing.
+- Full original Telegram bot admin commands, all media flows, Meta
+  HTTP webhooks and media/card generator behavior are **not** completely
+  migrated. Do not switch @sarafiaf_bot webhook or publish production
+  while these differences remain.
+- The original 50 previous orders and all historical customer records
+  remain unchanged in the canonical Supabase project.
+
+**Status: INCOMPLETE migration, production publish remains BLOCKED.**
+
 ## Verified deployment update — 2026-10-29
 - A NEW, read-only, public-market-data-only Supabase Edge Function
   `saraf-public-history` was deployed to the existing canonical project
