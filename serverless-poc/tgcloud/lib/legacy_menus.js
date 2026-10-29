@@ -6,7 +6,7 @@ const button=(text,callback_data)=>({text,callback_data});
 const MINI_APP_URL='https://app8533795882.tgcloud.ai/';
 export const originalMiniAppLink=(action=null,asset=null)=>{
   const query=new URLSearchParams({v:'20260905-v3'});
-  if(['buy','sell'].includes(action))query.set('action',action);
+  if(['buy','sell','justmarkets'].includes(action))query.set('action',action);
   if(['USDT','USDC'].includes(asset))query.set('asset',asset);
   return MINI_APP_URL+'?'+query;
 };
