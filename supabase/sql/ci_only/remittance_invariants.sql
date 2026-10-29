@@ -24,7 +24,7 @@ BEGIN
    "beneficiary_province":"Kabul","beneficiary_city":"Kabul",
    "beneficiary_address":"CI only test street"}'::jsonb);
  v_remittance_id:=(rem->>'id')::bigint;
- IF id IS NULL OR rem->>'status'<>'awaiting_transfer' THEN
+ IF v_remittance_id IS NULL OR rem->>'status'<>'awaiting_transfer' THEN
    RAISE EXCEPTION 'Remittance not created';
  END IF;
  same:=public.saraf_submit_remittance_atomic(
