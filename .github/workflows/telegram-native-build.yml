@@ -1,0 +1,35 @@
+name: Telegram native Saraf build
+on:
+  pull_request:
+    paths:
+      - 'webapp/**'
+      - 'serverless-poc/**'
+      - '.github/workflows/telegram-native-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Original Saraf React Telegram build and syntax checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install original React dependencies
+        working-directory: webapp
+        run: npm ci
+      - name: Build ORIGINAL React Mini App for Telegram
+        working-directory: webapp
+        run: npm run build:telegram
+      - name: Verify Serverless static content exists
+        run: |
+          test -s serverless-poc/dist/index.html
+          test -d serverless-poc/dist/assets
+      - name: Check Serverless module syntax
+        run: |
+          find serverless-poc/tgcloud -name '*.js' -type f -print0 |
+            xargs -0 -n 1 node --check
