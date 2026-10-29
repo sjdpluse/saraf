@@ -5,6 +5,7 @@ import { nativeCall } from "./nativeApi";
 import { canonicalCall } from "./supabaseBridge";
 import { uploadOriginalIdentity } from "./legacyKycBridge";
 import { uploadOriginalImage } from "./legacyUploads";
+import { originalFinanceCall } from './originalFinanceBridge';
 
 class ApiError extends Error {
   constructor(message, status, code) {
@@ -46,9 +47,21 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
       return uploadOriginalImage('beneficiary',body);
     if (path === '/usdt/orders/me' && method === 'GET') return canonicalCall('orders.me');
     if (path === '/usdt/payment-info' && method === 'GET') return nativeCall('getNativePaymentInfo');
-    if (path === '/stablecoins/config' && method === 'GET') return nativeCall('getNativeStablecoinConfig');
+    if (path === '/stablecoins/config' && method === 'GET') return originalFinanceCall('stablecoins.config');
     if (path === '/remittances/config' && method === 'GET') return nativeCall('getNativeRemittanceConfig');
     if (path === '/remittances/me' && method === 'GET') return canonicalCall('remittances.me');
+    // Original signed Telegram / Supabase quote and order API. Supabase and
+    // React feature switches remain OFF until original-bot E2E validation.
+    if(path==='/usdt/quote'&&method==='POST')
+      return originalFinanceCall('quote',body);
+    if(path==='/usdt/orders/buy'&&method==='POST')
+      return originalFinanceCall('order.buy',{
+        ...body,idempotency_key:extraHeaders['Idempotency-Key'],
+      });
+    if(path==='/usdt/orders/sell'&&method==='POST')
+      return originalFinanceCall('order.sell',{
+        ...body,idempotency_key:extraHeaders['Idempotency-Key'],
+      });
     // Preserve the ORIGINAL Python pricing/payment semantics. Until those
     // routes have been ported exactly, do NOT call new speculative money logic
     // or fall back to the offline Railway service.
