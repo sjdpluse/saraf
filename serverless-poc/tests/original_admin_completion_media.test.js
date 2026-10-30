@@ -45,7 +45,7 @@ test('only signed original admin can upload a real Telegram bot file_id and comp
  assert.match(upload,/issueOriginalProof\(bot/);
  assert.match(upload,/8\*1024\*1024/);
  assert.match(sql,/completion_proof_file_id=CASE WHEN p_action='complete'/);
- assert.match(sql,/p_file_id ~ '\\^\\[A-Za-z0-9_-\\]\\+\\$'/);
+ assert.ok(sql.includes("p_file_id ~ '^[A-Za-z0-9_-]+$'"));
  assert.match(sql,/length\\(p_file_id\\) BETWEEN 12 AND 300/);
  assert.match(web,/uploadOriginalAdminCompletionProof/);
 });
