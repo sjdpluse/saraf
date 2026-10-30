@@ -22,7 +22,6 @@ export async function verifyOriginalReleaseProof(botToken,stamp,signature,
  const diff=Math.abs(Math.floor(now/1000)-Number(stamp));
  if(!Number.isSafeInteger(Number(stamp))||diff>45)return false;
  try{
-  const expected=await originalReleaseSignature(botToken,stamp);
   // Constant-time WebCrypto.verify avoids string-comparison timing leaks.
   const k=await crypto.subtle.importKey('raw',encoder.encode(botToken),
    {name:'HMAC',hash:'SHA-256'},false,['verify']);
