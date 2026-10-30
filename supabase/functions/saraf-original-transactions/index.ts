@@ -14,6 +14,7 @@ import {
  ORIGINAL_ASSETS,
  originalRemittanceValuation,
 } from './remittance.mjs';
+import {originalRiskLevel} from './risk.mjs';
 
 const ORIGIN='https://app8533795882.tgcloud.ai';
 const TOKEN=Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN')||'';
@@ -375,21 +376,43 @@ Deno.serve(async req=>{
     const wallet=String(input.wallet_address||'').trim();
     if(side==='buy'&&!walletShape(network,wallet))deny('INVALID_WALLET_ADDRESS');
     const profile=await db.from('user_profiles').select(
-      'first_name,last_name,phone,kyc_status,trust_score,successful_orders'
+      'first_name,last_name,phone,kyc_status,trust_score,successful_orders,'+
+      'selfie_path,cancelled_orders,payment_info_change_count,restricted_reason'
      ).eq('chat_id',user.id).maybeSingle();
     if(profile.error)deny('PROFILE_UNAVAILABLE',503);
     if(!profile.data?.first_name||!profile.data!.last_name||!profile.data!.phone)
       deny('BASIC_PROFILE_REQUIRED',403);
+    const risk=originalRiskLevel(profile.data!,a,{
+      USDT_RISK_HIGH_AMOUNT_THRESHOLD:
+       Deno.env.get('USDT_RISK_HIGH_AMOUNT_THRESHOLD')||'1000',
+      USDT_RISK_NEW_USER_ORDER_THRESHOLD:
+       Deno.env.get('USDT_RISK_NEW_USER_ORDER_THRESHOLD')||'3',
+      USDT_RISK_CANCEL_COUNT_THRESHOLD:
+       Deno.env.get('USDT_RISK_CANCEL_COUNT_THRESHOLD')||'3',
+      USDT_RISK_PAYMENT_CHANGE_THRESHOLD:
+       Deno.env.get('USDT_RISK_PAYMENT_CHANGE_THRESHOLD')||'3',
+    });
+    // Private selfie path is NEVER sent to the browser; only a 60-second
+    // storage-signed URL for the correctly authenticated Telegram owner.
+    let selfie_url:null|string=null;
+    if(profile.data!.selfie_path){
+      const bucket=Deno.env.get('USDT_KYC_DOCS_BUCKET')||'usdt-kyc-docs';
+      const signed=await db.storage.from(bucket).createSignedUrl(
+        String(profile.data!.selfie_path),60);
+      if(!signed.error&&signed.data?.signedUrl)
+        selfie_url=signed.data.signedUrl;
+    }
     return out(origin,200,{
       order_preview:{
         order_type:side,asset:type,usdt_amount:Number(q.data!.usdt_amount),
         usd_rate:Number(q.data!.usd_rate),
         fee_percent:Number(q.data!.fee_percent||0),
         total_afn:Number(q.data!.total_afn),total_usd:Number(q.data!.total_usd),
-        exchange_name:exchange,network,
+        exchange_name:exchange,network,risk_level:risk.level,
         wallet_address:side==='buy'?wallet:String(depositWallets[network]||''),
         deposit_address:side==='sell'?String(depositWallets[network]||''):null,
       },
+      selfie_url,
       profile:{
         first_name:profile.data!.first_name,last_name:profile.data!.last_name,
         phone:profile.data!.phone,kyc_status:profile.data!.kyc_status,
