@@ -9,7 +9,9 @@ const bridge=read('webapp/src/lib/originalAdminBridge.js');
 
 test('original admin complete requires proof, confirmed status and atomic trust history',()=>{
  assert.match(sql,/CREATE OR REPLACE FUNCTION public\.saraf_original_admin_finalize_order/);
- assert.match(sql,/p_action='complete'.*\s*\(length\(trim/);
+ assert.match(sql,/IF p_action='complete' AND NOT \(/);
+ assert.match(sql,/length\(trim\(coalesce\(p_details,''\)\)\) BETWEEN 4 AND 2000 OR/);
+ assert.match(sql,/p_file_id ~ /);
  assert.match(sql,/COMPLETION_PROOF_REQUIRED/);
  assert.match(sql,/v_previous<>'confirmed'/);
  assert.match(sql,/v_previous<>'pending'/);
@@ -20,7 +22,7 @@ test('original admin complete requires proof, confirmed status and atomic trust 
  assert.match(sql,/total_volume_usdt=coalesce\(total_volume_usdt,0\)/);
  assert.match(sql,/trust_score=v_trust/);
  assert.match(sql,/FROM PUBLIC,anon,authenticated/);
- assert.match(sql,/saraf_original_admin_finalize_order\(bigint,bigint,text,text\)/);
+ assert.match(sql,/saraf_original_admin_finalize_order\(bigint,bigint,text,text,text,text,text\)/);
 });
 test('signed original admin confirmation, rejection and settlement are separate',()=>{
  assert.match(edge,/if\(action==='orders.confirmed'\)/);
@@ -28,7 +30,8 @@ test('signed original admin confirmation, rejection and settlement are separate'
  assert.match(edge,/if\(isWrite\(action\)&&!WRITE\)/);
  assert.match(edge,/saraf_original_admin_finalize_order/);
  assert.match(edge,/Number\.isSafeInteger\(orderId\)/);
- assert.match(edge,/details\.length<4\|\|details\.length>2000/);
+ assert.match(edge,/details.length>2000/);
+ assert.match(edge,/verifyOriginalProof\(BOT,attestation,actor.id,orderId\)/);
  assert.match(edge,/row\?\.duplicate\?true:await notifyOriginalFinalized/);
  assert.match(ui,/await showConfirm\('آیا مبلغ\/رمزارز واقعاً/);
  assert.match(ui,/completion_tx_details:details/);
