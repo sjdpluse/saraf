@@ -363,10 +363,10 @@ Deno.serve(async req=>{
       'id,order_type,asset,usdt_amount,usd_rate,fee_percent,total_afn,total_usd,status,expires_at'
      ).eq('id',qid).eq('chat_id',user.id).maybeSingle();
     if(q.error)deny('QUOTE_UNAVAILABLE',503);
-    if(!q.data||q.data.order_type!==side||q.data.asset!==type
-       ||Math.abs(Number(q.data.usdt_amount)-a)>0.0000001)
+    if(!q.data||q.data!.order_type!==side||q.data!.asset!==type
+       ||Math.abs(Number(q.data!.usdt_amount)-a)>0.0000001)
       deny('QUOTE_MISMATCH',409);
-    if(q.data.status!=='active'||Date.parse(q.data.expires_at)<=Date.now())
+    if(q.data!.status!=='active'||Date.parse(q.data!.expires_at)<=Date.now())
       deny('QUOTE_EXPIRED_OR_CONSUMED',409);
     const exchange=String(input.exchange_name||'').trim();
     if(!exchange||exchange.length>200)deny('EXCHANGE_REQUIRED');
@@ -378,23 +378,23 @@ Deno.serve(async req=>{
       'first_name,last_name,phone,kyc_status,trust_score,successful_orders'
      ).eq('chat_id',user.id).maybeSingle();
     if(profile.error)deny('PROFILE_UNAVAILABLE',503);
-    if(!profile.data?.first_name||!profile.data.last_name||!profile.data.phone)
+    if(!profile.data?.first_name||!profile.data!.last_name||!profile.data!.phone)
       deny('BASIC_PROFILE_REQUIRED',403);
     return out(origin,200,{
       order_preview:{
-        order_type:side,asset:type,usdt_amount:Number(q.data.usdt_amount),
-        usd_rate:Number(q.data.usd_rate),
-        fee_percent:Number(q.data.fee_percent||0),
-        total_afn:Number(q.data.total_afn),total_usd:Number(q.data.total_usd),
+        order_type:side,asset:type,usdt_amount:Number(q.data!.usdt_amount),
+        usd_rate:Number(q.data!.usd_rate),
+        fee_percent:Number(q.data!.fee_percent||0),
+        total_afn:Number(q.data!.total_afn),total_usd:Number(q.data!.total_usd),
         exchange_name:exchange,network,
         wallet_address:side==='buy'?wallet:String(depositWallets[network]||''),
         deposit_address:side==='sell'?String(depositWallets[network]||''):null,
       },
       profile:{
-        first_name:profile.data.first_name,last_name:profile.data.last_name,
-        phone:profile.data.phone,kyc_status:profile.data.kyc_status,
-        trust_score:profile.data.trust_score,
-        successful_orders:profile.data.successful_orders,
+        first_name:profile.data!.first_name,last_name:profile.data!.last_name,
+        phone:profile.data!.phone,kyc_status:profile.data!.kyc_status,
+        trust_score:profile.data!.trust_score,
+        successful_orders:profile.data!.successful_orders,
       },
     });
   }
