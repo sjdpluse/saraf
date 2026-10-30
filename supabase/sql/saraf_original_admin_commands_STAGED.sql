@@ -142,6 +142,109 @@ BEGIN
  RETURN jsonb_build_object('chat_id',p_chat_id,'status',p_status,'duplicate',false);
 END $$;
 
+-- Original admin_bot.py admin_reject / admin_complete transitions.
+-- A completion REQUIRES real admin-provided Tx Details (4-2000 characters).
+-- Atomic order state + status history + existing trust profile + audit.
+-- No automatic transfer, no fabricated receipt and no new financial ledger.
+CREATE OR REPLACE FUNCTION public.saraf_original_admin_finalize_order(
+ p_admin bigint,p_order_id bigint,p_action text,p_details text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path=''
+AS $$
+DECLARE
+ v_order public.usdt_orders%ROWTYPE;
+ v_profile public.user_profiles%ROWTYPE;
+ v_target text;
+ v_previous text;
+ v_reason text;
+ v_streak integer;
+ v_success integer;
+ v_cancel integer;
+ v_trust integer;
+ v_new_kyc text;
+ v_history bigint;
+BEGIN
+ IF p_admin IS NULL OR p_admin<=0 OR p_order_id IS NULL OR p_order_id<=0
+    OR p_action NOT IN ('reject','complete') THEN
+   RAISE EXCEPTION 'INVALID_ADMIN_FINALIZE' USING ERRCODE='P0001';
+ END IF;
+ IF p_action='complete' AND
+   (length(trim(coalesce(p_details,''))) NOT BETWEEN 4 AND 2000) THEN
+   RAISE EXCEPTION 'COMPLETION_PROOF_REQUIRED' USING ERRCODE='P0001';
+ END IF;
+ SELECT * INTO v_order FROM public.usdt_orders
+ WHERE id=p_order_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'ORDER_NOT_FOUND' USING ERRCODE='P0001';END IF;
+ v_target:=CASE WHEN p_action='reject' THEN 'cancelled' ELSE 'completed' END;
+ v_previous:=v_order.status;
+ IF v_previous=v_target THEN
+   RETURN jsonb_build_object('order_id',v_order.id,'chat_id',v_order.chat_id,
+    'asset',v_order.asset,'status',v_target,'duplicate',true);
+ END IF;
+ IF (p_action='reject' AND v_previous<>'pending') OR
+    (p_action='complete' AND v_previous<>'confirmed') THEN
+    RAISE EXCEPTION 'INVALID_ORDER_TRANSITION' USING ERRCODE='P0001';
+ END IF;
+ SELECT * INTO v_profile FROM public.user_profiles
+ WHERE chat_id=v_order.chat_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'BASIC_PROFILE_REQUIRED' USING ERRCODE='P0001';END IF;
+ v_reason:=CASE WHEN p_action='reject' THEN 'رد شده توسط ادمین' ELSE NULL END;
+ UPDATE public.usdt_orders SET
+   status=v_target,
+   cancelled_at=CASE WHEN p_action='reject' THEN now() ELSE cancelled_at END,
+   completed_at=CASE WHEN p_action='complete' THEN now() ELSE completed_at END,
+   completion_tx_details=CASE WHEN p_action='complete'
+     THEN trim(p_details) ELSE completion_tx_details END
+ WHERE id=p_order_id AND status=v_previous;
+ IF NOT FOUND THEN
+   RAISE EXCEPTION 'INVALID_ORDER_TRANSITION' USING ERRCODE='P0001';
+ END IF;
+ v_success:=coalesce(v_profile.successful_orders,0)+
+    CASE WHEN p_action='complete' THEN 1 ELSE 0 END;
+ v_cancel:=coalesce(v_profile.cancelled_orders,0)+
+    CASE WHEN p_action='reject' THEN 1 ELSE 0 END;
+ v_streak:=CASE WHEN p_action='reject' THEN 0
+    ELSE coalesce(v_profile.current_success_streak,0)+1 END;
+ v_new_kyc:=CASE WHEN v_streak>=10 AND v_profile.kyc_status='verified'
+    THEN 'trusted' ELSE v_profile.kyc_status END;
+ -- Original supabase_service.record_order_outcome & config TRUST_SCORE_*.
+ v_trust:=greatest(0,
+    CASE WHEN v_profile.kyc_status IN ('verified','trusted') THEN 50 ELSE 0 END
+    +least(v_success*2,40)
+    +CASE WHEN v_streak>=10 THEN 10 ELSE 0 END
+    -v_cancel*10);
+ UPDATE public.user_profiles SET
+   total_orders=coalesce(total_orders,0)+1,
+   successful_orders=v_success,cancelled_orders=v_cancel,
+   current_success_streak=v_streak,
+   total_volume_usdt=coalesce(total_volume_usdt,0)+
+      CASE WHEN p_action='complete' THEN v_order.usdt_amount ELSE 0 END,
+   trust_score=v_trust,kyc_status=v_new_kyc,last_order_at=now()
+ WHERE chat_id=v_order.chat_id;
+ -- Existing canonical trigger writes status history; isolated fixture may
+ -- have no trigger, so reconcile an unattributed row or insert once.
+ UPDATE public.usdt_order_status_history
+ SET changed_by=p_admin,reason=v_reason
+ WHERE id=(
+   SELECT h.id FROM public.usdt_order_status_history h
+   WHERE h.order_id=p_order_id AND h.to_status=v_target
+     AND h.changed_by IS NULL
+   ORDER BY h.id DESC LIMIT 1 FOR UPDATE
+ ) RETURNING id INTO v_history;
+ IF v_history IS NULL THEN
+   INSERT INTO public.usdt_order_status_history(
+     order_id,from_status,to_status,changed_by,reason)
+   VALUES(p_order_id,v_previous,v_target,p_admin,v_reason);
+ END IF;
+ INSERT INTO public.audit_log(actor,action,entity,entity_id,before,after,reason)
+ VALUES(p_admin,'order_'||v_target,'usdt_order',p_order_id::text,
+   jsonb_build_object('status',v_previous),
+   jsonb_build_object('status',v_target),v_reason);
+ RETURN jsonb_build_object('order_id',v_order.id,'chat_id',v_order.chat_id,
+   'asset',v_order.asset,'status',v_target,'duplicate',false,
+   'completion_tx_details',CASE WHEN p_action='complete'
+     THEN trim(p_details) ELSE NULL END);
+END $$;
+
 REVOKE ALL ON FUNCTION public.saraf_original_admin_confirm(bigint,bigint)
  FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.saraf_original_admin_set_spread(bigint,text,numeric)
@@ -153,5 +256,9 @@ GRANT EXECUTE ON FUNCTION public.saraf_original_admin_set_spread(bigint,text,num
 REVOKE ALL ON FUNCTION public.saraf_original_admin_review_kyc(bigint,bigint,text)
  FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.saraf_original_admin_review_kyc(bigint,bigint,text)
+ TO service_role;
+REVOKE ALL ON FUNCTION public.saraf_original_admin_finalize_order(bigint,bigint,text,text)
+ FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.saraf_original_admin_finalize_order(bigint,bigint,text,text)
  TO service_role;
 COMMIT;
