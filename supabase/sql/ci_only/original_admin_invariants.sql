@@ -114,3 +114,76 @@ BEGIN
  THEN RAISE EXCEPTION 'ORIGINAL_KYC_ADMIN_RPC_PUBLIC'; END IF;
  RAISE NOTICE 'Original KYC admin approval/rejection invariants passed';
 END $$;
+
+
+-- ORIGINAL admin_bot.py admin_reject/admin_complete; evidence is mandatory.
+DO $$
+DECLARE
+ r jsonb;
+ v_complete bigint;
+ v_reject bigint;
+ blocked boolean;
+ before_audit integer;
+BEGIN
+ SELECT id INTO v_complete FROM public.usdt_orders
+ WHERE status='confirmed' ORDER BY id LIMIT 1;
+ IF v_complete IS NULL THEN RAISE EXCEPTION 'NO_CONFIRMED_ORDER_FOR_COMPLETION';END IF;
+ INSERT INTO public.usdt_orders(
+  chat_id,order_type,asset,usdt_amount,usd_rate,total_afn,total_usd,status)
+ VALUES(101,'sell','USDC',80,65,5200,80,'pending')
+ RETURNING id INTO v_reject;
+ -- Confirmed orders NEVER complete without actual Tx Hash / details.
+ blocked:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_finalize_order(997,v_complete,'complete','');
+ EXCEPTION WHEN raise_exception THEN blocked:=SQLERRM='COMPLETION_PROOF_REQUIRED';END;
+ IF NOT blocked THEN RAISE EXCEPTION 'ORIGINAL_COMPLETION_WITHOUT_PROOF';END IF;
+ blocked:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_finalize_order(997,v_reject,'complete','0x12345');
+ EXCEPTION WHEN raise_exception THEN blocked:=SQLERRM='INVALID_ORDER_TRANSITION';END;
+ IF NOT blocked THEN RAISE EXCEPTION 'ORIGINAL_PENDING_ORDER_COMPLETED';END IF;
+ SELECT count(*) INTO before_audit FROM public.audit_log;
+ r:=public.saraf_original_admin_finalize_order(997,v_complete,'complete',
+  '0xsynthetic_actual_proof_hash_for_transfer_12345');
+ IF r->>'status'<>'completed' OR (r->>'duplicate')::boolean THEN
+  RAISE EXCEPTION 'ORIGINAL_ADMIN_COMPLETION_FAILED';
+ END IF;
+ IF (SELECT completed_at IS NOT NULL AND completion_tx_details=
+     '0xsynthetic_actual_proof_hash_for_transfer_12345'
+     FROM public.usdt_orders WHERE id=v_complete) IS DISTINCT FROM true
+ THEN RAISE EXCEPTION 'ORIGINAL_COMPLETION_NOT_ATOMICALLY_SAVED'; END IF;
+ r:=public.saraf_original_admin_finalize_order(997,v_complete,'complete',
+  '0xsynthetic_actual_proof_hash_for_transfer_12345');
+ IF NOT (r->>'duplicate')::boolean THEN
+  RAISE EXCEPTION 'ORIGINAL_COMPLETION_NOT_IDEMPOTENT';END IF;
+ IF (SELECT successful_orders FROM public.user_profiles WHERE chat_id=101)<>1
+ OR (SELECT current_success_streak FROM public.user_profiles WHERE chat_id=101)<>1
+ OR (SELECT total_volume_usdt FROM public.user_profiles WHERE chat_id=101)<>100
+ THEN RAISE EXCEPTION 'ORIGINAL_TRUST_PROFILE_SUCCESS_DIVERGED';END IF;
+ r:=public.saraf_original_admin_finalize_order(997,v_reject,'reject',NULL);
+ IF r->>'status'<>'cancelled' OR (r->>'duplicate')::boolean THEN
+  RAISE EXCEPTION 'ORIGINAL_REJECTION_FAILED';END IF;
+ r:=public.saraf_original_admin_finalize_order(997,v_reject,'reject',NULL);
+ IF NOT (r->>'duplicate')::boolean THEN
+  RAISE EXCEPTION 'ORIGINAL_REJECTION_NOT_IDEMPOTENT';END IF;
+ IF (SELECT cancelled_orders FROM public.user_profiles WHERE chat_id=101)<>1
+ OR (SELECT current_success_streak FROM public.user_profiles WHERE chat_id=101)<>0
+ OR (SELECT total_orders FROM public.user_profiles WHERE chat_id=101)<>2
+ OR (SELECT trust_score FROM public.user_profiles WHERE chat_id=101)<>42
+ THEN RAISE EXCEPTION 'ORIGINAL_TRUST_PROFILE_REJECTION_DIVERGED';END IF;
+ IF (SELECT count(*) FROM public.audit_log)<>before_audit+2
+ THEN RAISE EXCEPTION 'ORIGINAL_ADMIN_AUDIT_COUNT_DIVERGED';END IF;
+ blocked:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_finalize_order(997,v_reject,'complete',
+   '0xsynthetic_actual_proof_hash_for_transfer_12345');
+ EXCEPTION WHEN raise_exception THEN blocked:=SQLERRM='INVALID_ORDER_TRANSITION';END;
+ IF NOT blocked THEN RAISE EXCEPTION 'ORIGINAL_CANCELLED_ORDER_COMPLETED';END IF;
+ IF has_function_privilege('anon',
+  'public.saraf_original_admin_finalize_order(bigint,bigint,text,text)','EXECUTE')
+ OR has_function_privilege('authenticated',
+  'public.saraf_original_admin_finalize_order(bigint,bigint,text,text)','EXECUTE')
+ THEN RAISE EXCEPTION 'ORIGINAL_ADMIN_FINALIZE_RPC_PUBLIC';END IF;
+ RAISE NOTICE 'Original admin rejection/completion/trust invariants passed';
+END $$;
