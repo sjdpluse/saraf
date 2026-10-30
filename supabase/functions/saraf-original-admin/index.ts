@@ -40,14 +40,14 @@ function isWrite(action:string){
    action==='broadcast.create'||action==='kyc.review'||
    action==='order.reject'||action==='order.complete';
 }
-async function notifyOriginalCustomer(orderId:number,chatId:number){
+async function notifyOriginalCustomer(orderId:number,chatId:number,asset:string){
  if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
  try{
   const r=await fetch('https://api.telegram.org/bot'+BOT+'/sendMessage',{
    method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({
     chat_id:chatId,
-    text:'✅ سفارش شما (USDT-'+String(orderId).padStart(5,'0')+
+    text:'✅ سفارش شما ('+(asset==='USDC'?'USDC':'USDT')+'-'+String(orderId).padStart(5,'0')+
        ') تأیید و در حال پردازش نهایی است.',
    }),
    signal:AbortSignal.timeout(6500),
@@ -301,9 +301,9 @@ Deno.serve(async(req:Request)=>{
     const code=known.has(r.error.message)?r.error.message:'CONFIRMATION_FAILED';
     return answer(origin,code==='ORDER_NOT_FOUND'?404:409,{error:code});
    }
-   const row=r.data as {order_id:number;chat_id:number;duplicate:boolean};
+   const row=r.data as {order_id:number;chat_id:number;asset:string;duplicate:boolean};
    const notified=row?.duplicate?true:
-     await notifyOriginalCustomer(row.order_id,row.chat_id);
+     await notifyOriginalCustomer(row.order_id,row.chat_id,row.asset);
    return answer(origin,200,{result:{
     order_id:row.order_id,status:'confirmed',
     duplicate:!!row.duplicate,customer_notified:notified,
