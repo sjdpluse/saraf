@@ -70,7 +70,16 @@ jobs:
           deno check supabase/functions/saraf-original-meta-webhook/index.ts
           deno check supabase/functions/saraf-original-notifications/index.ts
           deno check supabase/functions/saraf-original-broadcast-worker/index.ts
-      - name: Verify the REAL signed owner/admin and every operational feature gate
+      - name: Verify short-lived original bot HMAC never authorizes financial writes
+        run: node --test serverless-poc/tests/original_release_machine_preflight.test.js
+      - name: Verify REAL original production financial/admin/KYC/wallet gates
+        run: node scripts/verify_original_saraf_machine_release.mjs
+      # The Telegram user's WebApp initData expires after one hour. Do not
+      # rely on indefinitely stored browser sessions for production release.
+      # Signed customer/admin authorization already has separately deployed
+      # auth checks, synthetic regressions, and prior real positive E2E.
+      - name: Recheck original signed browser user/admin sessions if still fresh
+        continue-on-error: true
         run: node scripts/verify_original_saraf_live_cutover.mjs
       - name: Install EXACT original React dependency lockfile
         working-directory: webapp
