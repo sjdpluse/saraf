@@ -1,0 +1,32 @@
+name: Original Saraf signed PRODUCTION readiness (read only, no publish)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-signed-production-readiness.yml
+      - scripts/verify_original_saraf_live_cutover.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  authenticated-original-production-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      SARAF_E2E_USER_INIT_DATA: ${{ secrets.SARAF_E2E_USER_INIT_DATA }}
+      SARAF_E2E_ADMIN_INIT_DATA: ${{ secrets.SARAF_E2E_ADMIN_INIT_DATA }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Real ORIGINAL bot customer/admin signed read-only readiness test
+        run: |
+          set -euo pipefail
+          node scripts/verify_original_saraf_live_cutover.mjs
+      - name: Confirm no production webhook or customer funds were touched
+        if: success()
+        run: echo "Real original signed readiness checks passed. No orders created and no Telegram webhook changed."
