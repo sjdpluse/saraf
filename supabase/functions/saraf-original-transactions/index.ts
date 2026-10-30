@@ -343,10 +343,10 @@ Deno.serve(async req=>{
         'کد: '+rpc.data.order_code+'\nشناسهٔ فرستنده: '+user.id+
         '\nدارایی: '+quote.asset+' / '+quote.network+
         '\nمقدار: '+quote.crypto_amount+'\nارزش دلاری: '+quote.usd_value+
-        '\nپرداخت افغانی: '+quote.payout_afn);,
-        notifyCustomer(user.id,'✅ درخواست حواله در صراف ثبت شد.\\n'+
-          'کد حواله: '+rpc.data.order_code+'\\nوضعیت: در انتظار انتقال رمزارز'+
-          '\\nکد دریافت وجه تا تأیید نهایی صادر نمی‌شود.'),
+        '\nپرداخت افغانی: '+quote.payout_afn),
+        notifyCustomer(user.id,'✅ درخواست حواله در صراف ثبت شد.\n'+
+          'کد حواله: '+rpc.data.order_code+'\nوضعیت: در انتظار انتقال رمزارز'+
+          '\nکد دریافت وجه تا تأیید نهایی صادر نمی‌شود.'),
       ]);
     }
     return out(origin,200,rpc.data);
@@ -365,10 +365,10 @@ Deno.serve(async req=>{
     await Promise.allSettled([
       notifyAdmin('💸 حوالهٔ صراف — ثبت TX\n'+
       'کد: '+saved.data?.order_code+'\nشناسهٔ کاربر: '+user.id+
-      '\nشناسه تراکنش: '+hash+'\nلطفاً حواله را در پنل اصلی بررسی کنید.');,
-      notifyCustomer(user.id,'✅ شناسهٔ تراکنش حواله ثبت شد.\\n'+
+      '\nشناسه تراکنش: '+hash+'\nلطفاً حواله را در پنل اصلی بررسی کنید.'),
+      notifyCustomer(user.id,'✅ شناسهٔ تراکنش حواله ثبت شد.\n'+
         'کد حواله: '+saved.data?.order_code+
-        '\\nوضعیت: در انتظار بررسی شبکه و تأیید تیم صراف.'),
+        '\nوضعیت: در انتظار بررسی شبکه و تأیید تیم صراف.'),
     ]);
     return out(origin,200,saved.data);
   }
@@ -556,10 +556,10 @@ Deno.serve(async req=>{
      notifyAdmin('🆕 سفارش '+(side==='buy'?'خرید':'فروش')+' '+type+
      '\nکد: '+item.order_code+'\nمقدار: '+a+
      '\nکاربر: '+user.id+'\nشبکه: '+network+
-     '\nوضعیت: pending — بررسی دستی الزامی است.');,
+     '\nوضعیت: pending — بررسی دستی الزامی است.'),
      notifyCustomer(user.id,'✅ درخواست '+(side==='buy'?'خرید':'فروش')+
-       ' '+type+' در صراف ثبت شد.\\nکد سفارش: '+item.order_code+
-       '\\nوضعیت: در انتظار بررسی مدیر.\\nاین پیام تأیید پرداخت نیست.'),
+       ' '+type+' در صراف ثبت شد.\nکد سفارش: '+item.order_code+
+       '\nوضعیت: در انتظار بررسی مدیر.\nاین پیام تأیید پرداخت نیست.'),
     ]);
    }
    return out(origin,200,{
