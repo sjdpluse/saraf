@@ -26,7 +26,8 @@ BEGIN
  v_before:=v_order.status;
  IF v_before='confirmed' THEN
   RETURN jsonb_build_object('order_id',v_order.id,
-   'chat_id',v_order.chat_id,'status','confirmed','duplicate',true);
+   'chat_id',v_order.chat_id,'asset',v_order.asset,
+   'status','confirmed','duplicate',true);
  END IF;
 
  -- Matches original services/order_state_machine.py for to=confirmed.
@@ -59,7 +60,8 @@ BEGIN
   jsonb_build_object('status','confirmed'),
   'تایید از طریق دستور /usdtconfirm');
  RETURN jsonb_build_object('order_id',v_order.id,
-  'chat_id',v_order.chat_id,'status','confirmed','duplicate',false);
+  'chat_id',v_order.chat_id,'asset',v_order.asset,
+  'status','confirmed','duplicate',false);
 END $$;
 
 CREATE OR REPLACE FUNCTION public.saraf_original_admin_set_spread(
