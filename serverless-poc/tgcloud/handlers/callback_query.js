@@ -98,9 +98,24 @@ export default async function(query){
       const report=await getOriginalCompareReport(a,days);
       return edit(chat,id,report);
     }
-    // Never fabricate a payment status while original usdt_* callbacks are pending.
-    if(type.startsWith('usdt_'))return api.sendMessage({chat_id:chat,text:
-      'منطق اصلی سفارش هنوز منتقل نشده است؛ سفارشی ثبت نشد.'});
+    // Old Python messages may contain usdt_* callback buttons after cutover.
+    // The old in-chat state cannot be trusted in a stateless JS invocation.
+    // Recover the ORIGINAL action in the signed Mini App; never submit money
+    // from a stale callback or invent a completed payment.
+    if(type.startsWith('usdt_')){
+      const known=new Set(['usdt_action','usdt_continue','usdt_pay',
+        'usdt_paid','usdt_net','usdt_buy_exch','usdt_exch','usdt_rate']);
+      if(!known.has(type))return;
+      const asset=type==='usdt_action'&&['USDT','USDC'].includes(a)?a:null;
+      const side=type==='usdt_action'?parts[2]:
+        ['usdt_continue','usdt_pay','usdt_paid','usdt_net'].includes(type)?a:null;
+      return api.sendMessage({chat_id:chat,
+        text:'🪙 برای ادامهٔ درخواست '+(asset||'USDT / USDC')+
+          ' از اپلیکیشن اصلی صراف استفاده کنید. '+
+          'وضعیت یا پرداخت از پیام قدیمی تأیید نمی‌شود.',
+        reply_markup:originalStablecoinMenu(),
+      });
+    }
   }catch(error){
     console.warn('Saraf callback migration',String(error));
     await api.sendMessage({chat_id:chat,text:'⚠️ دریافت معلومات ناموفق بود؛ دوباره امتحان کنید.'});
