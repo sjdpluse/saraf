@@ -5,6 +5,8 @@
 // Default OFF: read and write must be enabled separately after E2E.
 import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
 import { verifyTelegramInitData } from './telegram-auth.mjs';
+import {uploadOriginalAdminProof} from './proof-upload.mjs';
+import {verifyOriginalProof} from './proof.mjs';
 
 const ORIGIN='https://app8533795882.tgcloud.ai';
 const BOT=Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN')||'';
@@ -73,13 +75,15 @@ async function notifyOriginalKycCustomer(chatId:number,status:string){
  }catch{return false;}
 }
 async function notifyOriginalFinalized(chatId:number,orderId:number,
- asset:string,status:string,details:string){
+ asset:string,status:string,details:string,
+ media:null|{file_id:string;file_type:string;file_name:string}=null){
  if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
  const code=(asset==='USDC'?'USDC':'USDT')+'-'+String(orderId).padStart(5,'0');
  const text=status==='completed'
-  ?'📦 سفارش '+code+' با موفقیت تکمیل شد.\\n'+
-   '🔎 Transaction Details / Tx Hash:\\n'+details+
-   '\\nلطفاً از بخش «سفارش‌های من» در اپلیکیشن اصلی به سفارش امتیاز بدهید.'
+  ?'📦 سفارش '+code+' با موفقیت تکمیل شد.\n'+
+   (details?'🔎 Transaction Details / Tx Hash:\n'+details+'\n':'')+
+   (media?'📎 فایل Transaction Details نیز در پیام بعدی ارسال می‌شود.\n':'')+
+   'لطفاً از بخش «سفارش‌های من» در اپلیکیشن اصلی به سفارش امتیاز بدهید.'
   :'⚠️ سفارش '+code+' قابل تایید نبود.\\n'+
    'لطفاً برای پیگیری با پشتیبانی تماس بگیرید: '+
     (Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@SJDPLUS');
@@ -89,7 +93,21 @@ async function notifyOriginalFinalized(chatId:number,orderId:number,
    body:JSON.stringify({chat_id:chatId,text}),
    signal:AbortSignal.timeout(6500),
   });
-  return r.ok;
+  if(!r.ok)return false;
+  if(media&&status==='completed'){
+   // Telegram-native file_id belongs to the SAME original customer BOT;
+   // no cross-bot file ID and no public media URL needed.
+   const post=await fetch('https://api.telegram.org/bot'+BOT+
+     (media.file_type==='photo'?'/sendPhoto':'/sendDocument'),{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:chatId,
+      [media.file_type==='photo'?'photo':'document']:media.file_id,
+      caption:'Transaction Details — '+code}),
+    signal:AbortSignal.timeout(6500),
+   });
+   return post.ok;
+  }
+  return true;
  }catch{return false;}
 }
 async function notifyOriginalRemittanceCustomer(row:{
@@ -142,6 +160,22 @@ Deno.serve(async(req:Request)=>{
  if(!actor)return answer(origin,401,{error:'INVALID_TELEGRAM_AUTH'});
  if(!isOwner(actor.id))return answer(origin,403,{error:'ADMIN_NOT_ALLOWED'});
  if(!READ)return answer(origin,503,{error:'ORIGINAL_ADMIN_NOT_ENABLED'});
+ if((req.headers.get('content-type')||'').toLowerCase().startsWith('multipart/form-data')){
+  if(!WRITE)return answer(origin,503,{error:'ORIGINAL_ADMIN_WRITES_DISABLED'});
+  try{
+   const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+   const data=await uploadOriginalAdminProof(req,actor.id,BOT,db);
+   return answer(origin,200,{data});
+  }catch(error){
+   const e=error as {message?:string;status?:number};
+   const codes=new Set(['COMPLETION_PROOF_TOO_LARGE','INVALID_ORDER_ID',
+    'INVALID_ORDER_TRANSITION','UNSUPPORTED_PROOF_MEDIA',
+    'ORIGINAL_ORDER_UNAVAILABLE','TELEGRAM_PROOF_UPLOAD_UNAVAILABLE']);
+   const code=codes.has(String(e.message))?e.message:'COMPLETION_PROOF_UPLOAD_FAILED';
+   return answer(origin,e.status&&e.status>=400&&e.status<600?e.status:503,{error:code});
+  }
+ }
+
 
  let body:Record<string,unknown>;
  try{
@@ -244,14 +278,25 @@ Deno.serve(async(req:Request)=>{
    const orderId=Number(input.order_id);
    const complete=action==='order.complete';
    const details=complete?String(input.completion_tx_details||'').trim():'';
+   const attestation=complete?String(input.proof_token||''):'';
+   let media:null|{file_id:string;file_type:string;file_name:string}=null;
+   if(attestation){
+    try{
+     media=await verifyOriginalProof(BOT,attestation,actor.id,orderId);
+    }catch{return answer(origin,403,{error:'INVALID_COMPLETION_PROOF'});}
+   }
    if(!Number.isSafeInteger(orderId)||orderId<=0)
     return answer(origin,400,{error:'INVALID_ORDER_ID'});
-   if(complete && (details.length<4||details.length>2000))
+   if(complete&&(details.length>2000||
+      (!media&&details.length<4)|| (details.length>0&&details.length<4)))
     return answer(origin,400,{error:'COMPLETION_PROOF_REQUIRED'});
    const r=await db.rpc('saraf_original_admin_finalize_order',{
      p_admin:actor.id,p_order_id:orderId,
      p_action:complete?'complete':'reject',
      p_details:complete?details:null,
+     p_file_id:media?.file_id||null,
+     p_file_type:media?.file_type||null,
+     p_file_name:media?.file_name||null,
    });
    if(r.error){
     const known=new Set(['INVALID_ADMIN_FINALIZE','ORDER_NOT_FOUND',
@@ -263,7 +308,7 @@ Deno.serve(async(req:Request)=>{
    const row=r.data as {order_id:number;chat_id:number;asset:string;
      status:string;duplicate:boolean};
    const notified=row?.duplicate?true:await notifyOriginalFinalized(
-     row.chat_id,row.order_id,row.asset,row.status,details);
+     row.chat_id,row.order_id,row.asset,row.status,details,media);
    return answer(origin,200,{result:{
      order_id:row.order_id,status:row.status,duplicate:!!row.duplicate,
      customer_notified:notified,
