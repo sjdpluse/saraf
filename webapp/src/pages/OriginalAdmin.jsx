@@ -16,6 +16,7 @@ export default function OriginalAdmin({navigate}){
  const [pct,setPct]=useState('0.6');
  const [orderId,setOrderId]=useState('');
  const [completionProof,setCompletionProof]=useState('');
+ const [pickupCodes,setPickupCodes]=useState({});
  const [broadcastMessage,setBroadcastMessage]=useState('');
  const [broadcastKey,setBroadcastKey]=useState('');
  async function load(action,input={}){
@@ -30,13 +31,14 @@ export default function OriginalAdmin({navigate}){
  useEffect(()=>{
   const params=new URLSearchParams(location.search);
   const command=params.get('admin')||'';
-  const requested=['stats','spreads','pending','setspread','confirm','broadcast','kyc','complete']
+  const requested=['stats','spreads','pending','setspread','confirm','broadcast','kyc','complete','remittances']
    .includes(command)?command:'stats';
-  const next=requested==='complete'?'orders.confirmed':requested==='kyc'?'kyc.pending':requested==='broadcast'?'broadcast':requested==='pending'?'orders.pending':
+  const next=requested==='remittances'?'remittances.pending':requested==='complete'?'orders.confirmed':requested==='kyc'?'kyc.pending':requested==='broadcast'?'broadcast':requested==='pending'?'orders.pending':
    requested==='confirm'?'orders.pending':requested==='setspread'?'spreads':requested;
   setSection(next);
   if(next==='stats'||next==='spreads'||next==='orders.pending'||
-    next==='orders.confirmed'||next==='kyc.pending')load(next);
+    next==='orders.confirmed'||next==='kyc.pending'||
+    next==='remittances.pending')load(next);
   const prefillCode=params.get('currency');
   if(prefillCode&&CODES.includes(prefillCode))setCode(prefillCode);
   const amount=params.get('percent');
@@ -67,6 +69,27 @@ export default function OriginalAdmin({navigate}){
   }
   if(!await showConfirm('آیا مبلغ/رمزارز واقعاً به مشتری ارسال شده و مدرک تراکنش صحیح است؟ این عمل سفارش را تکمیل می‌کند.'))return;
   await load('order.complete',{order_id:n,completion_tx_details:details});
+ }
+ async function transitionRemittance(order,transition){
+  const id=Number(order?.id);
+  if(!Number.isSafeInteger(id)||id<=0){setError('شناسه حواله معتبر نیست.');return;}
+  const code=String(pickupCodes[id]||'').trim();
+  if(transition==='pay'&&!/^[0-9]{6}$/.test(code)){
+   setError('برای تکمیل پرداخت واقعی، کد شش‌رقمی را پس از تطبیق مدرک هویت گیرنده وارد کنید.');return;
+  }
+  const prompts={
+   ready:'دریافت کریپتو را در شبکه بررسی کرده‌اید؟ تنها پس از تأیید دریافت واقعی و تطبیق مبلغ، حواله آمادهٔ پرداخت شود.',
+   hold:'حواله برای بررسی بیشتر متوقف شود؟',
+   cancel:'حواله لغو شود؟ این اقدام ممکن است نیازمند بررسی بازپرداخت باشد.',
+   pay:'آیا مدرک هویت گیرنده تطبیق شده، وجه نقد واقعاً پرداخت شده و کد شش‌رقمی از گیرنده دریافت شده است؟',
+  };
+  const warning=transition==='ready'&&order.verification_status!=='verified'
+    ?'⚠️ وضعیت تأیید بلاکچین در سیستم «تأیید شده» نیست؛ انجام این عمل فقط با تأیید مستقل دریافت واقعی توسط مدیر مجاز است.\\n\\n':'';
+  if(!await showConfirm(warning+prompts[transition]))return;
+  await load('remittances.transition',{
+   order_id:id,transition,...(transition==='pay'?{pickup_code:code}:{}),
+  });
+  setPickupCodes(prev=>({...prev,[id]:''}));
  }
  async function reviewKyc(id,decision){
   const chat_id=Number(id);
@@ -115,6 +138,7 @@ export default function OriginalAdmin({navigate}){
    <button disabled={busy} onClick={()=>{setSection('spreads');load('spreads');}}>📐 اسپردها</button>
    <button disabled={busy} onClick={()=>{setSection('orders.pending');load('orders.pending');}}>📋 سفارش‌های در انتظار</button>
    <button disabled={busy} onClick={()=>{setSection('orders.confirmed');load('orders.confirmed');}}>📦 سفارش‌های تأییدشده</button>
+   <button disabled={busy} onClick={()=>{setSection('remittances.pending');load('remittances.pending');}}>💸 حواله‌های در جریان</button>
    <button disabled={busy} onClick={()=>{setSection('kyc.pending');load('kyc.pending');}}>🪪 احراز هویت</button>
   </div>
   {busy&&<p role="status">در حال بررسی ...</p>}
@@ -145,6 +169,58 @@ export default function OriginalAdmin({navigate}){
         onClick={()=>rejectOrder(order.id)}>❌ رد سفارش</button>
      </article>)}
   </section>}
+  {result?.action==='remittances.pending'&&<section>
+   <h2 style={{fontSize:17}}>حواله‌ها — بررسی کریپتو، مدرک هویت و پرداخت نقدی</h2>
+   <p className="notice">کد دریافت تنها به مشتری ارسال می‌شود و در این پنل نمایش داده نمی‌شود. برای ثبت پرداخت باید کد شش‌رقمی را از گیرنده بگیرید و تذکره را تطبیق کنید.</p>
+   {!result.orders?.length&&<p>حواله‌ای در انتظار بررسی نیست.</p>}
+   {(result.orders||[]).map(order=>
+    <article className="notice" key={order.id} style={{marginTop:12}}>
+     <b>REM-{String(order.id).padStart(6,'0')}</b>
+     <p>{order.crypto_amount} {order.asset} | شبکه: {order.network}
+     {' | '}{cash(order.payout_afn)} افغانی</p>
+     <p>گیرنده: {order.beneficiary_full_name} | {order.beneficiary_phone}</p>
+     <p>موقعیت: {order.beneficiary_province} / {order.beneficiary_city}</p>
+     <p>وضعیت: {order.status} | تأیید بلاکچین: {order.verification_status||'نامعلوم'}
+     {' | '}تأیید شبکه: {order.chain_confirmations??0}</p>
+     {order.tx_hash&&<p style={{overflowWrap:'anywhere'}}>Tx Hash: {order.tx_hash}</p>}
+     {order.beneficiary_id_url?
+      <a href={order.beneficiary_id_url} target="_blank"
+       rel="noopener noreferrer" referrerPolicy="no-referrer">🪪 مشاهده خصوصی تذکره گیرنده (۹۰ ثانیه)</a>
+      :<p>سند هویتی گیرنده در دسترس نیست؛ قبل از پرداخت بررسی شود.</p>}
+     <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12}}>
+      {['transfer_submitted','on_hold'].includes(order.status)&&
+       <button type="button" disabled={busy}
+        onClick={()=>transitionRemittance(order,'ready')}>✅ کریپتو دریافت شد — آماده پرداخت</button>}
+      {['transfer_submitted','payout_ready'].includes(order.status)&&
+       <button type="button" disabled={busy}
+        onClick={()=>transitionRemittance(order,'hold')}>⏸ توقف بررسی</button>}
+      {['transfer_submitted','on_hold'].includes(order.status)&&
+       <button type="button" disabled={busy}
+        onClick={()=>transitionRemittance(order,'cancel')}>❌ لغو حواله</button>}
+     </div>
+     {order.status==='payout_ready'&&<div style={{marginTop:14}}>
+      <label>کد دریافت ۶ رقمی که از گیرنده پس از تطبیق هویت گرفته‌اید:</label>
+      <input aria-label={'کد دریافت حواله '+order.id} className="input num"
+       type="text" inputMode="numeric" maxLength={6}
+       value={pickupCodes[order.id]||''}
+       onChange={e=>setPickupCodes(prev=>({...prev,
+        [order.id]:e.target.value.replace(/[^0-9]/g,'').slice(0,6)}))}
+       placeholder="••••••" autoComplete="off" />
+      <button type="button" disabled={busy||String(pickupCodes[order.id]||'').length!==6}
+       onClick={()=>transitionRemittance(order,'pay')}>💵 پرداخت انجام شد — تکمیل با کد</button>
+     </div>}
+    </article>)}
+   <button type="button" disabled={busy} style={{marginTop:12}}
+    onClick={()=>load('remittances.pending')}>🔄 بازخوانی وضعیت و لینک‌های سند</button>
+  </section>}
+  {result?.action==='remittances.transition'&&<div className="notice">
+   ✅ وضعیت حواله {result.result?.order_code} به {result.result?.status} تغییر کرد.
+   {result.result?.customer_notified===false&&
+    ' اطلاع‌رسانی به مشتری موفق نشد؛ به‌صورت دستی پیگیری کنید.'}
+   <div><button type="button" disabled={busy} onClick={()=>{
+     setSection('remittances.pending');load('remittances.pending');
+   }}>بازگشت به حواله‌ها</button></div>
+  </div>}
   {result?.action==='orders.confirmed'&&<section>
    <h2 style={{fontSize:17}}>سفارش‌های تأییدشده و در انتظار تکمیل واقعی</h2>
    <p className="notice">تا زمان ارسال واقعی وجه/رمزارز، سفارش را تکمیل نکنید. مطابق ربات اصلی درج Transaction Details یا Tx Hash الزامی است.</p>
