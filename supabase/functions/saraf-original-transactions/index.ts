@@ -342,6 +342,53 @@ Deno.serve(async req=>{
       '\nشناسه تراکنش: '+hash+'\nلطفاً حواله را در پنل اصلی بررسی کنید.');
     return out(origin,200,saved.data);
   }
+  if(action==='card.preview'){
+    // Original Python card-preview checks signed identity, active quote,
+    // exact amount, exchange and asset/network wallet before image rendering.
+    // Browser rasterization avoids Railway and never uploads private media.
+    const side=String(input.action||''),type=asset(input.asset),a=amount(input.amount);
+    if(side!=='buy'&&side!=='sell')deny('INVALID_ORDER_TYPE');
+    const qid=Number(input.quote_id);
+    if(!Number.isSafeInteger(qid)||qid<=0)deny('INVALID_QUOTE_ID');
+    const q=await db.from('usdt_quotes').select(
+      'id,order_type,asset,usdt_amount,usd_rate,fee_percent,total_afn,total_usd,status,expires_at'
+     ).eq('id',qid).eq('chat_id',user.id).maybeSingle();
+    if(q.error)deny('QUOTE_UNAVAILABLE',503);
+    if(!q.data||q.data.order_type!==side||q.data.asset!==type
+       ||Math.abs(Number(q.data.usdt_amount)-a)>0.0000001)
+      deny('QUOTE_MISMATCH',409);
+    if(q.data.status!=='active'||Date.parse(q.data.expires_at)<=Date.now())
+      deny('QUOTE_EXPIRED_OR_CONSUMED',409);
+    const exchange=String(input.exchange_name||'').trim();
+    if(!exchange||exchange.length>200)deny('EXCHANGE_REQUIRED');
+    const depositWallets=wallets(type);
+    const network=methodNetworks(type,input.network,side as 'buy'|'sell',depositWallets);
+    const wallet=String(input.wallet_address||'').trim();
+    if(side==='buy'&&!walletShape(network,wallet))deny('INVALID_WALLET_ADDRESS');
+    const profile=await db.from('user_profiles').select(
+      'first_name,last_name,phone,kyc_status,trust_score,successful_orders'
+     ).eq('chat_id',user.id).maybeSingle();
+    if(profile.error)deny('PROFILE_UNAVAILABLE',503);
+    if(!profile.data?.first_name||!profile.data.last_name||!profile.data.phone)
+      deny('BASIC_PROFILE_REQUIRED',403);
+    return out(origin,200,{
+      order_preview:{
+        order_type:side,asset:type,usdt_amount:Number(q.data.usdt_amount),
+        usd_rate:Number(q.data.usd_rate),
+        fee_percent:Number(q.data.fee_percent||0),
+        total_afn:Number(q.data.total_afn),total_usd:Number(q.data.total_usd),
+        exchange_name:exchange,network,
+        wallet_address:side==='buy'?wallet:String(depositWallets[network]||''),
+        deposit_address:side==='sell'?String(depositWallets[network]||''):null,
+      },
+      profile:{
+        first_name:profile.data.first_name,last_name:profile.data.last_name,
+        phone:profile.data.phone,kyc_status:profile.data.kyc_status,
+        trust_score:profile.data.trust_score,
+        successful_orders:profile.data.successful_orders,
+      },
+    });
+  }
   if(action==='quote'){
    const type=asset(input.asset),a=amount(input.amount);
    const side=String(input.action);
