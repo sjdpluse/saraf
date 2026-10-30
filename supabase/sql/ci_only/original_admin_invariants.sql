@@ -267,3 +267,45 @@ BEGIN
  THEN RAISE EXCEPTION 'PUBLIC_REMITTANCE_PAYOUT_RPC';END IF;
  RAISE NOTICE 'Original remittance admin and six-digit pickup invariants passed';
 END $$;
+
+
+-- A REAL TELEGRAM FILE-ID can serve as completion proof without a text hash,
+-- but missing/invalid proof MUST NEVER produce a paid order.
+DO $$
+DECLARE
+ n bigint; v jsonb; denied boolean;
+BEGIN
+ INSERT INTO public.usdt_orders(
+  chat_id,order_type,asset,usdt_amount,usd_rate,total_afn,total_usd,status)
+ VALUES(101,'buy','USDT',5,70,350,5,'confirmed') RETURNING id INTO n;
+ denied:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_finalize_order(
+   997,n,'complete',NULL,NULL,NULL,NULL);
+ EXCEPTION WHEN raise_exception THEN
+  denied:=SQLERRM='COMPLETION_PROOF_REQUIRED';
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'ORIGINAL_MEDIA_EMPTY_PROOF_ACCEPTED';END IF;
+ denied:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_finalize_order(
+   997,n,'complete',NULL,'https://evil.example','photo','passport.png');
+ EXCEPTION WHEN raise_exception THEN
+  denied:=SQLERRM='COMPLETION_PROOF_REQUIRED';
+ END;
+ IF NOT denied THEN RAISE EXCEPTION 'ORIGINAL_MEDIA_INVALID_PROOF_ACCEPTED';END IF;
+ v:=public.saraf_original_admin_finalize_order(
+  997,n,'complete',NULL,'AgACAgQAAxkBsyntheticFile001','photo','transaction-details.jpg');
+ IF v->>'status'<>'completed' OR
+  (SELECT completion_proof_file_id='AgACAgQAAxkBsyntheticFile001' AND
+          completion_proof_file_type='photo' AND
+          completion_proof_file_name='transaction-details.jpg'
+   FROM public.usdt_orders WHERE id=n) IS DISTINCT FROM true THEN
+  RAISE EXCEPTION 'ORIGINAL_MEDIA_ONLY_PROOF_NOT_STORED';
+ END IF;
+ v:=public.saraf_original_admin_finalize_order(
+  997,n,'complete',NULL,'AgACAgQAAxkBsyntheticFile001','photo','transaction-details.jpg');
+ IF NOT (v->>'duplicate')::boolean THEN
+  RAISE EXCEPTION 'ORIGINAL_MEDIA_FINALIZE_REPLAY_NOT_IDEMPOTENT';END IF;
+ RAISE NOTICE 'Original Telegram completion media proof PG invariants passed';
+END $$;
