@@ -375,10 +375,7 @@ Deno.serve(async req=>{
     const network=methodNetworks(type,input.network,side as 'buy'|'sell',depositWallets);
     const wallet=String(input.wallet_address||'').trim();
     if(side==='buy'&&!walletShape(network,wallet))deny('INVALID_WALLET_ADDRESS');
-    const profile=await db.from('user_profiles').select(
-      'first_name,last_name,phone,kyc_status,trust_score,successful_orders,'+
-      'selfie_path,cancelled_orders,payment_info_change_count,restricted_reason'
-     ).eq('chat_id',user.id).maybeSingle();
+    const profile=await db.from('user_profiles').select('first_name,last_name,phone,kyc_status,trust_score,successful_orders,selfie_path,cancelled_orders,payment_info_change_count,restricted_reason').eq('chat_id',user.id).maybeSingle();
     if(profile.error)deny('PROFILE_UNAVAILABLE',503);
     if(!profile.data?.first_name||!profile.data!.last_name||!profile.data!.phone)
       deny('BASIC_PROFILE_REQUIRED',403);
