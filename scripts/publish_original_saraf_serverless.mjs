@@ -60,6 +60,11 @@ try{
  const info=await botApi('getWebhookInfo');
  if(!info?.url?.startsWith('https://'))
   throw Error('NEW_TGCLOUD_WEBHOOK_NOT_ACTIVE');
+ // A successful CLI exit alone is not a migration: the ORIGINAL Railway
+ // webhook must actually change before we announce that traffic moved.
+ if(previous?.url&&info.url===previous.url&&
+    !/(?:tgcloud|telegram\.org)/i.test(previous.url))
+  throw Error('ORIGINAL_RAILWAY_WEBHOOK_UNCHANGED');
  const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),20000);
  try{
   const r=await fetch(APP,{cache:'no-store',signal:ctl.signal});
