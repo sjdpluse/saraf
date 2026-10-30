@@ -10,7 +10,8 @@ export class OriginalFinanceBridgeError extends Error {
  }
 }
 const ALLOWED=new Set(['stablecoins.config','payment.info','quote','order.buy','order.sell',
- 'remittances.config','remittances.quote','remittances.create','remittances.tx']);
+ 'remittances.config','remittances.quote','remittances.create','remittances.tx',
+ 'card.preview']);
 export const originalFinanceBridgeEnabled=()=>
  import.meta.env.VITE_SARAF_ORIGINAL_TRANSACTIONS_ENABLED==='true';
 export async function originalFinanceCall(action,input={}){
