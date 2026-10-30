@@ -7,6 +7,8 @@ on:
       - .github/workflows/saraf-original-signed-production-readiness.yml
       - scripts/verify_original_saraf_live_cutover.mjs
       - scripts/verify_original_finance_prerequisites.mjs
+      - scripts/verify_original_saraf_machine_release.mjs
+      - supabase/functions/saraf-original-transactions/preflight.mjs
       - supabase/functions/saraf-original-transactions/index.ts
   workflow_dispatch:
 permissions:
@@ -18,6 +20,7 @@ jobs:
     env:
       SARAF_E2E_USER_INIT_DATA: ${{ secrets.SARAF_E2E_USER_INIT_DATA }}
       SARAF_E2E_ADMIN_INIT_DATA: ${{ secrets.SARAF_E2E_ADMIN_INIT_DATA }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,13 +35,19 @@ jobs:
           deno-version: v2.x
       - name: Typecheck original signed finance Edge handler before any signed calls
         run: deno check supabase/functions/saraf-original-transactions/index.ts
+      - name: Validate original HMAC deployment challenge and production action scope
+        run: node --test serverless-poc/tests/original_release_machine_preflight.test.js
+      - name: Verify all ACTUAL original finance/admin/KYC/broadcast feature gates without stale initData
+        run: node scripts/verify_original_saraf_machine_release.mjs
       - name: Check ORIGINAL real bank/wallet/admin readiness with money APIs disabled
         continue-on-error: true
         run: node scripts/verify_original_finance_prerequisites.mjs
-      - name: Real ORIGINAL bot customer/admin signed read-only readiness test
-        run: |
-          set -euo pipefail
-          node scripts/verify_original_saraf_live_cutover.mjs
+      # Optional historic interactive-browser E2E: Telegram initData lasts
+      # 3600s and is not a durable CI credential. A stale session is expected.
+      # Real private flags are verified by fresh original-bot HMAC above.
+      - name: Optional original Telegram browser signed session (expires after 1 hour)
+        continue-on-error: true
+        run: node scripts/verify_original_saraf_live_cutover.mjs
       - name: Confirm no production webhook or customer funds were touched
         if: success()
         run: echo "Real original signed readiness checks passed. No orders created and no Telegram webhook changed."
