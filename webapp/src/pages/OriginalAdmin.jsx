@@ -15,6 +15,7 @@ export default function OriginalAdmin({navigate}){
  const [code,setCode]=useState('usd');
  const [pct,setPct]=useState('0.6');
  const [orderId,setOrderId]=useState('');
+ const [completionProof,setCompletionProof]=useState('');
  const [broadcastMessage,setBroadcastMessage]=useState('');
  const [broadcastKey,setBroadcastKey]=useState('');
  async function load(action,input={}){
@@ -29,13 +30,13 @@ export default function OriginalAdmin({navigate}){
  useEffect(()=>{
   const params=new URLSearchParams(location.search);
   const command=params.get('admin')||'';
-  const requested=['stats','spreads','pending','setspread','confirm','broadcast','kyc']
+  const requested=['stats','spreads','pending','setspread','confirm','broadcast','kyc','complete']
    .includes(command)?command:'stats';
-  const next=requested==='kyc'?'kyc.pending':requested==='broadcast'?'broadcast':requested==='pending'?'orders.pending':
+  const next=requested==='complete'?'orders.confirmed':requested==='kyc'?'kyc.pending':requested==='broadcast'?'broadcast':requested==='pending'?'orders.pending':
    requested==='confirm'?'orders.pending':requested==='setspread'?'spreads':requested;
   setSection(next);
   if(next==='stats'||next==='spreads'||next==='orders.pending'||
-    next==='kyc.pending')load(next);
+    next==='orders.confirmed'||next==='kyc.pending')load(next);
   const prefillCode=params.get('currency');
   if(prefillCode&&CODES.includes(prefillCode))setCode(prefillCode);
   const amount=params.get('percent');
@@ -51,6 +52,21 @@ export default function OriginalAdmin({navigate}){
   if(!await showConfirm('سفارش USDT-'+String(n).padStart(5,'0')+
     ' را مطابق دستور اصلی /usdtconfirm تأیید می‌کنید؟'))return;
   await load('order.confirm',{order_id:n});
+ }
+ async function rejectOrder(id){
+  const n=Number(id);
+  if(!Number.isSafeInteger(n)||n<1){setError('شماره سفارش معتبر نیست.');return;}
+  if(!await showConfirm('این سفارش مطابق ربات اصلی رد و لغو شود؟'))return;
+  await load('order.reject',{order_id:n});
+ }
+ async function completeOrder(id){
+  const n=Number(id),details=completionProof.trim();
+  if(!Number.isSafeInteger(n)||n<1){setError('شماره سفارش معتبر نیست.');return;}
+  if(details.length<4||details.length>2000){
+   setError('برای تکمیل سفارش، Tx Hash / Transaction Details واقعی (۴ تا ۲۰۰۰ حرف) لازم است.');return;
+  }
+  if(!await showConfirm('آیا مبلغ/رمزارز واقعاً به مشتری ارسال شده و مدرک تراکنش صحیح است؟ این عمل سفارش را تکمیل می‌کند.'))return;
+  await load('order.complete',{order_id:n,completion_tx_details:details});
  }
  async function reviewKyc(id,decision){
   const chat_id=Number(id);
@@ -98,6 +114,7 @@ export default function OriginalAdmin({navigate}){
    <button disabled={busy} onClick={()=>{setSection('stats');load('stats');}}>📈 آمار</button>
    <button disabled={busy} onClick={()=>{setSection('spreads');load('spreads');}}>📐 اسپردها</button>
    <button disabled={busy} onClick={()=>{setSection('orders.pending');load('orders.pending');}}>📋 سفارش‌های در انتظار</button>
+   <button disabled={busy} onClick={()=>{setSection('orders.confirmed');load('orders.confirmed');}}>📦 سفارش‌های تأییدشده</button>
    <button disabled={busy} onClick={()=>{setSection('kyc.pending');load('kyc.pending');}}>🪪 احراز هویت</button>
   </div>
   {busy&&<p role="status">در حال بررسی ...</p>}
@@ -124,8 +141,43 @@ export default function OriginalAdmin({navigate}){
        {' | '}{cash(order.total_afn)} افغانی</p>
        <button type="button" disabled={busy}
         onClick={()=>confirmOrder(order.id)}>تأیید سفارش</button>
+       <button type="button" disabled={busy} style={{marginRight:8}}
+        onClick={()=>rejectOrder(order.id)}>❌ رد سفارش</button>
      </article>)}
   </section>}
+  {result?.action==='orders.confirmed'&&<section>
+   <h2 style={{fontSize:17}}>سفارش‌های تأییدشده و در انتظار تکمیل واقعی</h2>
+   <p className="notice">تا زمان ارسال واقعی وجه/رمزارز، سفارش را تکمیل نکنید. مطابق ربات اصلی درج Transaction Details یا Tx Hash الزامی است.</p>
+   <textarea aria-label="Transaction Details / Tx Hash واقعی" rows={3}
+    value={completionProof} maxLength={2000}
+    onChange={e=>setCompletionProof(e.target.value)}
+    placeholder="Tx Hash / Transaction Details واقعی پس از ارسال وجه به مشتری" />
+   {!result.orders?.length&&<p>سفارش تأییدشده‌ای در انتظار تکمیل نیست.</p>}
+   {(result.orders||[]).map(order=>
+    <article className="notice" key={order.id} style={{marginTop:10}}>
+     <b>{order.asset||'USDT'}-{String(order.id).padStart(5,'0')}</b>
+     <p>{order.order_type==='buy'?'خرید':'فروش'} | {cash(order.usdt_amount)}
+       {' '}{order.asset} | {cash(order.total_afn)} افغانی</p>
+     <button type="button" disabled={busy||completionProof.trim().length<4}
+      onClick={()=>completeOrder(order.id)}>📦 تکمیل با مدرک تراکنش</button>
+    </article>)}
+   <button type="button" disabled={busy} style={{marginTop:12}}
+    onClick={()=>load('orders.confirmed')}>🔄 بازخوانی</button>
+  </section>}
+  {result?.action==='order.reject'&&<div className="notice">
+   ❌ سفارش {cash(result.result?.order_id)} رد و لغو شد.
+   {result.result?.customer_notified===false&&' اطلاع‌رسانی به مشتری موفق نشد.'}
+   <div><button type="button" disabled={busy}
+    onClick={()=>{setSection('orders.pending');load('orders.pending');}}>
+    بازگشت به سفارش‌های در انتظار</button></div>
+  </div>}
+  {result?.action==='order.complete'&&<div className="notice">
+   ✅ سفارش {cash(result.result?.order_id)} با مدرک تراکنش ثبت‌شده تکمیل شد.
+   {result.result?.customer_notified===false&&' اطلاع‌رسانی به مشتری موفق نشد.'}
+   <div><button type="button" disabled={busy}
+     onClick={()=>{setSection('orders.confirmed');load('orders.confirmed');}}>
+     بازگشت به سفارش‌های تأییدشده</button></div>
+  </div>}
   {result?.action==='kyc.pending'&&<section>
    <h2 style={{fontSize:17}}>اسناد در انتظار بررسی هویت</h2>
    <p className="notice">فقط مدیر مجاز می‌تواند تصویر خصوصی تذکره و سلفی را با لینک موقت ۹۰ثانیه‌ای مشاهده کند. پیش از تأیید، هر دو سند را بررسی کنید.</p>
