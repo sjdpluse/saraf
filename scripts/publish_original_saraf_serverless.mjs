@@ -9,6 +9,7 @@
  * Attempts to restore the previous webhook on a failed push/smoke.
  */
 import {spawn} from 'node:child_process';
+import {readFile} from 'node:fs/promises';
 const TOKEN=process.env.TGCLOUD_TOKEN||'';
 const BOT=process.env.SARAF_ORIGINAL_BOT_TOKEN||'';
 const PREVIOUS_SECRET=process.env.SARAF_ORIGINAL_PREVIOUS_WEBHOOK_SECRET||'';
@@ -31,16 +32,44 @@ async function botApi(method,body){
   return j.result;
  }finally{clearTimeout(timer);}
 }
-async function push(){
- const dir=new URL('../serverless-poc/.release-original/',import.meta.url);
+// Sync the remote 11-module revision in a read-only operation BEFORE publish.
+// An unscoped push mirrors the local folder and can DELETE remote modules.
+// Force-push bypasses the revision safety check and is never used here.
+const releaseRoot=new URL('../serverless-poc/.release-original/',import.meta.url);
+const manifestUrl=new URL('RELEASE_MODULES.json',releaseRoot);
+async function cli(args){
  return new Promise((resolve,reject)=>{
-  const cmd=spawn('npx',['--no-install','tgcloud','push'],{
-   cwd:dir,env:process.env,stdio:'inherit',shell:false,
+  const proc=spawn('npx',['--no-install','tgcloud',...args],{
+   cwd:releaseRoot,env:process.env,stdio:'inherit',shell:false,
   });
-  cmd.once('error',reject);
-  cmd.once('close',c=>c===0?resolve():reject(Error('TGCLOUD_PUSH_FAILED')));
+  proc.once('error',reject);
+  proc.once('close',code=>code===0?resolve():reject(
+   Error('TGCLOUD_'+args[0].toUpperCase()+'_FAILED')));
  });
 }
+async function push(){
+ const items=JSON.parse(await readFile(manifestUrl,'utf8'));
+ if(!Array.isArray(items)||items.length<15||items.length>40||
+  new Set(items).size!==items.length||items.some(path=>
+    typeof path!=='string'||
+    !/^tgcloud\/(?:handlers|lib|endpoints)\/[A-Za-z0-9_/-]+\.js$/.test(path)||
+    path.includes('..')||
+    /(?:schema|native|createOrder|createRemittance)/i.test(path)))
+   throw Error('INVALID_SARAF_EXACT_RELEASE_ALLOWLIST');
+ // CLI fetch updates only the local cloud-revision snapshot and does NOT
+ // modify the generated React build or prepared local handler files.
+ console.log('Safely syncing ORIGINAL deployed Telegram module revision.');
+ await cli(['fetch']);
+ // Targeting each of OUR 20 allowlisted modules and dist explicitly prevents
+ // removal of any of the 11 modules already deployed in the bot.
+ console.log('Pushing ONLY original Saraf allowlisted modules + Mini App assets.');
+ await cli(['push',...items,'dist/']);
+ // Telegram may still point at Railway even after a successful code upload.
+ // Sync, without dropping pending updates, is an explicit part of cutover.
+ console.log('Switching ORIGINAL Telegram webhook to the deployed handlers.');
+ await cli(['webhook','sync']);
+}
+
 let previous;
 let started=false;
 let success=false;
