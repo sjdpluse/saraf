@@ -181,9 +181,9 @@ BEGIN
  EXCEPTION WHEN raise_exception THEN blocked:=SQLERRM='INVALID_ORDER_TRANSITION';END;
  IF NOT blocked THEN RAISE EXCEPTION 'ORIGINAL_CANCELLED_ORDER_COMPLETED';END IF;
  IF has_function_privilege('anon',
-  'public.saraf_original_admin_finalize_order(bigint,bigint,text,text)','EXECUTE')
+  'public.saraf_original_admin_finalize_order(bigint,bigint,text,text,text,text,text)','EXECUTE')
  OR has_function_privilege('authenticated',
-  'public.saraf_original_admin_finalize_order(bigint,bigint,text,text)','EXECUTE')
+  'public.saraf_original_admin_finalize_order(bigint,bigint,text,text,text,text,text)','EXECUTE')
  THEN RAISE EXCEPTION 'ORIGINAL_ADMIN_FINALIZE_RPC_PUBLIC';END IF;
  RAISE NOTICE 'Original admin rejection/completion/trust invariants passed';
 END $$;
