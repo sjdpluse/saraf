@@ -31,10 +31,13 @@ class MarketSnapshotTests(unittest.IsolatedAsyncioTestCase):
             "the-open-network": {"usd_24h_change": 4.1, "last_updated_at": NOW},
         }, NOW)
         by_symbol = {x["symbol"]: x["change_24h"] for x in result}
-        self.assertEqual(by_symbol, {
+        for symbol, value in {
             "USDT": 0, "USDC": None, "BTC": -2.75, "SOL": 1.25,
             "BNB": 2.5, "XRP": -0.75, "TON": 4.1,
-        })
+        }.items():
+            self.assertEqual(by_symbol[symbol], value)
+        for symbol in set(market._IDS) - {"USDT", "USDC", "BTC", "SOL", "BNB", "XRP", "TON"}:
+            self.assertIsNone(by_symbol[symbol])
 
     def test_missing_invalid_and_stale_values_are_not_zero(self):
         for change, timestamp in [(None, NOW), (True, NOW), ("1.2", NOW),
@@ -70,9 +73,7 @@ class MarketSnapshotTests(unittest.IsolatedAsyncioTestCase):
             results = await asyncio.gather(*(market.get_market_snapshot() for _ in range(5)))
         self.assertEqual(client.get.await_count, 1)
         params = client.get.call_args.kwargs["params"]
-        self.assertEqual(set(params["ids"].split(",")), {
-            "tether", "usd-coin", "bitcoin", "solana", "binancecoin", "ripple", "the-open-network",
-        })
+        self.assertEqual(set(params["ids"].split(",")), set(market._IDS.values()))
         self.assertEqual(params["include_24hr_change"], "true")
         self.assertEqual(params["include_last_updated_at"], "true")
         self.assertTrue(all(result["status"] == "fresh" for result in results))

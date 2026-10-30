@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=path=>readFileSync(new URL('../../'+path,import.meta.url),'utf8');
+const sql=read('supabase/sql/saraf_original_admin_commands_STAGED.sql');
+const edge=read('supabase/functions/saraf-original-admin/index.ts');
+const ui=read('webapp/src/pages/OriginalAdmin.jsx');
+const bridge=read('webapp/src/lib/originalAdminBridge.js');
+
+test('original admin complete requires proof, confirmed status and atomic trust history',()=>{
+ assert.match(sql,/CREATE OR REPLACE FUNCTION public\.saraf_original_admin_finalize_order/);
+ assert.match(sql,/IF p_action='complete' AND NOT \(/);
+ assert.match(sql,/length\(trim\(coalesce\(p_details,''\)\)\) BETWEEN 4 AND 2000 OR/);
+ assert.match(sql,/p_file_id ~ /);
+ assert.match(sql,/COMPLETION_PROOF_REQUIRED/);
+ assert.match(sql,/v_previous<>'confirmed'/);
+ assert.match(sql,/v_previous<>'pending'/);
+ assert.match(sql,/completion_tx_details=CASE WHEN p_action='complete'/);
+ assert.match(sql,/INSERT INTO public\.audit_log/);
+ assert.match(sql,/UPDATE public\.user_profiles SET/);
+ assert.match(sql,/current_success_streak=v_streak/);
+ assert.match(sql,/total_volume_usdt=coalesce\(total_volume_usdt,0\)/);
+ assert.match(sql,/trust_score=v_trust/);
+ assert.match(sql,/FROM PUBLIC,anon,authenticated/);
+ assert.match(sql,/saraf_original_admin_finalize_order\(bigint,bigint,text,text,text,text,text\)/);
+});
+test('signed original admin confirmation, rejection and settlement are separate',()=>{
+ assert.match(edge,/if\(action==='orders.confirmed'\)/);
+ assert.match(edge,/if\(action==='order.reject'\|\|action==='order.complete'\)/);
+ assert.match(edge,/if\(isWrite\(action\)&&!WRITE\)/);
+ assert.match(edge,/saraf_original_admin_finalize_order/);
+ assert.match(edge,/Number\.isSafeInteger\(orderId\)/);
+ assert.match(edge,/details.length>2000/);
+ assert.match(edge,/verifyOriginalProof\(BOT,attestation,actor.id,orderId\)/);
+ assert.match(edge,/row\?\.duplicate\?true:await notifyOriginalFinalized/);
+ assert.match(ui,/await showConfirm\('آیا مبلغ\/رمزارز واقعاً/);
+ assert.match(ui,/completion_tx_details:details/);
+ assert.match(ui,/rejectOrder\(order\.id\)/);
+ assert.match(ui,/completeOrder\(order\.id\)/);
+ assert.match(bridge,/'order.reject','order.complete','orders.confirmed'/);
+});

@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:telegram": "vite build --config vite.telegram.config.js",
+    "build:telegram-original": "vite build --config vite.telegram.config.js --mode telegram-original",
+    "build:telegram-original-full": "vite build --config vite.telegram.config.js --mode telegram-original-full",
+    "build:telegram-pilot": "vite build --config vite.telegram-pilot.config.js",
     "preview": "vite preview"
   },
   "dependencies": {

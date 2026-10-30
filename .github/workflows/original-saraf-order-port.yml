@@ -1,0 +1,83 @@
+name: Original Saraf financial migration parity (synthetic only)
+on:
+  pull_request:
+    paths:
+      - 'supabase/sql/saraf_original_usdt_order_rpc_STAGED.sql'
+      - 'supabase/sql/saraf_original_remittance_rpc_STAGED.sql'
+      - 'supabase/sql/saraf_original_meta_transport_STAGED.sql'
+      - 'supabase/sql/saraf_original_admin_commands_STAGED.sql'
+      - 'supabase/sql/saraf_original_broadcast_STAGED.sql'
+      - 'supabase/sql/ci_only/original_broadcast_invariants.sql'
+      - 'supabase/sql/ci_only/original_admin_invariants.sql'
+      - 'supabase/functions/saraf-original-admin/**'
+      - 'supabase/sql/ci_only/original_meta_queue_invariants.sql'
+      - 'supabase/sql/ci_only/original_usdt*'
+      - 'supabase/functions/saraf-original-transactions/**'
+      - 'serverless-poc/tgcloud/lib/legacy_stablecoin_pricing.js'
+      - 'serverless-poc/tests/original_stablecoin_pricing.test.js'
+      - 'serverless-poc/tests/original_remittance_v2.test.js'
+      - '.github/workflows/original-saraf-order-port.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-original-order:
+    name: Original trading order semantics in isolated Postgres 16
+    runs-on: ubuntu-latest
+    services:
+      pg:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic_test_only
+          POSTGRES_DB: saraf_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGDATABASE: saraf_synthetic
+      PGUSER: postgres
+      PGPASSWORD: synthetic_test_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Original Saraf trading and remittance V2 pricing fixtures
+        run: node --test serverless-poc/tests/original_stablecoin_pricing.test.js serverless-poc/tests/original_remittance_v2.test.js
+      - name: Detect accidental changes between Telegram and Supabase pricing ports
+        run: cmp serverless-poc/tgcloud/lib/legacy_stablecoin_pricing.js supabase/functions/saraf-original-transactions/pricing.mjs
+      - name: Install synthetic legacy tables
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_usdt_fixture.sql
+      - name: Install original order commit RPC in synthetic database ONLY
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_original_usdt_order_rpc_STAGED.sql
+      - name: Install original remittance persistence RPC (synthetic only)
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_original_remittance_rpc_STAGED.sql
+      - name: Assert original order quote, KYC, idempotency and audit invariants
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_usdt_order_invariants.sql
+      - name: Verify original beneficiary and TX submission invariants
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_remittance_invariants.sql
+      - name: Install original service-only admin commands in isolated PG
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_original_admin_commands_STAGED.sql
+      - name: Verify original /usdtconfirm and /setspread invariants
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_admin_invariants.sql
+      - name: Create original /broadcast queue in isolated synthetic PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_original_broadcast_STAGED.sql
+      - name: Assert /broadcast and /stop privacy, idempotency and opt-out
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_broadcast_invariants.sql
+      - name: Stage original Meta webhook delivery transport in isolated PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/saraf_original_meta_transport_STAGED.sql
+      - name: Assert signed Meta queue is private and idempotent
+        run: psql -v ON_ERROR_STOP=1 -f supabase/sql/ci_only/original_meta_queue_invariants.sql
+      - name: Confirm original production Supabase is never a test target
+        run: |
+          if env | grep -E '^(SUPABASE_URL|SUPABASE_SERVICE_ROLE_KEY|SARAF_TELEGRAM_BOT_TOKEN)='; then
+            echo "Production secrets must never be injected into migration integration tests."
+            exit 1
+          fi

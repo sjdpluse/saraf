@@ -1,0 +1,49 @@
+name: Saraf original Meta webhook worker (OFF until cutover)
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-meta-queue
+  cancel-in-progress: false
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    env:
+      SARAF_ORIGINAL_META_WORKER_ENABLED: ${{ secrets.SARAF_ORIGINAL_META_WORKER_ENABLED }}
+      SUPABASE_URL: ${{ secrets.SARAF_ORIGINAL_SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SARAF_ORIGINAL_SUPABASE_KEY }}
+      FACEBOOK_PAGE_ID: ${{ secrets.SARAF_ORIGINAL_FACEBOOK_PAGE_ID }}
+      FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.SARAF_ORIGINAL_FACEBOOK_PAGE_ACCESS_TOKEN }}
+      FACEBOOK_APP_SECRET: ${{ secrets.SARAF_ORIGINAL_FACEBOOK_APP_SECRET }}
+      INSTAGRAM_APP_SECRET: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_APP_SECRET }}
+      INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+      INSTAGRAM_USER_ACCESS_TOKEN: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_USER_ACCESS_TOKEN }}
+      INSTAGRAM_USER_ID: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_USER_ID }}
+      INSTAGRAM_BUSINESS_USERNAME: ${{ vars.SARAF_ORIGINAL_INSTAGRAM_USERNAME }}
+      INSTAGRAM_GRAPH_API_VERSION: ${{ vars.SARAF_ORIGINAL_INSTAGRAM_GRAPH_VERSION || 'v26.0' }}
+      INSTAGRAM_COMMENT_KEYWORDS: ${{ vars.SARAF_ORIGINAL_INSTAGRAM_COMMENT_KEYWORDS }}
+      INSTAGRAM_AI_REPLY_ENABLED: ${{ vars.SARAF_ORIGINAL_INSTAGRAM_AI_REPLY_ENABLED || 'true' }}
+      TELEGRAM_BOT_LINK: https://t.me/sarafiaf_bot
+      OPENROUTER_API_KEY: ${{ secrets.SARAF_ORIGINAL_OPENROUTER_API_KEY }}
+      OPENROUTER_MODEL: ${{ vars.SARAF_ORIGINAL_OPENROUTER_MODEL }}
+      OPENROUTER_FALLBACK_MODELS: ${{ vars.SARAF_ORIGINAL_OPENROUTER_FALLBACK_MODELS }}
+    steps:
+      - name: No business writes without explicit enablement
+        if: env.SARAF_ORIGINAL_META_WORKER_ENABLED != 'true'
+        run: echo "Original Meta queue worker OFF. No comments or DMs sent."
+      - uses: actions/checkout@v4
+        if: env.SARAF_ORIGINAL_META_WORKER_ENABLED == 'true'
+      - uses: actions/setup-python@v5
+        if: env.SARAF_ORIGINAL_META_WORKER_ENABLED == 'true'
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install original requirements unchanged
+        if: env.SARAF_ORIGINAL_META_WORKER_ENABLED == 'true'
+        run: pip install -r requirements.txt
+      - name: Process Meta queue with original automation code
+        if: env.SARAF_ORIGINAL_META_WORKER_ENABLED == 'true'
+        run: python scripts/run_original_meta_worker.py --limit 12

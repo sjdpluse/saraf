@@ -1,0 +1,70 @@
+name: Verify deployed Saraf Supabase bridge (public negative tests)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'supabase/functions/saraf-telegram-bridge/**'
+      - 'supabase/dashboard-deploy/**'
+      - '.github/workflows/saraf-edge-bridge-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  safe-remote-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed for unsigned Telegram initData
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1/saraf-telegram-bridge"
+          status=$(curl --silent --show-error --max-time 20 \
+            --output /tmp/saraf-unauth.json --write-out "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            --data '{"action":"profile.get","input":{}}' "$url")
+          echo "Unsigned request status: $status"
+          # No token, account data or user identity is ever sent by this test.
+          if [[ "$status" != "401" ]]; then
+            echo "::error::Expected 401 for unsigned request (503 indicates missing Edge secrets)."
+            sed -E 's/[^a-zA-Z0-9_:,.{}" -]/?/g' /tmp/saraf-unauth.json | head -c 300
+            exit 1
+          fi
+      - name: Reject forged Telegram initData
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1/saraf-telegram-bridge"
+          status=$(curl --silent --show-error --max-time 20 \
+            --output /tmp/saraf-forged.json --write-out "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -H "X-Telegram-Init-Data: auth_date=100&user=%7B%22id%22%3A1%7D&hash=$(printf '0%.0s' {1..64})" \
+            -X POST \
+            --data '{"action":"orders.me","input":{"user_id":1}}' "$url")
+          echo "Forged request status: $status"
+          if [[ "$status" != "401" ]]; then
+            echo "::error::Expected 401 for forged Telegram identity."
+            exit 1
+          fi
+
+      - name: Probe deployed original backend auth boundaries (no real money or identity)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1"
+          origin="https://app8533795882.tgcloud.ai"
+          failures=0
+          for service in saraf-telegram-bridge saraf-original-transactions saraf-original-admin saraf-legacy-kyc saraf-legacy-uploads saraf-original-notifications; do
+            status=$(curl --silent --show-error --max-time 18               --output /dev/null --write-out "%{http_code}"               -H "Origin: $origin" -H "Content-Type: application/json"               -X POST --data '{"action":"profile.get","input":{}}'               "$base/$service")
+            echo "$service refused unsigned identity: HTTP $status"
+            if [[ "$status" != "401" ]]; then
+              echo "::warning::$service HTTP $status: missing server-side original private secrets or auth config; original cutover blocked."
+              failures=$((failures+1))
+            fi
+          done
+          status=$(curl --silent --show-error --max-time 18             --output /dev/null --write-out "%{http_code}"             -H "Content-Type: application/json" -X POST             --data '{}' "$base/saraf-original-broadcast-worker")
+          echo "Broadcast worker refused unsigned cron token: HTTP $status"
+          if [[ "$status" != "401" ]]; then failures=$((failures+1)); fi
+          if ((failures>0)); then
+            echo "::error::Original Saraf signed backend still has $failures disabled/unconfigured ingress boundary(s)."
+            exit 1
+          fi

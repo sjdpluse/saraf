@@ -1,0 +1,84 @@
+name: Saraf original scheduled jobs without Railway (OFF until activated)
+on:
+  schedule:
+    - cron: '0,30 * * * *'
+    - cron: '0,15,30,45 * * * *'
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Run an ORIGINAL Python job without changing its business logic'
+        required: true
+        type: choice
+        options:
+          - reference
+          - local
+          - facebook
+          - instagram
+permissions:
+  contents: read
+concurrency:
+  group: original-saraf-legacy-jobs-${{ github.event.schedule || github.event.inputs.task || 'manual' }}
+  cancel-in-progress: false
+jobs:
+  jobs:
+    name: Reuse original Python ${{ github.event.schedule || github.event.inputs.task }} tasks
+    runs-on: ubuntu-latest
+    env:
+      SARAF_ORIGINAL_JOBS_ENABLED: ${{ secrets.SARAF_ORIGINAL_JOBS_ENABLED }}
+      SUPABASE_URL: ${{ secrets.SARAF_ORIGINAL_SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SARAF_ORIGINAL_SUPABASE_KEY }}
+      BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+      ADMIN_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_ADMIN_BOT_TOKEN }}
+      ADMIN_CHAT_IDS: ${{ secrets.SARAF_ORIGINAL_ADMIN_CHAT_IDS }}
+      FACEBOOK_PAGE_ID: ${{ secrets.SARAF_ORIGINAL_FACEBOOK_PAGE_ID }}
+      FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.SARAF_ORIGINAL_FACEBOOK_PAGE_ACCESS_TOKEN }}
+      FACEBOOK_CHANGE_THRESHOLD_PERCENT: ${{ vars.SARAF_ORIGINAL_FACEBOOK_CHANGE_PERCENT || '0.5' }}
+      INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+      INSTAGRAM_USER_ACCESS_TOKEN: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_USER_ACCESS_TOKEN }}
+      INSTAGRAM_APP_SECRET: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_APP_SECRET }}
+      INSTAGRAM_CHANGE_THRESHOLD_PERCENT: ${{ vars.SARAF_ORIGINAL_INSTAGRAM_CHANGE_PERCENT || '0.5' }}
+      INSTAGRAM_USER_ID: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_USER_ID }}
+      INSTAGRAM_BUSINESS_USERNAME: ${{ vars.SARAF_ORIGINAL_INSTAGRAM_USERNAME }}
+      SARAF_LOGO_URL: ${{ vars.SARAF_ORIGINAL_LOGO_URL }}
+      SOCIAL_POSTS_BUCKET: ${{ vars.SARAF_ORIGINAL_SOCIAL_POSTS_BUCKET || 'social-posts' }}
+      OPENROUTER_API_KEY: ${{ secrets.SARAF_ORIGINAL_OPENROUTER_API_KEY }}
+    steps:
+      - name: Safe default — no scheduled activity without explicit secret
+        if: env.SARAF_ORIGINAL_JOBS_ENABLED != 'true'
+        run: |
+          echo "Original Saraf scheduled jobs remain disabled; no customer or Meta writes."
+      - uses: actions/checkout@v4
+        if: env.SARAF_ORIGINAL_JOBS_ENABLED == 'true'
+      - uses: actions/setup-python@v5
+        if: env.SARAF_ORIGINAL_JOBS_ENABLED == 'true'
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install ORIGINAL Python dependencies
+        if: env.SARAF_ORIGINAL_JOBS_ENABLED == 'true'
+        run: pip install -r requirements.txt
+      - name: International rate, gold and silver snapshots
+        if: |
+          env.SARAF_ORIGINAL_JOBS_ENABLED == 'true' &&
+          (github.event.schedule == '0,30 * * * *' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.task == 'reference'))
+        run: python scripts/run_original_saraf_jobs.py --task reference
+      - name: Original Sarai Shahzada and local FX snapshots
+        if: |
+          env.SARAF_ORIGINAL_JOBS_ENABLED == 'true' &&
+          (github.event.schedule == '0,15,30,45 * * * *' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.task == 'local'))
+        run: python scripts/run_original_saraf_jobs.py --task local
+      - name: Original Facebook USD-triggered posting
+        if: |
+          env.SARAF_ORIGINAL_JOBS_ENABLED == 'true' &&
+          (github.event.schedule == '*/10 * * * *' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.task == 'facebook'))
+        run: python scripts/run_original_saraf_jobs.py --task facebook
+      - name: Original Instagram USD-triggered posting
+        if: |
+          env.SARAF_ORIGINAL_JOBS_ENABLED == 'true' &&
+          (github.event.schedule == '*/10 * * * *' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.task == 'instagram'))
+        run: python scripts/run_original_saraf_jobs.py --task instagram

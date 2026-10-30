@@ -1,5 +1,12 @@
 import { getInitData } from "./telegram";
 import { normalizeAsset } from "./brand";
+import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./runtime";
+import { nativeCall } from "./nativeApi";
+import { canonicalCall } from "./supabaseBridge";
+import { uploadOriginalIdentity } from "./legacyKycBridge";
+import { uploadOriginalImage } from "./legacyUploads";
+import { originalFinanceCall } from './originalFinanceBridge';
+import { renderOriginalOrderCardPreview } from './originalOrderCardPng';
 
 class ApiError extends Error {
   constructor(message, status, code) {
@@ -21,6 +28,75 @@ const orderRetryKeys = new Map();
 const remittanceRetryKeys = new Map();
 
 async function request(path, { method = "GET", body, isForm = false, headers: extraHeaders = {} } = {}) {
+  if (IS_TELEGRAM_NATIVE) {
+    // Only explicitly migrated reads are routed to native Telegram Serverless.
+    // No financial API call can silently fall back to Railway or expose initData.
+    if (path === '/market/snapshot' && method === 'GET') return nativeCall('getMarketSnapshot');
+    if (path === '/usdt/stats' && method === 'GET') return canonicalCall('stats.get');
+    if (path === '/usdt/profile' && method === 'GET') return canonicalCall('profile.get');
+    if (path === '/usdt/profile' && method === 'POST') {
+      if (!isForm || !body) throw new ApiError('معلومات پروفایل معتبر نیست.', 400);
+      return canonicalCall('profile.save', {
+        first_name: body.get('first_name'),
+        last_name: body.get('last_name'),
+        phone: body.get('phone'),
+      });
+    }
+    if (path === '/usdt/kyc' && method === 'POST') return uploadOriginalIdentity(body);
+    if (path === '/usdt/upload-receipt' && method === 'POST') return uploadOriginalImage('receipt',body);
+    if (path === '/remittances/upload-beneficiary-id' && method === 'POST')
+      return uploadOriginalImage('beneficiary',body);
+    if (path === '/usdt/orders/me' && method === 'GET') return canonicalCall('orders.me');
+    if (path === '/usdt/payment-info' && method === 'GET') return originalFinanceCall('payment.info');
+    if (path === '/stablecoins/config' && method === 'GET') return originalFinanceCall('stablecoins.config');
+    if (path === '/remittances/config' && method === 'GET') return originalFinanceCall('remittances.config');
+    if (path === '/remittances/me' && method === 'GET') return canonicalCall('remittances.me');
+    // Original signed Telegram / Supabase quote and order API. Supabase and
+    // React feature switches remain OFF until original-bot E2E validation.
+    if(path==='/usdt/quote'&&method==='POST')
+      return originalFinanceCall('quote',body);
+    if(path==='/usdt/orders/buy'&&method==='POST')
+      return originalFinanceCall('order.buy',{
+        ...body,idempotency_key:extraHeaders['Idempotency-Key'],
+      });
+    if(path==='/usdt/orders/sell'&&method==='POST')
+      return originalFinanceCall('order.sell',{
+        ...body,idempotency_key:extraHeaders['Idempotency-Key'],
+      });
+    if(path==='/remittances/quote'&&method==='POST')
+      return originalFinanceCall('remittances.quote',body);
+    if(path==='/remittances'&&method==='POST')
+      return originalFinanceCall('remittances.create',{
+        ...body,idempotency_key:extraHeaders['Idempotency-Key'],
+      });
+    // Preserve the ORIGINAL Python pricing/payment semantics. Until those
+    // routes have been ported exactly, do NOT call new speculative money logic
+    // or fall back to the offline Railway service.
+    const originalWritePaths=new Set([
+      '/remittances/quote','/remittances',
+      '/usdt/quote','/usdt/orders/buy','/usdt/orders/sell',
+    ]);
+    if(method==='POST' && originalWritePaths.has(path))
+      throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE,503,'NOT_MIGRATED');
+    let match=path.match(/^\/usdt\/orders\/(\d+)\/rate$/);
+    if (match && method==='POST') return canonicalCall('orders.rate', {
+      order_id:Number(match[1]),...body,
+    });
+    match=path.match(/^\/remittances\/(\d+)\/tx$/);
+    if(match&&method==='POST')
+      return originalFinanceCall('remittances.tx',{...body,order_id:Number(match[1])});
+    match=path.match(/^\/reviews(?:\?limit=(\d+)&offset=(\d+))?$/);
+    if (match && method==='GET') return canonicalCall('reviews.list', {
+      limit:Number(match[1])||20,offset:Number(match[2])||0,
+    });
+    if (path==='/reviews' && method==='POST') return canonicalCall('reviews.create',body);
+    match=path.match(/^\/reviews\/(\d+)\/(reply|vote)$/);
+    if (match && method==='POST') return canonicalCall(
+      match[2]==='vote'?'reviews.vote':'reviews.reply',
+      {review_id:Number(match[1]),...body},
+    );
+    throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
+  }
   const headers = { "X-Telegram-Init-Data": getInitData(), ...extraHeaders };
   if (!isForm && body !== undefined) headers["Content-Type"] = "application/json";
 
@@ -37,6 +113,14 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
 }
 
 async function requestBlob(path, body) {
+  if (IS_TELEGRAM_NATIVE) {
+    if (path !== '/stablecoins/card-preview')
+      throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
+    // Same signed quote, owner profile and network/wallet checks as original
+    // Python endpoint; only the 1320x900 PNG rasterization occurs locally.
+    const verified=await originalFinanceCall('card.preview',body);
+    return renderOriginalOrderCardPreview(verified);
+  }
   const res = await fetch(`/api${path}`, {
     method: "POST",
     headers: { "X-Telegram-Init-Data": getInitData(), "Content-Type": "application/json" },

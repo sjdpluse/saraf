@@ -1,0 +1,136 @@
+name: Telegram native Saraf build
+on:
+  pull_request:
+    paths:
+      - 'webapp/**'
+      - 'serverless-poc/**'
+      - 'supabase/functions/saraf-telegram-bridge/**'
+      - '.github/workflows/telegram-native-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Original Saraf React Telegram build and syntax checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Install original React dependencies
+        working-directory: webapp
+        run: npm ci
+      - name: Build ORIGINAL React Mini App for Telegram
+        working-directory: webapp
+        run: npm run build:telegram
+      - name: Build ORIGINAL bot Mini App with canonical Supabase bridge enabled
+        working-directory: webapp
+        run: npm run build:telegram-original
+      - name: Prepare allowlisted ORIGINAL bot release (no shadow DB or finance endpoints)
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test -s serverless-poc/.release-original/dist/index.html
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeOrder.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeRemittance.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/submitNativeIdentity.js
+      - name: Verify Serverless static content exists
+        run: |
+          test -s serverless-poc/dist/index.html
+          test -d serverless-poc/dist/assets
+      - name: Verify native market parsing and financial status invariants
+        run: node --test serverless-poc/tests/*.test.js
+      - name: Check Serverless module syntax
+        run: |
+          find serverless-poc/tgcloud -name '*.js' -type f -print0 |
+            xargs -0 -n 1 node --check
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check canonical Supabase Edge bridge
+        run: |
+          deno check supabase/functions/saraf-telegram-bridge/index.ts
+          deno check supabase/dashboard-deploy/saraf-telegram-bridge.ts
+          deno check supabase/functions/saraf-legacy-kyc/index.ts
+          deno check supabase/functions/saraf-legacy-uploads/index.ts
+          deno check supabase/functions/saraf-public-history/index.ts
+          deno check supabase/functions/saraf-original-transactions/index.ts
+          deno check supabase/functions/saraf-original-meta-webhook/index.ts
+          deno check supabase/functions/saraf-original-admin/index.ts
+          deno check supabase/functions/saraf-original-notifications/index.ts
+          deno check supabase/functions/saraf-original-broadcast-worker/index.ts
+      - name: Syntax-check legacy Railway-free workers
+        run: |
+          python -m py_compile scripts/run_original_saraf_jobs.py
+          python -m py_compile scripts/run_original_meta_worker.py
+      - name: Ensure trading and identity uploads remain explicitly disabled
+        run: |
+          grep -q 'FINANCIAL_WRITES_ENABLED = false' serverless-poc/tgcloud/lib/native_config.js
+          grep -q 'IDENTITY_UPLOADS_ENABLED = false' serverless-poc/tgcloud/lib/native_config.js
+      - name: Upload precisely allowlisted ORIGINAL Saraf migration preview (no local clone required)
+        uses: actions/upload-artifact@v4
+        with:
+          name: saraf-original-serverless-preview
+          path: serverless-poc/.release-original/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
+      # Separate from the SAFE read-only artifact above. Full transport
+      # build still cannot create a live order until PRIVATE Supabase Edge
+      # financial, KYC, admin and upload switches are enabled after E2E.
+      - name: Build original FULL financial/KYC/admin transport candidate
+        working-directory: webapp
+        run: npm run build:telegram-original-full
+      - name: Package original Telegram bot with signed Supabase full candidate
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          mv serverless-poc/.release-original serverless-poc/.release-original-full
+          cat > serverless-poc/.release-original-full/RELEASE_SCOPE.txt <<'EOF'
+          TARGET ORIGINAL TELEGRAM BOT: @sarafiaf_bot
+          MODE: SIGNED_ORIGINAL_FULL_MIGRATION_CANDIDATE__NOT_PUBLISHED
+          Transport: Telegram JS handlers + original React UI + signed Supabase Edge
+          ORIGINAL canonical Supabase is the only KYC/order/remittance ledger
+          No Telegram SQLite financial schema and no Railway fallback
+          All Supabase private finance/KYC/admin flags MUST remain disabled until
+          original-bot signed E2E, human settlement, notifications and rollback pass.
+          This CI job ONLY creates an artifact; it never calls tgcloud push/webhook.
+          EOF
+          test -s serverless-poc/.release-original-full/dist/index.html
+          test ! -e serverless-poc/.release-original-full/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original-full/tgcloud/endpoints/createNativeOrder.js
+          test ! -e serverless-poc/.release-original-full/tgcloud/endpoints/createNativeRemittance.js
+      - name: Report original BotFather cutover prerequisites (no secrets printed, no deployment)
+        shell: bash
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+          SARAF_E2E_USER_INIT_DATA: ${{ secrets.SARAF_E2E_USER_INIT_DATA }}
+          SARAF_E2E_ADMIN_INIT_DATA: ${{ secrets.SARAF_E2E_ADMIN_INIT_DATA }}
+          SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "${TGCLOUD_TOKEN:-}" == app8533795882:* ]]; then
+            echo "BotFather original-app CLI secret is configured."
+          else
+            echo "::warning::Original BotFather tgcloud CLI token missing/mismatched; final cutover cannot be performed by CI."
+          fi
+          if [[ -n "${SARAF_E2E_USER_INIT_DATA:-}" && -n "${SARAF_E2E_ADMIN_INIT_DATA:-}" ]]; then
+            echo "Fresh original user/admin E2E initData secrets appear configured."
+          else
+            echo "::warning::Original signed Telegram user/admin E2E test credentials missing."
+          fi
+          if [[ -n "${SARAF_ORIGINAL_BOT_TOKEN:-}" ]]; then
+            echo "Original Telegram Bot API token secret appears configured."
+          else
+            echo "::warning::Original Bot API token missing; rollback verification is unavailable."
+          fi
+      - name: Upload original full migration candidate (NOT a live release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: saraf-original-full-migration-candidate
+          path: serverless-poc/.release-original-full/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { CheckCircle, DownloadSimple, MapPin, Phone, Warning } from "@phosphor-icons/react";
 import { api, ApiError } from "../lib/api";
+import { IS_TELEGRAM_NATIVE } from "../lib/runtime";
+import { renderOriginalInPersonPass, saveOriginalPassLocally } from "../lib/originalPassPng";
 import { downloadTelegramFile } from "../lib/telegram";
 import { SARAF_LOGO_URL, assetLogo, normalizeAsset } from "../lib/brand";
 import {
@@ -75,9 +77,20 @@ export default function InPersonPass({
   async function download() {
     setDownloading(true);
     try {
-      const result = await api.getInPersonPassLink({ action, asset: selectedAsset, code });
-      const absoluteUrl = new URL(result.download_url, window.location.origin).toString();
-      const accepted = await downloadTelegramFile(absoluteUrl, result.file_name);
+      // The ORIGINAL Python pass (1200x760 PNG) is rendered locally on the
+      // Telegram native deployment; no Railway URL or public pass code.
+      // The Railway/FastAPI route is unchanged for non-native builds.
+      let accepted;
+      if (IS_TELEGRAM_NATIVE) {
+        const { blob, fileName } = await renderOriginalInPersonPass({
+          action, asset: selectedAsset, code,
+        });
+        accepted = await saveOriginalPassLocally(blob, fileName);
+      } else {
+        const result = await api.getInPersonPassLink({ action, asset: selectedAsset, code });
+        const absoluteUrl = new URL(result.download_url, window.location.origin).toString();
+        accepted = await downloadTelegramFile(absoluteUrl, result.file_name);
+      }
       if (!accepted) {
         showError?.("دانلود کارت تایید نشد. لطفاً دوباره روی «دانلود کارت مراجعه» بزنید و دانلود را تایید کنید.");
         return;
@@ -127,12 +140,12 @@ export default function InPersonPass({
 
       <button className="btn btn-secondary" onClick={download} disabled={downloading}>
         {downloading ? <span className="spinner" /> : downloaded ? <CheckCircle size={18} weight="fill" /> : <DownloadSimple size={18} weight="bold" />}
-        {downloading ? "در حال آماده‌سازی دانلود..." : downloaded ? "دانلود تایید شد" : "دانلود کارت مراجعه"}
+        {downloading ? "در حال آماده‌سازی دانلود..." : downloaded ? "ذخیره تأیید شد" : "دانلود کارت مراجعه"}
       </button>
 
       <div className={`notice ${downloaded ? "" : "warn"}`}>
         {downloaded
-          ? <><CheckCircle size={16} weight="fill" /> درخواست دانلود کارت توسط دستگاه تایید شد؛ کارت را هنگام مراجعه همراه داشته باشید.</>
+          ? <><CheckCircle size={16} weight="fill" /> ذخیرهٔ کارت مراجعه تأیید شد؛ کارت را هنگام مراجعه همراه داشته باشید.</>
           : <><Warning size={16} weight="fill" /> برای ادامه ابتدا کارت مراجعه را واقعاً دانلود و تایید کنید.</>}
       </div>
       <button className={`btn ${buttonClass}`} onClick={onContinue} disabled={!downloaded}>ادامه</button>
