@@ -97,7 +97,11 @@ BEGIN
   AND id_document_path IS NOT NULL AND selfie_path IS NOT NULL)
  THEN RAISE EXCEPTION 'IDENTITY_VERIFICATION_REQUIRED' USING ERRCODE='P0001';
  END IF;
- v_code:=(100000+floor(random()*900000))::int::text;
+ -- Original Python secrets.randbelow(900000)+100000 is a CSPRNG.
+ -- gen_random_uuid() is backed by PostgreSQL's cryptographic RNG;
+ -- NEVER use predictable SQL random() for a cash pickup credential.
+ v_code:=(100000+(('x'||substr(replace(gen_random_uuid()::text,'-',''),1,8))
+   ::bit(32)::bigint %900000))::text;
  INSERT INTO public.remittance_orders(
   chat_id,idempotency_key,sender_country,sender_name,sender_phone,
   beneficiary_full_name,beneficiary_phone,beneficiary_province,
