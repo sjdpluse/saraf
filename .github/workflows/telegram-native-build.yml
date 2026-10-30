@@ -78,3 +78,35 @@ jobs:
           include-hidden-files: true
           retention-days: 14
           if-no-files-found: error
+      # Separate from the SAFE read-only artifact above. Full transport
+      # build still cannot create a live order until PRIVATE Supabase Edge
+      # financial, KYC, admin and upload switches are enabled after E2E.
+      - name: Build original FULL financial/KYC/admin transport candidate
+        working-directory: webapp
+        run: npm run build:telegram-original-full
+      - name: Package original Telegram bot with signed Supabase full candidate
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          mv serverless-poc/.release-original serverless-poc/.release-original-full
+          cat > serverless-poc/.release-original-full/RELEASE_SCOPE.txt <<'EOF'
+          TARGET ORIGINAL TELEGRAM BOT: @sarafiaf_bot
+          MODE: SIGNED_ORIGINAL_FULL_MIGRATION_CANDIDATE__NOT_PUBLISHED
+          Transport: Telegram JS handlers + original React UI + signed Supabase Edge
+          ORIGINAL canonical Supabase is the only KYC/order/remittance ledger
+          No Telegram SQLite financial schema and no Railway fallback
+          All Supabase private finance/KYC/admin flags MUST remain disabled until
+          original-bot signed E2E, human settlement, notifications and rollback pass.
+          This CI job ONLY creates an artifact; it never calls tgcloud push/webhook.
+          EOF
+          test -s serverless-poc/.release-original-full/dist/index.html
+          test ! -e serverless-poc/.release-original-full/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original-full/tgcloud/endpoints/createNativeOrder.js
+          test ! -e serverless-poc/.release-original-full/tgcloud/endpoints/createNativeRemittance.js
+      - name: Upload original full migration candidate (NOT a live release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: saraf-original-full-migration-candidate
+          path: serverless-poc/.release-original-full/
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
