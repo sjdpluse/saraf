@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {originalAdminCommand} from '../lib/originalAdminBridge';
+import {originalAdminCommand,uploadOriginalAdminCompletionProof} from '../lib/originalAdminBridge';
 import {showConfirm} from '../lib/telegram';
 
 const CODES=['usd','eur','gbp','pkr','irr','aed','inr','sar',
@@ -16,6 +16,8 @@ export default function OriginalAdmin({navigate}){
  const [pct,setPct]=useState('0.6');
  const [orderId,setOrderId]=useState('');
  const [completionProof,setCompletionProof]=useState('');
+ const [completionMedia,setCompletionMedia]=useState({});
+ const [uploadingProofId,setUploadingProofId]=useState(null);
  const [pickupCodes,setPickupCodes]=useState({});
  const [broadcastMessage,setBroadcastMessage]=useState('');
  const [broadcastKey,setBroadcastKey]=useState('');
@@ -61,14 +63,35 @@ export default function OriginalAdmin({navigate}){
   if(!await showConfirm('این سفارش مطابق ربات اصلی رد و لغو شود؟'))return;
   await load('order.reject',{order_id:n});
  }
+ async function uploadCompletionMedia(id,file){
+  const n=Number(id);
+  if(!Number.isSafeInteger(n)||n<1||!file)return;
+  setUploadingProofId(n);setError('');
+  // A stale attestation must never be reused when replacing a file.
+  setCompletionMedia(prev=>({...prev,[n]:null}));
+  try{
+   const proof=await uploadOriginalAdminCompletionProof(n,file);
+   setCompletionMedia(prev=>({...prev,[n]:{
+    token:proof.proof_token,expiresAt:Date.now()+590000,
+    fileType:proof.file_type,
+   }}));
+  }catch(err){
+   setError(err?.message||'آپلود مدرک تراکنش انجام نشد.');
+  }finally{setUploadingProofId(null);}
+ }
  async function completeOrder(id){
   const n=Number(id),details=completionProof.trim();
   if(!Number.isSafeInteger(n)||n<1){setError('شماره سفارش معتبر نیست.');return;}
-  if(details.length<4||details.length>2000){
-   setError('برای تکمیل سفارش، Tx Hash / Transaction Details واقعی (۴ تا ۲۰۰۰ حرف) لازم است.');return;
+  const proof=completionMedia[n];
+  const proof_token=proof?.expiresAt>Date.now()?proof.token:null;
+  if(details.length>2000||(details.length>0&&details.length<4)||
+      (details.length<4&&!proof_token)){
+   setError('برای تکمیل سفارش، Tx Hash واقعی (۴ تا ۲۰۰۰ حرف) یا عکس/PDF ثبت‌شده لازم است.');return;
   }
   if(!await showConfirm('آیا مبلغ/رمزارز واقعاً به مشتری ارسال شده و مدرک تراکنش صحیح است؟ این عمل سفارش را تکمیل می‌کند.'))return;
-  await load('order.complete',{order_id:n,completion_tx_details:details});
+  await load('order.complete',{order_id:n,completion_tx_details:details,
+    ...(proof_token?{proof_token}:{}),
+  });
  }
  async function transitionRemittance(order,transition){
   const id=Number(order?.id);
@@ -223,7 +246,7 @@ export default function OriginalAdmin({navigate}){
   </div>}
   {result?.action==='orders.confirmed'&&<section>
    <h2 style={{fontSize:17}}>سفارش‌های تأییدشده و در انتظار تکمیل واقعی</h2>
-   <p className="notice">تا زمان ارسال واقعی وجه/رمزارز، سفارش را تکمیل نکنید. مطابق ربات اصلی درج Transaction Details یا Tx Hash الزامی است.</p>
+   <p className="notice">تا زمان ارسال واقعی وجه/رمزارز، سفارش را تکمیل نکنید. مانند ربات اصلی، Tx Hash یا تصویر/PDF Transaction Details لازم است. فایل از طریق ربات اصلی تلگرام به‌صورت امن ثبت می‌شود.</p>
    <textarea aria-label="Transaction Details / Tx Hash واقعی" rows={3}
     value={completionProof} maxLength={2000}
     onChange={e=>setCompletionProof(e.target.value)}
@@ -234,7 +257,22 @@ export default function OriginalAdmin({navigate}){
      <b>{order.asset||'USDT'}-{String(order.id).padStart(5,'0')}</b>
      <p>{order.order_type==='buy'?'خرید':'فروش'} | {cash(order.usdt_amount)}
        {' '}{order.asset} | {cash(order.total_afn)} افغانی</p>
-     <button type="button" disabled={busy||completionProof.trim().length<4}
+     <div style={{margin:'8px 0'}}>
+      <label htmlFor={'completion-media-'+order.id}>تصویر یا PDF واقعی Transaction Details</label>
+      <input id={'completion-media-'+order.id} type="file"
+       accept="image/jpeg,image/png,image/webp,application/pdf"
+       disabled={busy||uploadingProofId===order.id}
+       onChange={event=>{
+        const file=event.target.files?.[0];event.target.value='';
+        if(file)uploadCompletionMedia(order.id,file);
+       }} />
+      {uploadingProofId===order.id&&<p role="status">در حال ثبت امن فایل در تلگرام...</p>}
+      {completionMedia[order.id]?.expiresAt>Date.now()&&
+       <p className="notice">✅ مدرک این سفارش در ربات اصلی ثبت شد؛ اعتبار تأییدیه ۱۰ دقیقه است.</p>}
+     </div>
+     <button type="button" disabled={busy||uploadingProofId===order.id||
+       !(completionProof.trim().length>=4||
+         completionMedia[order.id]?.expiresAt>Date.now())}
       onClick={()=>completeOrder(order.id)}>📦 تکمیل با مدرک تراکنش</button>
     </article>)}
    <button type="button" disabled={busy} style={{marginTop:12}}
