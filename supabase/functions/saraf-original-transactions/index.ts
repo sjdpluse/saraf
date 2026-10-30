@@ -324,6 +324,15 @@ Deno.serve(async req=>{
     });
     if(rpc.error)return out(origin,503,{
       error:rpc.error.code==='P0001'?rpc.error.message:'DATABASE_UNAVAILABLE'});
+    if(rpc.data&&!rpc.data.duplicate){
+      // Original remittance_service.create_order notifies admins only after
+      // first successful insert. No money moves before manual approval.
+      await notifyAdmin('💸 حوالهٔ جدید صراف — بررسی دستی الزامی است\n'+
+        'کد: '+rpc.data.order_code+'\nشناسهٔ فرستنده: '+user.id+
+        '\nدارایی: '+quote.asset+' / '+quote.network+
+        '\nمقدار: '+quote.crypto_amount+'\nارزش دلاری: '+quote.usd_value+
+        '\nپرداخت افغانی: '+quote.payout_afn);
+    }
     return out(origin,200,rpc.data);
   }
   if(action==='remittances.tx'){
