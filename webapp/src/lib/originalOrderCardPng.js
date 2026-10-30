@@ -86,6 +86,36 @@ async function publicLogo(src){
   img.src=src;
  });
 }
+async function ownerSelfie(url){
+ if(!url)return null;
+ let source;
+ try{source=new URL(url);}catch{return null;}
+ // Private URLs must only come from the user's canonical Supabase storage.
+ if(source.origin!=='https://cvernmhpnsgdtegvblyc.supabase.co'||
+   !source.pathname.startsWith('/storage/v1/object/sign/')||
+   !source.searchParams.get('token'))return null;
+ const response=await fetch(source.toString(),{
+  method:'GET',mode:'cors',credentials:'omit',cache:'no-store',
+  signal:AbortSignal.timeout(6500),
+ });
+ if(!response.ok)return null;
+ const type=response.headers.get('content-type')?.split(';')[0]?.trim();
+ if(!['image/jpeg','image/png','image/webp'].includes(type))return null;
+ const size=Number(response.headers.get('content-length')||0);
+ if(size>8*1024*1024)return null;
+ const bytes=await response.blob();
+ if(!bytes.size||bytes.size>8*1024*1024)return null;
+ const own=URL.createObjectURL(bytes);
+ try{
+  return await new Promise(resolve=>{
+   const image=new Image();
+   const timeout=setTimeout(()=>resolve(null),3000);
+   image.onload=()=>{clearTimeout(timeout);resolve(image);};
+   image.onerror=()=>{clearTimeout(timeout);resolve(null);};
+   image.src=own;
+  });
+ }finally{URL.revokeObjectURL(own);}
+}
 function blob(canvas){
  return new Promise((resolve,reject)=>canvas.toBlob(
   value=>value?.type==='image/png'&&value.size>2000
@@ -120,14 +150,26 @@ export async function renderOriginalOrderCardPreview(source){
  text(ctx,isBuy? 'خرید '+asset:'فروش '+asset,1112,115,20,{bold:true,color:accent,align:'center'});
  ctx.strokeStyle=PAL.border;ctx.lineWidth=2;
  ctx.beginPath();ctx.moveTo(96,188);ctx.lineTo(1224,188);ctx.stroke();
- // The legacy renderer displays a private KYC selfie if present.
- // On native preview, verified personal metadata are shown instead; no
- // private selfie is downloaded into a public browser canvas.
+ // Signed 60-second own-KYC selfie, when available, preserves the original
+ // customer-card portrait. A missing, expired or CORS-blocked private image
+ // safely falls back to the same initial-letter placeholder as Python.
  const displayName=[profile.first_name,profile.last_name].filter(Boolean).join(' ').trim();
- ctx.fillStyle='#edf5ff';ctx.beginPath();ctx.arc(165,287,69,0,Math.PI*2);ctx.fill();
- ctx.strokeStyle=accent;ctx.lineWidth=4;ctx.stroke();
- text(ctx,displayName.slice(0,1)||'ص',165,291,56,
-  {bold:true,color:PAL.blue,align:'center'});
+ let selfie=null;
+ try{selfie=await ownerSelfie(source.selfie_url);}catch{}
+ if(selfie){
+  ctx.save();ctx.beginPath();ctx.arc(165,287,69,0,2*Math.PI);ctx.clip();
+  const scale=Math.max(138/selfie.width,138/selfie.height);
+  const width=selfie.width*scale,height=selfie.height*scale;
+  ctx.drawImage(selfie,165-width/2,287-height/2,width,height);
+  ctx.restore();
+  ctx.strokeStyle=accent;ctx.lineWidth=4;ctx.beginPath();
+  ctx.arc(165,287,69,0,2*Math.PI);ctx.stroke();
+ }else{
+  ctx.fillStyle='#edf5ff';ctx.beginPath();ctx.arc(165,287,69,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=accent;ctx.lineWidth=4;ctx.stroke();
+  text(ctx,displayName.slice(0,1)||'ص',165,291,56,
+   {bold:true,color:PAL.blue,align:'center'});
+ }
  text(ctx,displayName,265,239,32,{bold:true,align:'left',maxWidth:585});
  const kycs={pending:'در انتظار تایید',verified:'هویت تایید‌شده',
   trusted:'مشتری معتمد',restricted:'محدودشده'};
@@ -174,7 +216,12 @@ export async function renderOriginalOrderCardPreview(source){
  rect(ctx,924,676,300,128,26,PAL.cell,PAL.border);
  text(ctx,'معاملات موفق',1202,702,16,{color:PAL.muted});
  text(ctx,String(profile.successful_orders??0),1202,732,22,{bold:true});
- text(ctx,'فقط پیش‌نمایش، نه رسید پرداخت',1202,772,16,{color:PAL.muted});
+ text(ctx,'وضعیت ریسک',1202,756,16,{color:PAL.muted});
+ const riskMap={low:'پایین',medium:'متوسط',high:'بالا'};
+ const riskColors={low:PAL.green,medium:PAL.gold,high:PAL.red};
+ const riskLevel=String(order.risk_level||'');
+ text(ctx,riskMap[riskLevel]||'در انتظار بررسی',1202,785,20,
+  {color:riskColors[riskLevel]||PAL.muted,bold:true});
  if(coin)try{ctx.drawImage(coin,1126,89,58,58)}catch{}
  return await blob(canvas);
 }
