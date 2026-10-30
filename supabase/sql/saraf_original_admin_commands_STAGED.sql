@@ -98,6 +98,50 @@ BEGIN
   'spread_percent',p_percent,'duplicate',false);
 END $$;
 
+-- Existing original admin_bot.py callback names:
+-- admin_kyc_verify:<chat_id> / admin_kyc_reject:<chat_id>.
+-- Atomic update + audit, original user_profiles only, no new KYC ledger.
+CREATE OR REPLACE FUNCTION public.saraf_original_admin_review_kyc(
+ p_admin bigint,p_chat_id bigint,p_status text
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY INVOKER SET search_path=''
+AS $
+DECLARE
+ v_profile public.user_profiles%ROWTYPE;
+ v_reason text;
+BEGIN
+ IF p_admin IS NULL OR p_admin<=0 OR p_chat_id IS NULL OR p_chat_id<=0
+   OR p_status NOT IN ('verified','restricted') THEN
+   RAISE EXCEPTION 'INVALID_KYC_REVIEW' USING ERRCODE='P0001';
+ END IF;
+ SELECT * INTO v_profile FROM public.user_profiles
+ WHERE chat_id=p_chat_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'KYC_PROFILE_NOT_FOUND' USING ERRCODE='P0001';END IF;
+ -- Old inline buttons must not re-approve an already rejected customer.
+ IF v_profile.kyc_status=p_status THEN
+  RETURN jsonb_build_object('chat_id',p_chat_id,'status',p_status,'duplicate',true);
+ END IF;
+ IF v_profile.kyc_status<>'pending' THEN
+  RAISE EXCEPTION 'KYC_NOT_PENDING' USING ERRCODE='P0001';
+ END IF;
+ IF nullif(trim(coalesce(v_profile.id_document_path,'')),'') IS NULL
+  OR nullif(trim(coalesce(v_profile.selfie_path,'')),'') IS NULL THEN
+   RAISE EXCEPTION 'KYC_DOCUMENTS_MISSING' USING ERRCODE='P0001';
+ END IF;
+ v_reason:=CASE WHEN p_status='restricted'
+  THEN 'رد شده در بررسی اولیهٔ هویت' ELSE NULL END;
+ UPDATE public.user_profiles SET kyc_status=p_status,
+   verified_by=CASE WHEN p_status='verified' THEN p_admin ELSE verified_by END,
+   verified_at=CASE WHEN p_status='verified' THEN now() ELSE verified_at END,
+   restricted_reason=v_reason
+ WHERE chat_id=p_chat_id;
+ INSERT INTO public.audit_log(actor,action,entity,entity_id,before,after,reason)
+ VALUES(p_admin,'kyc_'||p_status,'user_profile',p_chat_id::text,
+  jsonb_build_object('kyc_status','pending'),
+  jsonb_build_object('kyc_status',p_status),v_reason);
+ RETURN jsonb_build_object('chat_id',p_chat_id,'status',p_status,'duplicate',false);
+END $;
+
 REVOKE ALL ON FUNCTION public.saraf_original_admin_confirm(bigint,bigint)
  FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.saraf_original_admin_set_spread(bigint,text,numeric)
@@ -105,5 +149,9 @@ REVOKE ALL ON FUNCTION public.saraf_original_admin_set_spread(bigint,text,numeri
 GRANT EXECUTE ON FUNCTION public.saraf_original_admin_confirm(bigint,bigint)
  TO service_role;
 GRANT EXECUTE ON FUNCTION public.saraf_original_admin_set_spread(bigint,text,numeric)
+ TO service_role;
+REVOKE ALL ON FUNCTION public.saraf_original_admin_review_kyc(bigint,bigint,text)
+ FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.saraf_original_admin_review_kyc(bigint,bigint,text)
  TO service_role;
 COMMIT;
