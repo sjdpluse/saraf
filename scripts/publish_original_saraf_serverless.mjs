@@ -60,9 +60,12 @@ async function push(){
  // modify the generated React build or prepared local handler files.
  console.log('Safely syncing ORIGINAL deployed Telegram module revision.');
  await cli(['fetch']);
+ // Show the differences against revision 1 without exposing remote code.
+ await cli(['status']);
  // Targeting each of OUR 20 allowlisted modules and dist explicitly prevents
  // removal of any of the 11 modules already deployed in the bot.
  console.log('Pushing ONLY original Saraf allowlisted modules + Mini App assets.');
+ started=true;
  await cli(['push',...items,'dist/']);
  // Telegram may still point at Railway even after a successful code upload.
  // Sync, without dropping pending updates, is an explicit part of cutover.
@@ -84,7 +87,6 @@ try{
   throw Error('PREVIOUS_WEBHOOK_NOT_RESTORABLE');
  console.log('Verified original @sarafiaf_bot and pinned app8533795882.');
  console.log('Uploading full original Saraf React and TG JS modules atomically...');
- started=true;
  await push();
  const info=await botApi('getWebhookInfo');
  if(!info?.url?.startsWith('https://'))
