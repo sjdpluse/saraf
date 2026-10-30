@@ -244,7 +244,32 @@ Deno.serve(async req=>{
    for(const name of ['BANK_NAME','BANK_ACCOUNT_HOLDER','BANK_ACCOUNT_NUMBER'])
      if(!Deno.env.get(name)?.trim())missing.push(name);
    const networks:Record<string,number>={};
+   const walletSecretStatuses:Record<string,string>={};
    for(const type of ['USDT','USDC'] as Asset[]){
+     const primary=type==='USDT'
+       ?'SARAF_USDT_DEPOSIT_WALLETS_JSON':'SARAF_USDC_DEPOSIT_WALLETS_JSON';
+     const legacy=type==='USDT'
+       ?'USDT_DEPOSIT_WALLETS_JSON':'USDC_DEPOSIT_WALLETS_JSON';
+     const raw=Deno.env.get(primary)||Deno.env.get(legacy)||'';
+     let status='MISSING';
+     if(raw){
+       try{
+         const value=JSON.parse(raw);
+         if(!value||typeof value!=='object'||Array.isArray(value))
+           status='NOT_A_JSON_OBJECT';
+         else{
+           const entries=Object.keys(value);
+           const allowed=new Set(TYPES[type].map(x=>x.code));
+           const recognized=entries.filter(x=>allowed.has(x));
+           const valid=recognized.filter(x=>walletShape(
+             x,String((value as Json)[x]||'')));
+           status=valid.length?'VALID_WALLET_ADDRESS':
+             recognized.length?'INVALID_ADDRESS_FORMAT':
+             'WRONG_JSON_KEYS';
+         }
+       }catch{status='INVALID_JSON';}
+     }
+     walletSecretStatuses[type]=status;
      networks[type]=Object.keys(wallets(type)).filter(network=>
        TYPES[type].some(item=>item.code===network)).length;
      if(!networks[type])missing.push(type==='USDC'
@@ -252,6 +277,19 @@ Deno.serve(async req=>{
        :'SARAF_USDT_DEPOSIT_WALLETS_JSON_OR_USDT_DEPOSIT_WALLETS_JSON');
    }
    let remittanceCount=0;
+   let remittanceSecretStatus='MISSING';
+   const rawRemittance=Deno.env.get('REMITTANCE_WALLETS_JSON')||
+     Deno.env.get('SARAF_REMITTANCE_WALLETS_JSON')||'';
+   if(rawRemittance){
+     try{
+       const parsed=JSON.parse(rawRemittance);
+       if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
+         remittanceSecretStatus='NOT_A_JSON_OBJECT';
+       else if(!Object.keys(parsed).some(k=>Object.hasOwn(ORIGINAL_ASSETS,k)))
+         remittanceSecretStatus='WRONG_JSON_KEYS';
+       else remittanceSecretStatus='VALID_JSON_OBJECT';
+     }catch{remittanceSecretStatus='INVALID_JSON';}
+   }
    try{
      remittanceCount=originalRemittanceConfig(
        remittanceEnv(),remittanceV2Enabled()).length;
@@ -264,6 +302,8 @@ Deno.serve(async req=>{
      financial_api_enabled:LIVE,
      bank_configured:!missing.some(x=>x.startsWith('BANK_')),
      configured_sell_network_counts:networks,
+     wallet_secret_format_statuses:walletSecretStatuses,
+     remittance_secret_format_status:remittanceSecretStatus,
      remittance_asset_count:remittanceCount,
      admin_notifications_configured:!!ADMIN_TOKEN&&ADMINS.length>0,
      ready_for_cutover:missing.length===0,
