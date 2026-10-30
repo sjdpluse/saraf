@@ -34,7 +34,7 @@ try{
   console.log('Original sell networks configured: '+JSON.stringify(data.configured_sell_network_counts||{}));
   console.log('Original USDT/USDC secret format status: '+
    JSON.stringify(data.wallet_secret_format_statuses||{}));
-  console.log('Original remittance secret format (no address values): '+
+  console.log('Original remittance secret format status: '+
    String(data.remittance_secret_format_status||'UNKNOWN'));
   console.log('Original remittance asset count: '+Number(data.remittance_asset_count||0));
   console.log('Original administrator alerts configured: '+Boolean(data.admin_notifications_configured));
