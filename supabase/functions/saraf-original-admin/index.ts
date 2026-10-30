@@ -58,7 +58,7 @@ async function notifyOriginalKycCustomer(chatId:number,status:string){
  if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
  const message=status==='verified'
   ?'✅ هویت شما تایید شد. از این پس سفارش‌های شما سریع‌تر پردازش می‌شوند.'
-  :'⚠️ متاسفانه مدارک ارسالی شما تایید نشد.\\n'+
+  :'⚠️ متاسفانه مدارک ارسالی شما تایید نشد.\n'+
     'لطفاً برای پیگیری با پشتیبانی تماس بگیرید: '+
     (Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@sarafiaf_bot');
  try{
