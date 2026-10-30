@@ -62,7 +62,7 @@ async function notifyOriginalKycCustomer(chatId:number,status:string){
   ?'✅ هویت شما تایید شد. از این پس سفارش‌های شما سریع‌تر پردازش می‌شوند.'
   :'⚠️ متاسفانه مدارک ارسالی شما تایید نشد.\n'+
     'لطفاً برای پیگیری با پشتیبانی تماس بگیرید: '+
-    (Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@sarafiaf_bot');
+    (Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@SJDPLUS');
  try{
   const r=await fetch('https://api.telegram.org/bot'+BOT+'/sendMessage',{
    method:'POST',headers:{'Content-Type':'application/json'},
@@ -82,7 +82,7 @@ async function notifyOriginalFinalized(chatId:number,orderId:number,
    '\\nلطفاً از بخش «سفارش‌های من» در اپلیکیشن اصلی به سفارش امتیاز بدهید.'
   :'⚠️ سفارش '+code+' قابل تایید نبود.\\n'+
    'لطفاً برای پیگیری با پشتیبانی تماس بگیرید: '+
-    (Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@sarafiaf_bot');
+    (Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@SJDPLUS');
  try{
   const r=await fetch('https://api.telegram.org/bot'+BOT+'/sendMessage',{
    method:'POST',headers:{'Content-Type':'application/json'},
@@ -98,7 +98,7 @@ async function notifyOriginalRemittanceCustomer(row:{
 }){
  if(!BOT||!Number.isSafeInteger(row.chat_id)||row.chat_id<=0)return false;
  const code=row.order_code;
- const support=Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@sarafiaf_bot';
+ const support=Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@SJDPLUS';
  let message='';
  if(row.status==='payout_ready'){
   if(!/^\d{6}$/.test(String(row.pickup_code||'')))return false;
