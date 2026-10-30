@@ -31,7 +31,8 @@ test('original admin remittance payout uses Telegram HMAC & allowlist, never exp
  assert.match(edge,/const \{beneficiary_id_document_path:discard,\.\.\.safe\}=row/);
  assert.match(edge,/bucket\.createSignedUrl\(path,90\)/);
  assert.match(edge,/customer_notified:notified/);
- assert.match(edge,/pickup_code.*v_next='payout_ready'/s);
+ assert.match(sql,/pickup_code.*v_next='payout_ready'/s);
+ assert.match(edge,/row\.pickup_code/);
  const segment=edge.slice(edge.indexOf("if(action==='remittances.transition')"),
    edge.indexOf("if(action==='broadcast.create')"));
  assert.match(segment,/order_id:result\.order_id,order_code:result\.order_code/);
