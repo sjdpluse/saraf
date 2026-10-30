@@ -1,3 +1,42 @@
+## 2026-10-30 — Original admin completion media backend deployed safely (latest)
+
+- Migrated ORIGINAL `admin_bot.py` image / document Transaction Details path:
+  signed original administrator in the original React Mini App may upload
+  JPG/PNG/WEBP or PDF (<=8 MB), which the gated original Supabase Edge admin
+  function posts to the SAME original customer bot's Telegram API to obtain
+  a usable native Telegram `file_id`. The 10-minute HMAC attestation binds
+  this bot file ID to the specific original order and original admin. It
+  cannot grant order completion without the separately private admin RPC.
+- Changed staged `saraf_original_admin_finalize_order` to accept either
+  original transaction text or real Telegram media proof in the existing
+  `usdt_orders.completion_proof_file_*` columns, inside the same atomic
+  financial status transition with existing audit and trust profile. Includes
+  PostgreSQL test cases rejecting empty, malformed or cross-origin fake
+  proof and confirming idempotency.
+- The admin UI uploads original media and only offers payment completion
+  when supported text or an order-bound 10-minute proof has been supplied.
+  The completed-order notification sends the media to the customer using
+  that original Telegram bot identity.
+- The canonical Supabase project `cvernmhpnsgdtegvblyc` **admin Edge
+  version 2 was actually deployed and fetched back** with `index.ts`,
+  `telegram-auth.mjs`, `proof.mjs` and `proof-upload.mjs`. Runtime
+  still requires existing PRIVATE administrator allowlist,
+  `SARAF_ORIGINAL_ADMIN_READ_ENABLED` and
+  `SARAF_ORIGINAL_ADMIN_WRITES_ENABLED` before any admin RPC or upload.
+  No private feature flags were switched on.
+- GitHub branch code SHA `0b709259b` passed all five CI workflows,
+  including isolated PostgreSQL admin/media proof invariants, Deno
+  build, original React, Python and public negative checks. No original
+  Telegram Serverless webhook was switched and no live payment or
+  customer row was touched.
+
+**Still blocked:** The staged 7-parameter admin media financial RPC is not
+yet applied to canonical production, and the full set of customer financial
+Edge functions / release must be reconciled and end-to-end tested with the
+actual original Telegram bot before private feature enablement. Cron/
+Meta automation has not been cut over. Admin feature flags remain OFF,
+so production operations cannot be performed from the new Mini App.
+
 ## 2026-10-30 — Signed full original Saraf Serverless CANDIDATE built (latest)
 
 **Not a production cutover.** The ORIGINAL @sarafiaf_bot webhook and
