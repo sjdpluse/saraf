@@ -187,3 +187,83 @@ BEGIN
  THEN RAISE EXCEPTION 'ORIGINAL_ADMIN_FINALIZE_RPC_PUBLIC';END IF;
  RAISE NOTICE 'Original admin rejection/completion/trust invariants passed';
 END $$;
+
+
+-- Original /remitpay pickup-code payout and ready/hold/cancel controls.
+-- Synthetic database ONLY; never use real pickup codes or real money.
+DO $$
+DECLARE
+ r jsonb; v_id bigint; v_code text; v_cancel_id bigint; blocked boolean;
+BEGIN
+ SELECT id,pickup_code INTO v_id,v_code
+ FROM public.remittance_orders WHERE chat_id=101 AND status='transfer_submitted'
+ ORDER BY id ASC LIMIT 1;
+ IF v_id IS NULL OR length(v_code)<>6 THEN
+  RAISE EXCEPTION 'NO_SYNTHETIC_REMITTANCE_FOR_ADMIN_TEST';
+ END IF;
+ blocked:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_remittance(997,v_id,'pay',v_code);
+ EXCEPTION WHEN raise_exception THEN
+  blocked:=SQLERRM='INVALID_REMITTANCE_TRANSITION';
+ END;
+ IF NOT blocked THEN RAISE EXCEPTION 'PAYOUT_COMPLETED_BEFORE_READY';END IF;
+ r:=public.saraf_original_admin_remittance(997,v_id,'ready',NULL);
+ IF r->>'status'<>'payout_ready' OR (r->>'pickup_code')<>v_code THEN
+  RAISE EXCEPTION 'ORIGINAL_REMITTANCE_READY_FAILED';
+ END IF;
+ IF (SELECT crypto_confirmed_by=997 AND crypto_confirmed_at IS NOT NULL
+    FROM public.remittance_orders WHERE id=v_id) IS DISTINCT FROM true THEN
+  RAISE EXCEPTION 'ORIGINAL_CRYPTO_CONFIRMATION_NOT_ATTRIBUTED';
+ END IF;
+ r:=public.saraf_original_admin_remittance(997,v_id,'ready',NULL);
+ IF NOT (r->>'duplicate')::boolean THEN
+  RAISE EXCEPTION 'ORIGINAL_REMITTANCE_READY_NOT_IDEMPOTENT';
+ END IF;
+ r:=public.saraf_original_admin_remittance(997,v_id,'hold',NULL);
+ IF r->>'status'<>'on_hold' THEN RAISE EXCEPTION 'ORIGINAL_REMITTANCE_HOLD_FAILED';END IF;
+ r:=public.saraf_original_admin_remittance(997,v_id,'ready',NULL);
+ IF r->>'status'<>'payout_ready' THEN
+  RAISE EXCEPTION 'ORIGINAL_REMITTANCE_RELEASE_HOLD_FAILED';
+ END IF;
+ blocked:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_remittance(997,v_id,'pay','000000');
+ EXCEPTION WHEN raise_exception THEN blocked:=SQLERRM='INVALID_PICKUP_CODE';END;
+ IF NOT blocked OR
+   (SELECT status FROM public.remittance_orders WHERE id=v_id)<>'payout_ready'
+ THEN RAISE EXCEPTION 'WRONG_PICKUP_CODE_PAID';END IF;
+ r:=public.saraf_original_admin_remittance(997,v_id,'pay',v_code);
+ IF r->>'status'<>'completed' OR (r->>'duplicate')::boolean THEN
+  RAISE EXCEPTION 'ORIGINAL_REMITTANCE_PAY_FAILED';
+ END IF;
+ IF (SELECT paid_by=997 AND paid_at IS NOT NULL
+  FROM public.remittance_orders WHERE id=v_id) IS DISTINCT FROM true THEN
+  RAISE EXCEPTION 'ORIGINAL_REMITTANCE_PAYMENT_NOT_ATTRIBUTED';
+ END IF;
+ r:=public.saraf_original_admin_remittance(997,v_id,'pay',v_code);
+ IF NOT (r->>'duplicate')::boolean THEN RAISE EXCEPTION 'DUPLICATE_REMITTANCE_PAID';END IF;
+ blocked:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_remittance(997,v_id,'cancel',NULL);
+ EXCEPTION WHEN raise_exception THEN
+  blocked:=SQLERRM='INVALID_REMITTANCE_TRANSITION';END;
+ IF NOT blocked THEN RAISE EXCEPTION 'COMPLETED_REMITTANCE_CANCELLED';END IF;
+ INSERT INTO public.remittance_orders(
+ chat_id,idempotency_key,sender_country,sender_name,beneficiary_full_name,
+ beneficiary_phone,beneficiary_province,beneficiary_city,asset,network,
+ crypto_amount,usd_rate,gross_afn,fee_percent,fee_afn,payout_afn,
+ deposit_wallet,pickup_code,status)
+ VALUES(101,'remit-admin-cancel-test','Afghanistan','Synthetic Sender',
+ 'Synthetic Beneficiary','0790000000','Kabul','Kabul','USDT','ERC20',
+ 40,65,2600,0,0,2600,'0x1111111111111111111111111111111111111111',
+ '654321','transfer_submitted') RETURNING id INTO v_cancel_id;
+ r:=public.saraf_original_admin_remittance(997,v_cancel_id,'cancel',NULL);
+ IF r->>'status'<>'cancelled' THEN RAISE EXCEPTION 'ORIGINAL_REMITTANCE_CANCEL_FAILED';END IF;
+ IF has_function_privilege('anon',
+ 'public.saraf_original_admin_remittance(bigint,bigint,text,text)','EXECUTE')
+ OR has_function_privilege('authenticated',
+ 'public.saraf_original_admin_remittance(bigint,bigint,text,text)','EXECUTE')
+ THEN RAISE EXCEPTION 'PUBLIC_REMITTANCE_PAYOUT_RPC';END IF;
+ RAISE NOTICE 'Original remittance admin and six-digit pickup invariants passed';
+END $$;
