@@ -11,9 +11,9 @@ const bridge=read('webapp/src/lib/originalFinanceBridge.js');
 test('original card preview validates the actual owner quote and expiry BEFORE sending verified card data',()=>{
  assert.match(edge,/if\(action==='card\.preview'\)/);
  assert.match(edge,/\.eq\('chat_id',user\.id\)\.maybeSingle\(\)/);
- assert.match(edge,/q\.data\.status!=='active'/);
- assert.match(edge,/Date\.parse\(q\.data\.expires_at\)<=Date\.now\(\)/);
- assert.match(edge,/Math\.abs\(Number\(q\.data\.usdt_amount\)-a\)>0\.0000001/);
+ assert.match(edge,/q\.data!?\.status!=='active'/);
+ assert.match(edge,/Date\.parse\(q\.data!?\.expires_at\)<=Date\.now\(\)/);
+ assert.match(edge,/Math\.abs\(Number\(q\.data!?\.usdt_amount\)-a\)>0\.0000001/);
  assert.match(edge,/methodNetworks\(type,input\.network/);
  assert.match(edge,/walletShape\(network,wallet\)/);
  assert.match(edge,/\.eq\('chat_id',user\.id\)\.maybeSingle\(\)/);
