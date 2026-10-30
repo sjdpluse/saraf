@@ -50,9 +50,11 @@ function safeProfile(row:DbRow|null) {
     has_basic_profile:Boolean(row?.first_name && row?.last_name && row?.phone),
     has_identity_verification:Boolean(row?.id_document_path && row?.selfie_path &&
       ['verified','trusted'].includes(row.kyc_status)),
-    identity_verification_threshold_usd:250,
+    identity_verification_threshold_usd:
+      Number(Deno.env.get('USDT_IDENTITY_VERIFICATION_THRESHOLD_USD')||250),
     kyc_status:row?.kyc_status||'pending',
-    identity_uploads_enabled:false,
+    identity_uploads_enabled:
+      Deno.env.get('SARAF_ORIGINAL_KYC_ENABLED')==='true',
     profile:row ? { first_name:row.first_name,last_name:row.last_name,
       phone:row.phone,kyc_status:row.kyc_status }:null,
     uploaded:{kyc_id:Boolean(row?.id_document_path),
