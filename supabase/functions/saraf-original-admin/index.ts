@@ -36,7 +36,8 @@ function isOwner(userId:number){
  return ADMINS.length>0&&ADMINS.includes(String(userId));
 }
 function isWrite(action:string){
- return action==='spread.set'||action==='order.confirm'||action==='broadcast.create';
+ return action==='spread.set'||action==='order.confirm'||
+   action==='broadcast.create'||action==='kyc.review';
 }
 async function notifyOriginalCustomer(orderId:number,chatId:number){
  if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
@@ -48,6 +49,22 @@ async function notifyOriginalCustomer(orderId:number,chatId:number){
     text:'✅ سفارش شما (USDT-'+String(orderId).padStart(5,'0')+
        ') تأیید و در حال پردازش نهایی است.',
    }),
+   signal:AbortSignal.timeout(6500),
+  });
+  return r.ok;
+ }catch{return false;}
+}
+async function notifyOriginalKycCustomer(chatId:number,status:string){
+ if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
+ const message=status==='verified'
+  ?'✅ هویت شما تایید شد. از این پس سفارش‌های شما سریع‌تر پردازش می‌شوند.'
+  :'⚠️ متاسفانه مدارک ارسالی شما تایید نشد.\\n'+
+    'لطفاً برای پیگیری با پشتیبانی تماس بگیرید: '+
+    (Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@sarafiaf_bot');
+ try{
+  const r=await fetch('https://api.telegram.org/bot'+BOT+'/sendMessage',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({chat_id:chatId,text:message}),
    signal:AbortSignal.timeout(6500),
   });
   return r.ok;
@@ -114,6 +131,54 @@ Deno.serve(async(req:Request)=>{
      .eq('status','pending').order('created_at',{ascending:true}).limit(20);
    if(r.error)throw r.error;
    return answer(origin,200,{orders:r.data||[]});
+  }
+  if(action==='kyc.pending'){
+   // Same ORIGINAL admin_bot.py KYC review, with short-lived private
+   // document preview links. A browser cannot request another customer's
+   // identity without BOTH verified Telegram HMAC and private admin ID.
+   const r=await db.from('user_profiles').select(
+    'chat_id,first_name,last_name,phone,kyc_status,id_document_path,selfie_path'
+   ).eq('kyc_status','pending')
+    .not('id_document_path','is',null).not('selfie_path','is',null)
+    .order('chat_id',{ascending:false}).limit(20);
+   if(r.error)throw r.error;
+   const bucket=db.storage.from(Deno.env.get('USDT_KYC_DOCS_BUCKET')||'usdt-kyc-docs');
+   const customers=await Promise.all((r.data||[]).map(async row=>{
+     const [id,selfie]=await Promise.all([
+       bucket.createSignedUrl(row.id_document_path,90),
+       bucket.createSignedUrl(row.selfie_path,90),
+     ]);
+     // No persistent storage path or raw ID image is sent in the response.
+     return {chat_id:row.chat_id,
+       first_name:row.first_name,last_name:row.last_name,phone:row.phone,
+       id_url:id.error?null:id.data?.signedUrl||null,
+       selfie_url:selfie.error?null:selfie.data?.signedUrl||null};
+   }));
+   return answer(origin,200,{customers});
+  }
+  if(action==='kyc.review'){
+   const chatId=Number(input.chat_id);
+   const decision=String(input.decision||'');
+   if(!Number.isSafeInteger(chatId)||chatId<=0||
+      !['verify','reject'].includes(decision))
+      return answer(origin,400,{error:'INVALID_KYC_REVIEW'});
+   const status=decision==='verify'?'verified':'restricted';
+   const rpc=await db.rpc('saraf_original_admin_review_kyc',{
+     p_admin:actor.id,p_chat_id:chatId,p_status:status,
+   });
+   if(rpc.error){
+     const known=new Set(['INVALID_KYC_REVIEW','KYC_PROFILE_NOT_FOUND',
+      'KYC_NOT_PENDING','KYC_DOCUMENTS_MISSING']);
+     const code=known.has(rpc.error.message)?rpc.error.message:'KYC_REVIEW_UNAVAILABLE';
+     return answer(origin,code==='KYC_PROFILE_NOT_FOUND'?404:409,{error:code});
+   }
+   const result=rpc.data as {chat_id:number;status:string;duplicate:boolean};
+   const notified=result?.duplicate?true:
+     await notifyOriginalKycCustomer(result.chat_id,result.status);
+   return answer(origin,200,{result:{
+     chat_id:result.chat_id,status:result.status,
+     duplicate:!!result.duplicate,customer_notified:notified,
+   }});
   }
   if(action==='broadcast.create'){
    if(!BROADCAST)return answer(origin,503,{error:'ORIGINAL_BROADCAST_DISABLED'});
