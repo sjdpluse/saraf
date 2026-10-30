@@ -173,9 +173,9 @@ BEGIN
  END IF;
  IF p_action='complete' AND NOT (
    length(trim(coalesce(p_details,''))) BETWEEN 4 AND 2000 OR
-   (p_file_id ~ '^[A-Za-z0-9_-]{12,300}$' AND
+   coalesce((p_file_id ~ '^[A-Za-z0-9_-]{12,300}$' AND
     p_file_type IN ('photo','document') AND
-    p_file_name ~ '^[A-Za-z0-9._-]{1,100}$')) THEN
+    p_file_name ~ '^[A-Za-z0-9._-]{1,100}$'),false)) THEN
    RAISE EXCEPTION 'COMPLETION_PROOF_REQUIRED' USING ERRCODE='P0001';
  END IF;
  SELECT * INTO v_order FROM public.usdt_orders
