@@ -49,7 +49,8 @@ function text(ctx,value,x,y,size=20,opt={}){
  ctx.textAlign=opt.align||'right';
  ctx.textBaseline='middle';
  const raw=String(value??'');
- ctx.fillText(raw,x,y,opt.maxWidth||Infinity);
+ if(opt.maxWidth)ctx.fillText(raw,x,y,opt.maxWidth);
+ else ctx.fillText(raw,x,y);
 }
 function money(x,digits=0){
  return Number(x||0).toLocaleString('en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits});
