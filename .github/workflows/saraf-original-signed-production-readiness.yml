@@ -6,6 +6,8 @@ on:
     paths:
       - .github/workflows/saraf-original-signed-production-readiness.yml
       - scripts/verify_original_saraf_live_cutover.mjs
+      - scripts/verify_original_finance_prerequisites.mjs
+      - supabase/functions/saraf-original-transactions/index.ts
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,6 +25,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check ORIGINAL real bank/wallet/admin readiness with money APIs disabled
+        continue-on-error: true
+        run: node scripts/verify_original_finance_prerequisites.mjs
       - name: Real ORIGINAL bot customer/admin signed read-only readiness test
         run: |
           set -euo pipefail
