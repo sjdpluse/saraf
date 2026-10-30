@@ -194,6 +194,16 @@ async function notifyAdmin(text:string){
   if(!response.ok)console.warn('Saraf admin alert non-200',response.status);
  }));
 }
+async function notifyCustomer(chatId:number,text:string){
+ if(!TOKEN||!Number.isSafeInteger(chatId)||chatId<=0)return;
+ // Use the original customer bot; status remains pending and unapproved.
+ const response=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendMessage',{
+  method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({chat_id:chatId,text}),
+  signal:AbortSignal.timeout(6500),
+ });
+ if(!response.ok)console.warn('Saraf customer alert non-200',response.status);
+}
 Deno.serve(async req=>{
  const origin=req.headers.get('Origin')||'';
  if(req.method==='OPTIONS')return origin===ORIGIN
@@ -328,11 +338,16 @@ Deno.serve(async req=>{
     if(rpc.data&&!rpc.data.duplicate){
       // Original remittance_service.create_order notifies admins only after
       // first successful insert. No money moves before manual approval.
-      await notifyAdmin('💸 حوالهٔ جدید صراف — بررسی دستی الزامی است\n'+
+      await Promise.allSettled([
+        notifyAdmin('💸 حوالهٔ جدید صراف — بررسی دستی الزامی است\n'+
         'کد: '+rpc.data.order_code+'\nشناسهٔ فرستنده: '+user.id+
         '\nدارایی: '+quote.asset+' / '+quote.network+
         '\nمقدار: '+quote.crypto_amount+'\nارزش دلاری: '+quote.usd_value+
-        '\nپرداخت افغانی: '+quote.payout_afn);
+        '\nپرداخت افغانی: '+quote.payout_afn);,
+        notifyCustomer(user.id,'✅ درخواست حواله در صراف ثبت شد.\\n'+
+          'کد حواله: '+rpc.data.order_code+'\\nوضعیت: در انتظار انتقال رمزارز'+
+          '\\nکد دریافت وجه تا تأیید نهایی صادر نمی‌شود.'),
+      ]);
     }
     return out(origin,200,rpc.data);
   }
@@ -347,9 +362,14 @@ Deno.serve(async req=>{
     });
     if(saved.error)return out(origin,503,{
       error:saved.error.code==='P0001'?saved.error.message:'DATABASE_UNAVAILABLE'});
-    await notifyAdmin('💸 حوالهٔ صراف — ثبت TX\n'+
+    await Promise.allSettled([
+      notifyAdmin('💸 حوالهٔ صراف — ثبت TX\n'+
       'کد: '+saved.data?.order_code+'\nشناسهٔ کاربر: '+user.id+
-      '\nشناسه تراکنش: '+hash+'\nلطفاً حواله را در پنل اصلی بررسی کنید.');
+      '\nشناسه تراکنش: '+hash+'\nلطفاً حواله را در پنل اصلی بررسی کنید.');,
+      notifyCustomer(user.id,'✅ شناسهٔ تراکنش حواله ثبت شد.\\n'+
+        'کد حواله: '+saved.data?.order_code+
+        '\\nوضعیت: در انتظار بررسی شبکه و تأیید تیم صراف.'),
+    ]);
     return out(origin,200,saved.data);
   }
   if(action==='card.preview'){
@@ -532,10 +552,15 @@ Deno.serve(async req=>{
    }
    const item=rpc.data as Json;
    if(!item?.duplicate){
-    await notifyAdmin('🆕 سفارش '+(side==='buy'?'خرید':'فروش')+' '+type+
+    await Promise.allSettled([
+     notifyAdmin('🆕 سفارش '+(side==='buy'?'خرید':'فروش')+' '+type+
      '\nکد: '+item.order_code+'\nمقدار: '+a+
      '\nکاربر: '+user.id+'\nشبکه: '+network+
-     '\nوضعیت: pending — بررسی دستی الزامی است.');
+     '\nوضعیت: pending — بررسی دستی الزامی است.');,
+     notifyCustomer(user.id,'✅ درخواست '+(side==='buy'?'خرید':'فروش')+
+       ' '+type+' در صراف ثبت شد.\\nکد سفارش: '+item.order_code+
+       '\\nوضعیت: در انتظار بررسی مدیر.\\nاین پیام تأیید پرداخت نیست.'),
+    ]);
    }
    return out(origin,200,{
      order_id:item.order_id,order_code:item.order_code,
