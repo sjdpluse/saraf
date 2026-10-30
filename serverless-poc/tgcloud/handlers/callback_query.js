@@ -106,6 +106,17 @@ export default async function(query){
       const known=new Set(['usdt_action','usdt_continue','usdt_pay',
         'usdt_paid','usdt_net','usdt_buy_exch','usdt_exch','usdt_rate']);
       if(!known.has(type))return;
+      if(type==='usdt_rate'){
+        // Original completed-order rating remains signed in the React
+        // order history; never trust an old callback to write a rating.
+        return api.sendMessage({chat_id:chat,
+          text:'⭐ برای امتیازدهی به سفارش‌های تکمیل‌شده، تاریخچهٔ رسمی سفارش‌های خود را باز کنید.',
+          reply_markup:{inline_keyboard:[[
+            {text:'⭐ سفارش‌های من و امتیازدهی',
+             web_app:{url:'https://app8533795882.tgcloud.ai/?action=orders'}},
+          ]]},
+        });
+      }
       const asset=type==='usdt_action'&&['USDT','USDC'].includes(a)?a:null;
       const side=type==='usdt_action'?parts[2]:
         ['usdt_continue','usdt_pay','usdt_paid','usdt_net'].includes(type)?a:null;
