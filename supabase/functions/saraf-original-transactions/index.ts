@@ -219,7 +219,6 @@ Deno.serve(async req=>{
  const user=await verifyTelegramInitData(
    req.headers.get('X-Telegram-Init-Data')||'',TOKEN);
  if(!user)return out(origin,401,{error:'INVALID_TELEGRAM_AUTH'});
- if(!LIVE)return out(origin,503,{error:'ORIGINAL_FINANCIAL_API_DISABLED'});
  let body:Json;
  try{
   const raw=await req.text();
@@ -233,6 +232,41 @@ Deno.serve(async req=>{
  });
  const action=String(body.action||'');
  const input=(body.input||{}) as Json;
+ // Authorized original admin-only diagnostic: never return actual bank,
+ // wallet or bot secrets and never create or mutate a financial row.
+ if(action==='release.readiness'){
+   if(!ADMINS.includes(String(user.id)))
+     return out(origin,403,{error:'ADMIN_NOT_ALLOWED'});
+   const missing:string[]=[];
+   for(const name of ['BANK_NAME','BANK_ACCOUNT_HOLDER','BANK_ACCOUNT_NUMBER'])
+     if(!Deno.env.get(name)?.trim())missing.push(name);
+   const networks:Record<string,number>={};
+   for(const type of ['USDT','USDC'] as Asset[]){
+     networks[type]=Object.keys(wallets(type)).filter(network=>
+       TYPES[type].some(item=>item.code===network)).length;
+     if(!networks[type])missing.push('SARAF_'+type+'_DEPOSIT_WALLETS_JSON');
+   }
+   let remittanceCount=0;
+   try{
+     remittanceCount=originalRemittanceConfig(
+       remittanceEnv(),remittanceV2Enabled()).length;
+   }catch{missing.push('REMITTANCE_WALLETS_JSON_INVALID');}
+   if(!remittanceCount)missing.push('REMITTANCE_WALLETS_JSON');
+   if(!ADMINS.length||!ADMIN_TOKEN)
+     missing.push('SARAF_ADMIN_BOT_TOKEN_OR_CHAT_IDS');
+   return out(origin,200,{
+     canonical_database:'existing_saraf_supabase',
+     financial_api_enabled:LIVE,
+     bank_configured:!missing.some(x=>x.startsWith('BANK_')),
+     configured_sell_network_counts:networks,
+     remittance_asset_count:remittanceCount,
+     admin_notifications_configured:!!ADMIN_TOKEN&&ADMINS.length>0,
+     ready_for_cutover:missing.length===0,
+     missing_secret_names:[...new Set(missing)],
+     note:'SIGNED_ADMIN_ONLY_READ_ONLY_NO_MONEY_OPERATIONS',
+   });
+ }
+ if(!LIVE)return out(origin,503,{error:'ORIGINAL_FINANCIAL_API_DISABLED'});
  try{
   if(!input||typeof input!=='object'||Array.isArray(input))
     deny('INVALID_INPUT');
