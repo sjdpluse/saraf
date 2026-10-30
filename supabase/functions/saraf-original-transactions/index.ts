@@ -15,6 +15,7 @@ import {
  originalRemittanceValuation,
 } from './remittance.mjs';
 import {originalRiskLevel} from './risk.mjs';
+import {verifyOriginalReleaseProof} from './preflight.mjs';
 
 const ORIGIN='https://app8533795882.tgcloud.ai';
 const TOKEN=Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN')||'';
@@ -219,6 +220,56 @@ Deno.serve(async req=>{
  if(req.method!=='POST')return out(origin,405,{error:'METHOD_NOT_ALLOWED'});
  if(origin && origin!==ORIGIN)return out('',403,{error:'ORIGIN_NOT_ALLOWED'});
  if(!TOKEN||!KEY)return out(origin,503,{error:'SERVICE_NOT_CONFIGURED'});
+ // Original GitHub production release uses bot-token HMAC, NOT an expired
+ // browser initData. Auth is scoped to read-only readiness, never finance
+ // or customer data. No user/admin actor is created by this proof.
+ if(req.headers.has('X-Saraf-Release-Signature')){
+   if(origin!==ORIGIN)return out('',403,{error:'ORIGIN_NOT_ALLOWED'});
+   if((Number(req.headers.get('content-length')||0))>256)
+     return out(origin,413,{error:'PAYLOAD_TOO_LARGE'});
+   const valid=await verifyOriginalReleaseProof(
+     TOKEN,req.headers.get('X-Saraf-Release-Time')||'',
+     req.headers.get('X-Saraf-Release-Signature')||'');
+   if(!valid)return out(origin,401,{error:'INVALID_RELEASE_PROOF'});
+   let body:Json;
+   try{
+     const raw=await req.text();
+     if(raw.length>256)return out(origin,413,{error:'PAYLOAD_TOO_LARGE'});
+     body=JSON.parse(raw);
+   }catch{return out(origin,400,{error:'INVALID_JSON'});}
+   if(body?.action!=='release.preflight')
+     return out(origin,403,{error:'RELEASE_PROOF_READ_ONLY'});
+   let remittanceCount=0;
+   try{remittanceCount=originalRemittanceConfig(
+     remittanceEnv(),remittanceV2Enabled()).length;}catch{}
+   const configuredSellNetworks=Object.fromEntries(
+     (['USDT','USDC'] as Asset[]).map(t=>[t,Object.keys(wallets(t)).length]));
+   const flags={
+     financial_api:LIVE,
+     admin_read:Deno.env.get('SARAF_ORIGINAL_ADMIN_READ_ENABLED')==='true',
+     admin_writes:Deno.env.get('SARAF_ORIGINAL_ADMIN_WRITES_ENABLED')==='true',
+     broadcast:Deno.env.get('SARAF_ORIGINAL_BROADCAST_ENABLED')==='true',
+     user_preferences:Deno.env.get('SARAF_ORIGINAL_USER_PREFERENCES_ENABLED')==='true',
+     kyc:Deno.env.get('SARAF_ORIGINAL_KYC_ENABLED')==='true',
+     uploads:Deno.env.get('SARAF_ORIGINAL_UPLOADS_ENABLED')==='true',
+   };
+   const bankReady=['BANK_NAME','BANK_ACCOUNT_HOLDER','BANK_ACCOUNT_NUMBER']
+     .every(v=>!!Deno.env.get(v)?.trim());
+   const adminsReady=ADMINS.length>0&&!!ADMIN_TOKEN;
+   const walletsReady=Object.values(configuredSellNetworks)
+     .every(v=>Number(v)>0)&&remittanceCount>0;
+   const ready=Object.values(flags).every(Boolean)&&
+     bankReady&&adminsReady&&walletsReady;
+   return out(origin,200,{
+     mode:'original_Saraf_production_readiness_READ_ONLY',
+     ready_for_cutover:ready,
+     enabled:flags,
+     bank_ready:bankReady,
+     admin_notifications_ready:adminsReady,
+     configured_sell_network_counts:configuredSellNetworks,
+     remittance_asset_count:remittanceCount,
+   });
+ }
  const user=await verifyTelegramInitData(
    req.headers.get('X-Telegram-Init-Data')||'',TOKEN);
  if(!user)return out(origin,401,{error:'INVALID_TELEGRAM_AUTH'});
