@@ -105,7 +105,7 @@ CREATE OR REPLACE FUNCTION public.saraf_original_admin_review_kyc(
  p_admin bigint,p_chat_id bigint,p_status text
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY INVOKER SET search_path=''
-AS $
+AS $$
 DECLARE
  v_profile public.user_profiles%ROWTYPE;
  v_reason text;
@@ -140,7 +140,7 @@ BEGIN
   jsonb_build_object('kyc_status','pending'),
   jsonb_build_object('kyc_status',p_status),v_reason);
  RETURN jsonb_build_object('chat_id',p_chat_id,'status',p_status,'duplicate',false);
-END $;
+END $$;
 
 REVOKE ALL ON FUNCTION public.saraf_original_admin_confirm(bigint,bigint)
  FROM PUBLIC,anon,authenticated;
