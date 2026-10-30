@@ -25,6 +25,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Test original admin-only prerequisite guard and bank/wallet legacy aliases
+        run: node --test serverless-poc/tests/original_release_readiness.test.js
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck original signed finance Edge handler before any signed calls
+        run: deno check supabase/functions/saraf-original-transactions/index.ts
       - name: Check ORIGINAL real bank/wallet/admin readiness with money APIs disabled
         continue-on-error: true
         run: node scripts/verify_original_finance_prerequisites.mjs
