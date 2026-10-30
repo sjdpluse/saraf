@@ -37,7 +37,8 @@ function isOwner(userId:number){
 }
 function isWrite(action:string){
  return action==='spread.set'||action==='order.confirm'||
-   action==='broadcast.create'||action==='kyc.review';
+   action==='broadcast.create'||action==='kyc.review'||
+   action==='order.reject'||action==='order.complete';
 }
 async function notifyOriginalCustomer(orderId:number,chatId:number){
  if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
@@ -65,6 +66,26 @@ async function notifyOriginalKycCustomer(chatId:number,status:string){
   const r=await fetch('https://api.telegram.org/bot'+BOT+'/sendMessage',{
    method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({chat_id:chatId,text:message}),
+   signal:AbortSignal.timeout(6500),
+  });
+  return r.ok;
+ }catch{return false;}
+}
+async function notifyOriginalFinalized(chatId:number,orderId:number,
+ asset:string,status:string,details:string){
+ if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
+ const code=(asset==='USDC'?'USDC':'USDT')+'-'+String(orderId).padStart(5,'0');
+ const text=status==='completed'
+  ?'📦 سفارش '+code+' با موفقیت تکمیل شد.\\n'+
+   '🔎 Transaction Details / Tx Hash:\\n'+details+
+   '\\nلطفاً از بخش «سفارش‌های من» در اپلیکیشن اصلی به سفارش امتیاز بدهید.'
+  :'⚠️ سفارش '+code+' قابل تایید نبود.\\n'+
+   'لطفاً برای پیگیری با پشتیبانی تماس بگیرید: '+
+    (Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@sarafiaf_bot');
+ try{
+  const r=await fetch('https://api.telegram.org/bot'+BOT+'/sendMessage',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({chat_id:chatId,text}),
    signal:AbortSignal.timeout(6500),
   });
   return r.ok;
@@ -178,6 +199,42 @@ Deno.serve(async(req:Request)=>{
    return answer(origin,200,{result:{
      chat_id:result.chat_id,status:result.status,
      duplicate:!!result.duplicate,customer_notified:notified,
+   }});
+  }
+  if(action==='orders.confirmed'){
+   const r=await db.from('usdt_orders').select(
+     'id,order_type,asset,usdt_amount,total_afn,status,created_at'
+    ).eq('status','confirmed').order('created_at',{ascending:true}).limit(20);
+   if(r.error)throw r.error;
+   return answer(origin,200,{orders:r.data||[]});
+  }
+  if(action==='order.reject'||action==='order.complete'){
+   const orderId=Number(input.order_id);
+   const complete=action==='order.complete';
+   const details=complete?String(input.completion_tx_details||'').trim():'';
+   if(!Number.isSafeInteger(orderId)||orderId<=0)
+    return answer(origin,400,{error:'INVALID_ORDER_ID'});
+   if(complete && (details.length<4||details.length>2000))
+    return answer(origin,400,{error:'COMPLETION_PROOF_REQUIRED'});
+   const r=await db.rpc('saraf_original_admin_finalize_order',{
+     p_admin:actor.id,p_order_id:orderId,
+     p_action:complete?'complete':'reject',
+     p_details:complete?details:null,
+   });
+   if(r.error){
+    const known=new Set(['INVALID_ADMIN_FINALIZE','ORDER_NOT_FOUND',
+     'INVALID_ORDER_TRANSITION','COMPLETION_PROOF_REQUIRED',
+     'BASIC_PROFILE_REQUIRED']);
+    const code=known.has(r.error.message)?r.error.message:'ORDER_FINALIZE_UNAVAILABLE';
+    return answer(origin,code==='ORDER_NOT_FOUND'?404:409,{error:code});
+   }
+   const row=r.data as {order_id:number;chat_id:number;asset:string;
+     status:string;duplicate:boolean};
+   const notified=row?.duplicate?true:await notifyOriginalFinalized(
+     row.chat_id,row.order_id,row.asset,row.status,details);
+   return answer(origin,200,{result:{
+     order_id:row.order_id,status:row.status,duplicate:!!row.duplicate,
+     customer_notified:notified,
    }});
   }
   if(action==='broadcast.create'){
