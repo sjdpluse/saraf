@@ -11,7 +11,8 @@ export async function originalAdminCommand(action,input={}){
  const allowed=['stats','spreads','orders.pending','spread.set',
  'order.confirm','order.reject','order.complete','orders.confirmed',
  'broadcast.create','broadcast.status',
- 'kyc.pending','kyc.review'];
+ 'kyc.pending','kyc.review',
+ 'remittances.pending','remittances.transition'];
  if(!allowed.includes(action))throw new Error('دستور مدیریت پشتیبانی نمی‌شود.');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),15000);
