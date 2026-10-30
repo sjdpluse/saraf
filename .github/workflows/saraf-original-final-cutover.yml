@@ -96,6 +96,16 @@ jobs:
       - name: Install Telegram Serverless CLI pinned to official 0.2.0
         working-directory: serverless-poc/.release-original
         run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      # This deliberately syncs the existing 11-module revision BEFORE any
+      # deployment, even if a release script is accidentally older. It is
+      # READ-ONLY against the live bot. Never use --force.
+      - name: Fetch and pin currently deployed ORIGINAL Telegram modules (revision safety)
+        working-directory: serverless-poc/.release-original
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
       - name: Explicit ORIGINAL BotFather project target and atomic push with rollback
         run: node scripts/publish_original_saraf_serverless.mjs
       - name: Record only the reviewed ORIGINAL Saraf deployment commit
