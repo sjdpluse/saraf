@@ -1,0 +1,34 @@
+name: Original Saraf safe Serverless revision sync — dry-run CI
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - scripts/publish_original_saraf_serverless.mjs
+      - scripts/prepare_saraf_original_release.mjs
+      - serverless-poc/tests/original_tgcloud_revision_sync.test.js
+      - .github/workflows/saraf-original-safe-sync-check.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safe-original-sync-code:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check original bot release scripts (never publish here)
+        run: |
+          node --check scripts/publish_original_saraf_serverless.mjs
+          node --check scripts/prepare_saraf_original_release.mjs
+      - name: Prove fetch → inspect → targeted upload → webhook sync preserves existing remote modules
+        run: node --test serverless-poc/tests/original_tgcloud_revision_sync.test.js
+      - name: Run bot callback regressions before any production release
+        run: node --test serverless-poc/tests/*.test.js
+      - name: No Telegram deployment performed
+        run: echo "The original production bot and Railway webhook have not been changed."
