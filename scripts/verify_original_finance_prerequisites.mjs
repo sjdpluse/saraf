@@ -32,6 +32,10 @@ try{
    ?data.missing_secret_names.filter(x=>/^[A-Z0-9_]{3,90}$/.test(x)):[];
   console.log('Original bank configured: '+Boolean(data.bank_configured));
   console.log('Original sell networks configured: '+JSON.stringify(data.configured_sell_network_counts||{}));
+  console.log('Original USDT/USDC secret formats (no address values): '+
+   JSON.stringify(data.wallet_secret_format_statuses||{}));
+  console.log('Original remittance secret format (no address values): '+
+   String(data.remittance_secret_format_status||'UNKNOWN'));
   console.log('Original remittance asset count: '+Number(data.remittance_asset_count||0));
   console.log('Original administrator alerts configured: '+Boolean(data.admin_notifications_configured));
   console.log('Original financial operations currently enabled: '+Boolean(data.financial_api_enabled));
