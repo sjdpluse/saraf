@@ -41,7 +41,9 @@ async function probe([title,fn,token,body,expected]){
   });
   if(response.status!==expected)throw Error('HTTP '+response.status+' (expected '+expected+')');
   const parsed=await response.json().catch(()=>null);
-  if(parsed?.error)throw Error('Backend returned '+String(parsed.error).slice(0,70));
+  if(expected===200&&parsed?.error)throw Error('Backend returned '+String(parsed.error).slice(0,70));
+  if(expected===400&&typeof parsed?.error!=='string')
+   throw Error('Expected signed input rejection payload');
   if(fn==='saraf-original-transactions'&&body.action==='remittances.config'){
    if(!Array.isArray(parsed?.assets)||!parsed.assets.some(a=>
       Array.isArray(a.networks)&&a.networks.length>0))
