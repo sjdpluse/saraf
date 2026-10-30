@@ -7,19 +7,9 @@ import {
  IN_PERSON_ADDRESS,IN_PERSON_REPRESENTATIVE_PHONE,SARAF_SUPPORT_PHONE,
 } from './inPerson';
 import {showConfirm} from './telegram';
+import {originalPassInput} from './originalPassData.mjs';
+export {originalPassInput} from './originalPassData.mjs';
 
-export function originalPassInput({action,asset,code}){
- const type=String(action||'');
- const token=String(asset||'').trim().toUpperCase();
- const digits=String(code||'');
- if(type!=='buy'&&type!=='sell')throw Error('نوع مراجعه نامعتبر است.');
- if(token!=='USDT'&&token!=='USDC')throw Error('دارایی مراجعه نامعتبر است.');
- if(!/^[0-9]{4}$/.test(digits))throw Error('کد مراجعه باید ۴ رقم باشد.');
- return {action:type,asset:token,code:digits,
-  actionFa:type==='buy'?'پرداخت حضوری':'دریافت حضوری',
-  fileName:'saraf-'+type+'-'+token+'-'+digits+'.png',
- };
-}
 const fill='#1d1d1f',muted='#6e6e73',blue='#0071e3';
 function rr(ctx,x,y,w,h,r,color,stroke=null){
  ctx.beginPath();
