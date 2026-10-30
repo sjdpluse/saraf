@@ -1,0 +1,34 @@
+name: Original Saraf Telegram /broadcast worker (Railway-free; gated)
+on:
+  schedule:
+    - cron: '*/2 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-broadcast-queue
+  cancel-in-progress: false
+jobs:
+  original-broadcast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      SARAF_ORIGINAL_CUTOVER_APPROVED: ${{ secrets.SARAF_ORIGINAL_CUTOVER_APPROVED }}
+      SARAF_ORIGINAL_BROADCAST_ENABLED: ${{ secrets.SARAF_ORIGINAL_BROADCAST_ENABLED }}
+      SARAF_ORIGINAL_BROADCAST_CRON_TOKEN: ${{ secrets.SARAF_ORIGINAL_BROADCAST_CRON_TOKEN }}
+    steps:
+      - name: Safe default — neither live customer messages nor Railway cutover enabled
+        if: env.SARAF_ORIGINAL_CUTOVER_APPROVED != 'true' || env.SARAF_ORIGINAL_BROADCAST_ENABLED != 'true'
+        run: echo "Original Telegram broadcast worker is disabled."
+      - name: Deliver original queued /broadcast without duplicate retries
+        if: env.SARAF_ORIGINAL_CUTOVER_APPROVED == 'true' && env.SARAF_ORIGINAL_BROADCAST_ENABLED == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${#SARAF_ORIGINAL_BROADCAST_CRON_TOKEN}" -ge 32 ]] || {
+            echo "::error::Original broadcast cron token missing."
+            exit 1
+          }
+          code=$(curl --silent --show-error --max-time 55              --output /dev/null --write-out '%{http_code}'              -X POST              -H "Authorization: Bearer ${SARAF_ORIGINAL_BROADCAST_CRON_TOKEN}"              -H 'Content-Type: application/json'              --data '{}'              'https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1/saraf-original-broadcast-worker')
+          echo "Original broadcast batch HTTP status $code (never print recipients)."
+          test "$code" = 200
