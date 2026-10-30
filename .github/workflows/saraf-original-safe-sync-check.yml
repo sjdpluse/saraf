@@ -32,3 +32,40 @@ jobs:
         run: node --test serverless-poc/tests/*.test.js
       - name: No Telegram deployment performed
         run: echo "The original production bot and Railway webhook have not been changed."
+  inspect-original-existing-cloud-revision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Confirm the intended original BotFather application (no token printed)
+        shell: bash
+        run: |
+          test "${TGCLOUD_TOKEN:-}" != ""
+          [[ "$TGCLOUD_TOKEN" == app8533795882:* ]] || exit 1
+      - name: Build the original React static bundle (no publish)
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Prepare exact targeted module manifest for original app
+        run: node scripts/prepare_saraf_original_release.mjs
+      - name: Install Telegram Serverless CLI 0.2.0 in disposable build directory
+        working-directory: serverless-poc/.release-original
+        run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      - name: READ ONLY — fetch existing 11-module Telegram revision, no push/force
+        working-directory: serverless-poc/.release-original
+        run: npx --no-install tgcloud fetch
+      - name: READ ONLY — show local-vs-deployed status, preserve remote modules
+        working-directory: serverless-poc/.release-original
+        run: npx --no-install tgcloud status
+      - name: Confirm no deployed bot, webhook or database changed
+        run: echo "Revision fetched only. No tgcloud push, migrate, or webhook sync was executed."
