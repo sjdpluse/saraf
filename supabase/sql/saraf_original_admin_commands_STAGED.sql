@@ -247,6 +247,84 @@ BEGIN
      THEN trim(p_details) ELSE NULL END);
 END $$;
 
+-- Original services/remittance_admin.py /remitpay, ready, hold, cancel.
+-- Strictly existing remittance_orders and existing audit/history tables.
+-- Only a signed admin Edge caller with service_role may invoke this RPC.
+CREATE OR REPLACE FUNCTION public.saraf_original_admin_remittance(
+ p_admin bigint,p_order_id bigint,p_action text,p_pickup_code text
+) RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path=''
+AS $$
+DECLARE
+ r public.remittance_orders%ROWTYPE;
+ v_old text;
+ v_next text;
+ v_note text;
+BEGIN
+ IF p_admin IS NULL OR p_admin<=0 OR p_order_id IS NULL OR p_order_id<=0
+    OR p_action NOT IN ('ready','hold','cancel','pay') THEN
+   RAISE EXCEPTION 'INVALID_REMITTANCE_ADMIN_INPUT' USING ERRCODE='P0001';
+ END IF;
+ SELECT * INTO r FROM public.remittance_orders
+ WHERE id=p_order_id FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'REMITTANCE_NOT_FOUND' USING ERRCODE='P0001';END IF;
+ v_next:=CASE p_action
+  WHEN 'ready' THEN 'payout_ready'
+  WHEN 'hold' THEN 'on_hold'
+  WHEN 'cancel' THEN 'cancelled'
+  ELSE 'completed' END;
+ v_old:=r.status;
+ -- Original /remitpay requires matching real 6-digit pickup code.
+ IF p_action='pay' AND
+   (length(coalesce(p_pickup_code,''))<>6
+     OR p_pickup_code !~ '^[0-9]{6}$'
+     OR r.pickup_code IS DISTINCT FROM p_pickup_code) THEN
+    RAISE EXCEPTION 'INVALID_PICKUP_CODE' USING ERRCODE='P0001';
+ END IF;
+ IF v_old=v_next THEN
+    RETURN jsonb_build_object(
+      'order_id',r.id,'chat_id',r.chat_id,'status',v_next,
+      'order_code','REM-'||lpad(r.id::text,6,'0'),'duplicate',true);
+ END IF;
+ IF NOT (
+    (v_old='transfer_submitted' AND p_action IN ('ready','hold','cancel'))
+    OR (v_old='on_hold' AND p_action IN ('ready','cancel'))
+    OR (v_old='payout_ready' AND p_action IN ('hold','pay'))
+ ) THEN RAISE EXCEPTION 'INVALID_REMITTANCE_TRANSITION' USING ERRCODE='P0001';
+ END IF;
+ v_note:=CASE WHEN p_action='pay' THEN
+   'Pickup code verified; beneficiary identity checked by payout operator'
+   ELSE 'Admin action: remit_'||p_action END;
+ UPDATE public.remittance_orders SET
+   status=v_next,
+   admin_note=v_note,
+   crypto_confirmed_by=CASE WHEN p_action='ready'
+      THEN p_admin ELSE crypto_confirmed_by END,
+   crypto_confirmed_at=CASE WHEN p_action='ready'
+      THEN now() ELSE crypto_confirmed_at END,
+   paid_by=CASE WHEN p_action='pay' THEN p_admin ELSE paid_by END,
+   paid_at=CASE WHEN p_action='pay' THEN now() ELSE paid_at END,
+   updated_at=now()
+ WHERE id=p_order_id AND status=v_old RETURNING * INTO r;
+ IF NOT FOUND THEN
+  RAISE EXCEPTION 'INVALID_REMITTANCE_TRANSITION' USING ERRCODE='P0001';
+ END IF;
+ INSERT INTO public.remittance_status_history(
+  order_id,from_status,to_status,changed_by,note)
+ VALUES(p_order_id,v_old,v_next,p_admin,v_note);
+ INSERT INTO public.audit_log(actor,action,entity,entity_id,after)
+ VALUES(p_admin,'remittance_'||v_next,'remittance',p_order_id::text,
+   jsonb_build_object('status',v_next));
+ RETURN jsonb_build_object(
+   'order_id',r.id,'chat_id',r.chat_id,'order_code',
+      'REM-'||lpad(r.id::text,6,'0'),
+   'status',r.status,'duplicate',false,
+   'beneficiary_full_name',r.beneficiary_full_name,
+   'payout_afn',r.payout_afn,
+   -- This value is included for server-to-customer message ONLY,
+   -- and MUST be removed from the signed admin HTTP response.
+   'pickup_code',CASE WHEN v_next='payout_ready' THEN r.pickup_code ELSE NULL END);
+END $$;
+
 REVOKE ALL ON FUNCTION public.saraf_original_admin_confirm(bigint,bigint)
  FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.saraf_original_admin_set_spread(bigint,text,numeric)
@@ -262,5 +340,9 @@ GRANT EXECUTE ON FUNCTION public.saraf_original_admin_review_kyc(bigint,bigint,t
 REVOKE ALL ON FUNCTION public.saraf_original_admin_finalize_order(bigint,bigint,text,text)
  FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.saraf_original_admin_finalize_order(bigint,bigint,text,text)
+ TO service_role;
+REVOKE ALL ON FUNCTION public.saraf_original_admin_remittance(bigint,bigint,text,text)
+ FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.saraf_original_admin_remittance(bigint,bigint,text,text)
  TO service_role;
 COMMIT;
