@@ -13,6 +13,9 @@ const REQUEST_LIMIT=18*1024*1024;
 const TELEGRAM_TOKEN=Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN')||'';
 const SERVICE_KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const ENABLED=Deno.env.get('SARAF_ORIGINAL_KYC_ENABLED')==='true';
+const ADMIN_IDS=(Deno.env.get('SARAF_KYC_ADMIN_IDS')||
+  Deno.env.get('SARAF_ADMIN_CHAT_IDS')||'').split(',')
+  .map(s=>s.trim()).filter(s=>/^[1-9][0-9]{0,15}$/.test(s));
 const edgeURL=Deno.env.get('SUPABASE_URL')||'https://'+PROJECT+'.supabase.co';
 const headers=(origin:string)=>({
   'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',
@@ -43,15 +46,13 @@ function imageKind(file:File,bytes:Uint8Array){
 async function adminNotification(userId:number,profile:Record<string,unknown>){
   // The old Python service sends a separate review request to admin IDs.
   // The original bot token is used only server-side and never exposed.
-  const ids=(Deno.env.get('SARAF_KYC_ADMIN_IDS')||'').split(',').map(s=>s.trim())
-    .filter(s=>/^[1-9][0-9]{0,15}$/.test(s));
-  if(!ids.length)return;
+  if(!ADMIN_IDS.length)return;
   const name=[profile.first_name,profile.last_name].filter(Boolean).join(' ');
   const message='🪪 درخواست بررسی KYC جدید در صراف\n'+
    'کاربر: '+String(userId)+'\n'+
    'نام: '+String(name).slice(0,140)+'\n'+
    'مدارک در باکت خصوصی Supabase ذخیره شدند؛ در پنل مدیریت بررسی کنید.';
-  await Promise.allSettled(ids.map(async id=>{
+  await Promise.allSettled(ADMIN_IDS.map(async id=>{
     // Never send private image bytes or temporary public URLs in a plain text message.
     const rsp=await fetch('https://api.telegram.org/bot'+TELEGRAM_TOKEN+'/sendMessage',{
       method:'POST',headers:{'Content-Type':'application/json'},
@@ -73,6 +74,10 @@ Deno.serve(async(request:Request)=>{
     request.headers.get('x-telegram-init-data')||'',TELEGRAM_TOKEN);
   if(!user)return answer(origin,401,{error:'INVALID_TELEGRAM_AUTH'});
   if(!ENABLED)return answer(origin,503,{error:'KYC_NOT_MIGRATED'});
+  // Do not accept irreversible identity documents when no original admin
+  // can review them; this is the migration's required human approval step.
+  if(!ADMIN_IDS.length)
+    return answer(origin,503,{error:'KYC_ADMIN_REVIEW_NOT_CONFIGURED'});
   if(Number(request.headers.get('content-length')||0)>REQUEST_LIMIT)
     return answer(origin,413,{error:'PAYLOAD_TOO_LARGE'});
   try {
