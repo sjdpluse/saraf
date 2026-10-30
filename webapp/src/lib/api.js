@@ -6,6 +6,7 @@ import { canonicalCall } from "./supabaseBridge";
 import { uploadOriginalIdentity } from "./legacyKycBridge";
 import { uploadOriginalImage } from "./legacyUploads";
 import { originalFinanceCall } from './originalFinanceBridge';
+import { renderOriginalOrderCardPreview } from './originalOrderCardPng';
 
 class ApiError extends Error {
   constructor(message, status, code) {
@@ -112,7 +113,14 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
 }
 
 async function requestBlob(path, body) {
-  if (IS_TELEGRAM_NATIVE) throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
+  if (IS_TELEGRAM_NATIVE) {
+    if (path !== '/stablecoins/card-preview')
+      throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
+    // Same signed quote, owner profile and network/wallet checks as original
+    // Python endpoint; only the 1320x900 PNG rasterization occurs locally.
+    const verified=await originalFinanceCall('card.preview',body);
+    return renderOriginalOrderCardPreview(verified);
+  }
   const res = await fetch(`/api${path}`, {
     method: "POST",
     headers: { "X-Telegram-Init-Data": getInitData(), "Content-Type": "application/json" },
