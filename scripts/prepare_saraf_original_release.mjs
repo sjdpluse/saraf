@@ -75,9 +75,14 @@ await writeFile(path.join(target,'package.json'),JSON.stringify({
   type:'module',
   devDependencies:{'@tgcloud/cli':'0.2.0'},
 },null,2)+'\n');
+// Explicit deployment manifest: targeted tgcloud push MUST NOT delete
+// the 11 modules already deployed in the ORIGINAL Telegram Serverless bot.
+// A full unscoped push would mirror this folder and remove remote modules.
+await writeFile(path.join(target,'RELEASE_MODULES.json'),
+  JSON.stringify([...allowlist].map(item=>'tgcloud/'+item),null,2)+'\n');
 await writeFile(path.join(target,'RELEASE_SCOPE.txt'),
   'TARGET ORIGINAL TELEGRAM BOT: @'+originalBot+'\n'
-  +'MODE: read-only reference markets and Supabase-history React frontend\n'
+  +'MODE: ORIGINAL React + existing canonical Supabase, targeted module sync\n'
   +'DO NOT MIGRATE TELEGRAM SQLITE: no native schema.js included\n'
   +'NO MONEY OR KYC WRITE HANDLERS INCLUDED\n'
   +'REQUIRES VERIFIED ORIGINAL-BOT CLI ACCESS TOKEN FROM BOTFATHER\n');
