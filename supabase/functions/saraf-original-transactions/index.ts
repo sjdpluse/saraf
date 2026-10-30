@@ -138,9 +138,12 @@ async function remittancePreview(input:Json,rate:number,feePercent:number,
 }
 function wallets(kind:Asset):Json{
  // Same server-side source as main:services/stablecoin_networks.py.
- const env=kind==='USDT'?'SARAF_USDT_DEPOSIT_WALLETS_JSON':'SARAF_USDC_DEPOSIT_WALLETS_JSON';
+ // The original Python USDC loader used USDC_DEPOSIT_WALLETS_JSON
+ // without a SARAF_ prefix; accept it for migration parity.
+ const primary=kind==='USDT'?'SARAF_USDT_DEPOSIT_WALLETS_JSON':'SARAF_USDC_DEPOSIT_WALLETS_JSON';
+ const legacy=kind==='USDT'?'USDT_DEPOSIT_WALLETS_JSON':'USDC_DEPOSIT_WALLETS_JSON';
  let config:unknown={};
- try{config=JSON.parse(Deno.env.get(env)||'{}');}catch{return {};}
+ try{config=JSON.parse(Deno.env.get(primary)||Deno.env.get(legacy)||'{}');}catch{return {};}
  if(!config||typeof config!=='object'||Array.isArray(config))return {};
  const map:Json={};
  for(const item of TYPES[kind]){
@@ -244,7 +247,9 @@ Deno.serve(async req=>{
    for(const type of ['USDT','USDC'] as Asset[]){
      networks[type]=Object.keys(wallets(type)).filter(network=>
        TYPES[type].some(item=>item.code===network)).length;
-     if(!networks[type])missing.push('SARAF_'+type+'_DEPOSIT_WALLETS_JSON');
+     if(!networks[type])missing.push(type==='USDC'
+       ?'USDC_DEPOSIT_WALLETS_JSON_OR_SARAF_USDC_DEPOSIT_WALLETS_JSON'
+       :'SARAF_USDT_DEPOSIT_WALLETS_JSON_OR_USDT_DEPOSIT_WALLETS_JSON');
    }
    let remittanceCount=0;
    try{
