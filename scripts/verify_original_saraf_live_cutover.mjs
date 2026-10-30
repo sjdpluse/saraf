@@ -39,8 +39,14 @@ async function probe([title,fn,token,body,expected]){
     'X-Telegram-Init-Data':token},body:JSON.stringify(body),
    credentials:'omit',cache:'no-store',signal:ctrl.signal,
   });
-  if(response.status!==expected)throw Error('HTTP '+response.status+' (expected '+expected+')');
   const parsed=await response.json().catch(()=>null);
+  if(response.status!==expected){
+   // Only print a standardized backend status code; never expose customer
+   // records, signed Telegram initData or user supplied error messages.
+   const code=String(parsed?.error||'');
+   const safe=/^[A-Z][A-Z0-9_]{2,70}$/.test(code)?code:'UNKNOWN_ERROR';
+   throw Error('HTTP '+response.status+' '+safe+' (expected '+expected+')');
+  }
   if(expected===200&&parsed?.error)throw Error('Backend returned '+String(parsed.error).slice(0,70));
   if(expected===400&&typeof parsed?.error!=='string')
    throw Error('Expected signed input rejection payload');
