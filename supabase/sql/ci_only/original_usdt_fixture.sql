@@ -8,6 +8,7 @@ CREATE TABLE public.user_profiles(
  chat_id bigint PRIMARY KEY,
  first_name text,last_name text,phone text,kyc_status text NOT NULL DEFAULT 'pending',
  id_document_path text,selfie_path text,restricted_reason text,
+ verified_by bigint,verified_at timestamptz,
  cancelled_orders integer NOT NULL DEFAULT 0,
  payment_info_change_count integer NOT NULL DEFAULT 0,
  successful_orders integer NOT NULL DEFAULT 0
