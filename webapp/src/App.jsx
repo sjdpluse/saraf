@@ -39,6 +39,7 @@ export default function App() {
     if (action === "buy" || action === "sell") setPage(action);
     if (action === "remittance") setPage("remittance");
     if (action === "remittances") setPage("remittances");
+    if (action === "orders") setPage("orders");
     if (action === "justmarkets") setPage("justmarkets");
     if (action === "admin") setPage("admin");
     if (action === "notifications") setPage("notifications");
