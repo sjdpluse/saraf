@@ -61,3 +61,56 @@ BEGIN
  THEN RAISE EXCEPTION 'ADMIN_RPC_PUBLIC';END IF;
  RAISE NOTICE 'Original Saraf admin command invariants PASSED';
 END $$;
+
+
+-- Original admin_bot.py KYC review transitions: isolated/synthetic ONLY.
+DO $$
+DECLARE
+ r jsonb; blocked boolean;
+BEGIN
+ INSERT INTO public.user_profiles(
+  chat_id,first_name,last_name,phone,kyc_status,id_document_path,selfie_path)
+ VALUES
+  (303,'Synthetic','KycApprove','0790000303','pending','303_id.jpg','303_selfie.jpg'),
+  (404,'Synthetic','KycReject','0790000404','pending','404_id.jpg','404_selfie.jpg');
+ r:=public.saraf_original_admin_review_kyc(997,303,'verified');
+ IF r->>'status'<>'verified' OR (r->>'duplicate')::boolean THEN
+   RAISE EXCEPTION 'ORIGINAL_KYC_APPROVAL_FAILED';
+ END IF;
+ IF (SELECT verified_by=997 AND verified_at IS NOT NULL
+      FROM public.user_profiles WHERE chat_id=303) IS DISTINCT FROM true
+ THEN RAISE EXCEPTION 'ORIGINAL_KYC_VERIFIER_MISSING'; END IF;
+ r:=public.saraf_original_admin_review_kyc(997,303,'verified');
+ IF NOT (r->>'duplicate')::boolean THEN
+   RAISE EXCEPTION 'ORIGINAL_KYC_IDEMPOTENCY_FAILED';
+ END IF;
+ IF (SELECT count(*) FROM public.audit_log
+     WHERE entity='user_profile' AND entity_id='303')<>1
+ THEN RAISE EXCEPTION 'ORIGINAL_KYC_DUPLICATE_AUDIT'; END IF;
+ r:=public.saraf_original_admin_review_kyc(997,404,'restricted');
+ IF r->>'status'<>'restricted' OR
+   (SELECT restricted_reason FROM public.user_profiles
+      WHERE chat_id=404)<>'رد شده در بررسی اولیهٔ هویت'
+ THEN RAISE EXCEPTION 'ORIGINAL_KYC_REJECTION_FAILED'; END IF;
+ blocked:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_review_kyc(997,404,'verified');
+ EXCEPTION WHEN raise_exception THEN blocked:=SQLERRM='KYC_NOT_PENDING'; END;
+ IF NOT blocked THEN RAISE EXCEPTION 'REJECTED_KYC_REAPPROVED'; END IF;
+ blocked:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_review_kyc(997,202,'verified');
+ EXCEPTION WHEN raise_exception THEN blocked:=SQLERRM='KYC_DOCUMENTS_MISSING'; END;
+ IF NOT blocked THEN RAISE EXCEPTION 'KYC_APPROVED_WITHOUT_DOCUMENTS'; END IF;
+ blocked:=false;
+ BEGIN
+  PERFORM public.saraf_original_admin_review_kyc(997,303,'trusted');
+ EXCEPTION WHEN raise_exception THEN blocked:=SQLERRM='INVALID_KYC_REVIEW'; END;
+ IF NOT blocked THEN RAISE EXCEPTION 'UNEXPECTED_KYC_STATUS_ALLOWED'; END IF;
+ IF has_function_privilege('anon',
+  'public.saraf_original_admin_review_kyc(bigint,bigint,text)','EXECUTE')
+  OR has_function_privilege('authenticated',
+  'public.saraf_original_admin_review_kyc(bigint,bigint,text)','EXECUTE')
+ THEN RAISE EXCEPTION 'ORIGINAL_KYC_ADMIN_RPC_PUBLIC'; END IF;
+ RAISE NOTICE 'Original KYC admin approval/rejection invariants passed';
+END $$;
