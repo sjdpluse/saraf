@@ -102,6 +102,30 @@ jobs:
           test ! -e serverless-poc/.release-original-full/tgcloud/schema.js
           test ! -e serverless-poc/.release-original-full/tgcloud/endpoints/createNativeOrder.js
           test ! -e serverless-poc/.release-original-full/tgcloud/endpoints/createNativeRemittance.js
+      - name: Report original BotFather cutover prerequisites (no secrets printed, no deployment)
+        shell: bash
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+          SARAF_E2E_USER_INIT_DATA: ${{ secrets.SARAF_E2E_USER_INIT_DATA }}
+          SARAF_E2E_ADMIN_INIT_DATA: ${{ secrets.SARAF_E2E_ADMIN_INIT_DATA }}
+          SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "${TGCLOUD_TOKEN:-}" == app8533795882:* ]]; then
+            echo "BotFather original-app CLI secret is configured."
+          else
+            echo "::warning::Original BotFather tgcloud CLI token missing/mismatched; final cutover cannot be performed by CI."
+          fi
+          if [[ -n "${SARAF_E2E_USER_INIT_DATA:-}" && -n "${SARAF_E2E_ADMIN_INIT_DATA:-}" ]]; then
+            echo "Fresh original user/admin E2E initData secrets appear configured."
+          else
+            echo "::warning::Original signed Telegram user/admin E2E test credentials missing."
+          fi
+          if [[ -n "${SARAF_ORIGINAL_BOT_TOKEN:-}" ]]; then
+            echo "Original Telegram Bot API token secret appears configured."
+          else
+            echo "::warning::Original Bot API token missing; rollback verification is unavailable."
+          fi
       - name: Upload original full migration candidate (NOT a live release)
         uses: actions/upload-artifact@v4
         with:
