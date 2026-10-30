@@ -29,12 +29,13 @@ export default function OriginalAdmin({navigate}){
  useEffect(()=>{
   const params=new URLSearchParams(location.search);
   const command=params.get('admin')||'';
-  const requested=['stats','spreads','pending','setspread','confirm','broadcast']
+  const requested=['stats','spreads','pending','setspread','confirm','broadcast','kyc']
    .includes(command)?command:'stats';
-  const next=requested==='broadcast'?'broadcast':requested==='pending'?'orders.pending':
+  const next=requested==='kyc'?'kyc.pending':requested==='broadcast'?'broadcast':requested==='pending'?'orders.pending':
    requested==='confirm'?'orders.pending':requested==='setspread'?'spreads':requested;
   setSection(next);
-  if(next==='stats'||next==='spreads'||next==='orders.pending')load(next);
+  if(next==='stats'||next==='spreads'||next==='orders.pending'||
+    next==='kyc.pending')load(next);
   const prefillCode=params.get('currency');
   if(prefillCode&&CODES.includes(prefillCode))setCode(prefillCode);
   const amount=params.get('percent');
@@ -50,6 +51,18 @@ export default function OriginalAdmin({navigate}){
   if(!await showConfirm('سفارش USDT-'+String(n).padStart(5,'0')+
     ' را مطابق دستور اصلی /usdtconfirm تأیید می‌کنید؟'))return;
   await load('order.confirm',{order_id:n});
+ }
+ async function reviewKyc(id,decision){
+  const chat_id=Number(id);
+  if(!Number.isSafeInteger(chat_id)||chat_id<=0||
+      !['verify','reject'].includes(decision)){
+   setError('شناسهٔ کاربر یا تصمیم معتبر نیست.');return;
+  }
+  const msg=decision==='verify'
+   ?'پس از بررسی تصویر تذکره و سلفی، احراز هویت این کاربر را تایید می‌کنید؟'
+   :'با رد این اسناد، حساب کاربر مطابق سیستم اصلی محدود می‌شود. آیا مطمئن هستید؟';
+  if(!await showConfirm(msg))return;
+  await load('kyc.review',{chat_id,decision});
  }
  async function createBroadcast(event){
   event.preventDefault();
@@ -85,6 +98,7 @@ export default function OriginalAdmin({navigate}){
    <button disabled={busy} onClick={()=>{setSection('stats');load('stats');}}>📈 آمار</button>
    <button disabled={busy} onClick={()=>{setSection('spreads');load('spreads');}}>📐 اسپردها</button>
    <button disabled={busy} onClick={()=>{setSection('orders.pending');load('orders.pending');}}>📋 سفارش‌های در انتظار</button>
+   <button disabled={busy} onClick={()=>{setSection('kyc.pending');load('kyc.pending');}}>🪪 احراز هویت</button>
   </div>
   {busy&&<p role="status">در حال بررسی ...</p>}
   {error&&<p role="alert" style={{color:'#b42318'}}>{error}</p>}
@@ -112,6 +126,51 @@ export default function OriginalAdmin({navigate}){
         onClick={()=>confirmOrder(order.id)}>تأیید سفارش</button>
      </article>)}
   </section>}
+  {result?.action==='kyc.pending'&&<section>
+   <h2 style={{fontSize:17}}>اسناد در انتظار بررسی هویت</h2>
+   <p className="notice">فقط مدیر مجاز می‌تواند تصویر خصوصی تذکره و سلفی را با لینک موقت ۹۰ثانیه‌ای مشاهده کند. پیش از تأیید، هر دو سند را بررسی کنید.</p>
+   {!result.customers?.length&&<p>درخواستی در انتظار بررسی نیست.</p>}
+   {(result.customers||[]).map(customer=>
+    <article className="notice" key={customer.chat_id} style={{marginBottom:12}}>
+     <b>{customer.first_name} {customer.last_name}</b>
+     <p>شناسهٔ مشتری: {customer.chat_id} | {customer.phone||'شماره ثبت نشده'}</p>
+     <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+      <div>
+       <p>سند هویتی</p>
+       {customer.id_url?<a href={customer.id_url} target="_blank" rel="noopener noreferrer"
+        referrerPolicy="no-referrer">مشاهده تصویر تذکره</a>
+        :<span>تصویر فعلاً در دسترس نیست</span>}
+      </div>
+      <div>
+       <p>سلفی مشتری</p>
+       {customer.selfie_url?<a href={customer.selfie_url} target="_blank"
+        rel="noopener noreferrer" referrerPolicy="no-referrer">مشاهده تصویر سلفی</a>
+        :<span>تصویر فعلاً در دسترس نیست</span>}
+      </div>
+     </div>
+     <div style={{display:'flex',gap:10,marginTop:12}}>
+      <button type="button" disabled={busy||!customer.id_url||!customer.selfie_url}
+       onClick={()=>reviewKyc(customer.chat_id,'verify')}>✅ تأیید احراز هویت</button>
+      <button type="button" disabled={busy}
+       onClick={()=>reviewKyc(customer.chat_id,'reject')}>❌ رد اسناد</button>
+     </div>
+    </article>)}
+   <button type="button" disabled={busy} onClick={()=>load('kyc.pending')}>
+    🔄 بازخوانی درخواست‌ها و لینک‌های خصوصی
+   </button>
+  </section>}
+  {result?.action==='kyc.review'&&<div className="notice">
+   {result.result?.status==='verified'?'✅ هویت مشتری تأیید شد.':
+    '❌ مدارک مشتری رد و وضعیت حساب محدود شد.'}
+   {' '}شناسه: {result.result?.chat_id}
+   {result.result?.duplicate?' (پیشتر بررسی شده است)':''}
+   {result.result?.customer_notified===false&&
+     ' اطلاع‌رسانی به مشتری موفق نشد؛ وضعیت را بررسی کنید.'}
+   <div><button type="button" disabled={busy}
+     onClick={()=>{setSection('kyc.pending');load('kyc.pending');}}>
+     بازگشت به بررسی اسناد
+   </button></div>
+  </div>}
   {result?.action==='order.confirm'&&<p className="notice">
     ✅ سفارش {cash(result.result?.order_id)} تأیید شد.
     {result.result?.customer_notified===false&&
