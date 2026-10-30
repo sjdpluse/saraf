@@ -1,0 +1,96 @@
+name: Original Saraf Railway exit — manual gated cutover
+# This workflow is intentionally on MAIN so the owner can trigger it.
+# It checks out the exact reviewed migration branch; no automatic publishing.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type PUBLISH_ORIGINAL_SARAF (this changes original bot webhook)'
+        required: true
+        type: string
+      expected_sha:
+        description: 'Exact 40-digit reviewed migration branch commit SHA'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  release:
+    name: Verify original bot owner, canonical backend and publish TG serverless
+    if: ${{ inputs.confirm == 'PUBLISH_ORIGINAL_SARAF' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: saraf-original-production
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+      SARAF_ORIGINAL_PREVIOUS_WEBHOOK_SECRET: ${{ secrets.SARAF_ORIGINAL_PREVIOUS_WEBHOOK_SECRET }}
+      SARAF_E2E_USER_INIT_DATA: ${{ secrets.SARAF_E2E_USER_INIT_DATA }}
+      SARAF_E2E_ADMIN_INIT_DATA: ${{ secrets.SARAF_E2E_ADMIN_INIT_DATA }}
+    steps:
+      - name: Checkout ORIGINAL Saraf migration branch only
+        uses: actions/checkout@v4
+        with:
+          ref: migration/telegram-native-serverless-poc
+          persist-credentials: false
+      - name: Refuse unreviewed changes or wrong target app
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ inputs.expected_sha }}" = "$(git rev-parse HEAD)"
+          [[ "$TGCLOUD_TOKEN" == app8533795882:* ]] || {
+            echo "::error::Missing BotFather Serverless CLI Access token for original app8533795882."
+            exit 1
+          }
+          [[ -n "$SARAF_ORIGINAL_BOT_TOKEN" ]] || {
+            echo "::error::Missing original @sarafiaf_bot Bot API token."
+            exit 1
+          }
+          echo "Exact reviewed ORIGINAL Saraf commit and tgcloud app verified."
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Verify original TG callback safety and full regression
+        run: node --test serverless-poc/tests/*.test.js
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck signed canonical Supabase customer, admin, media
+        run: |
+          deno check supabase/functions/saraf-original-transactions/index.ts
+          deno check supabase/functions/saraf-original-admin/index.ts
+          deno check supabase/functions/saraf-legacy-kyc/index.ts
+          deno check supabase/functions/saraf-legacy-uploads/index.ts
+          deno check supabase/functions/saraf-telegram-bridge/index.ts
+          deno check supabase/functions/saraf-original-meta-webhook/index.ts
+          deno check supabase/functions/saraf-original-notifications/index.ts
+          deno check supabase/functions/saraf-original-broadcast-worker/index.ts
+      - name: Verify the REAL signed owner/admin and every operational feature gate
+        run: node scripts/verify_original_saraf_live_cutover.mjs
+      - name: Install EXACT original React dependency lockfile
+        working-directory: webapp
+        run: npm ci
+      - name: Build only the ORIGINAL fully-signed Supabase Mini App
+        working-directory: webapp
+        run: npm run build:telegram-original-full
+      - name: Package original TG handlers without Telegram financial SQLite
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeOrder.js
+          test -s serverless-poc/.release-original/dist/index.html
+      - name: Install Telegram Serverless CLI pinned to official 0.2.0
+        working-directory: serverless-poc/.release-original
+        run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      - name: Explicit ORIGINAL BotFather project target and atomic push with rollback
+        run: node scripts/publish_original_saraf_serverless.mjs
+      - name: Record only the reviewed ORIGINAL Saraf deployment commit
+        run: |
+          echo "Original @sarafiaf_bot Serverless full React/JS release succeeded."
+          echo "Git SHA ${{ inputs.expected_sha }}"
+          echo "The original Railway deployment was NOT deleted automatically."
