@@ -1,3 +1,96 @@
+## 2026-10-30 — Signed full original Saraf Serverless CANDIDATE built (latest)
+
+**Not a production cutover.** The ORIGINAL @sarafiaf_bot webhook and
+Railway deployment have not been replaced. All full-money and KYC services
+remain independently gated by PRIVATE Supabase feature flags; no live money
+or customer tables were altered by this branch.
+
+### Completed real migration work in this branch
+- Original 1200×760 in-person visit-pass PNG and 1320×900 original
+  customer order-preview PNG now render locally in the original React
+  Telegram Mini App; no Railway image service or pass-download URL.
+  The customer card validates signed owner/active quote and configured
+  chain address in the gated Supabase Edge before rendering, uses fully
+  local MIT-licensed QR encoding, and can include a 60-second **owner-only**
+  signed KYC selfie. The local pass uses explicit download confirmation
+  on browsers without the File System Access API.
+- Original old `usdt_*` Telegram callback messages safely route to
+  signed Telegram Mini App, and the original 5-star rating callback
+  links directly to the original `orders` route, which now supports
+  `?action=orders`. No unsigned financial transitions.
+- Canonical original Supabase KYC profile reports the original configured
+  USD threshold and uploads enabled flag (both private settings); original
+  KYC upload refuses sensitive documents without a configured admin.
+- Signed original administrator Mini App covers pending customer KYC,
+  90-second privately signed admin-only ID/selfie previews, verified/rejected
+  transitions, original restricted reason and canonical audit history.
+  Existing `public.user_profiles` and `public.audit_log` only.
+- Signed original administrator order tools include /usdtconfirm,
+  original reject, and proof-gated manual completion (Tx Hash / transaction
+  details 4–2000 chars required) using the original allowed states and
+  the original trust score/counter formula. Idempotent and auditable.
+- Signed original remittance admin tools include the original
+  transfer_submitted→payout_ready / hold / cancel and
+  payout_ready→completed transitions; code matching enforced
+  server-side using the **original six-digit beneficiary pickup code**.
+  The private code is delivered to the customer when payout_ready and is
+  **never returned in admin HTTP JSON**. Original blockchain confirmations
+  and beneficiary ID are shown in the signed admin inbox. Payout is a
+  manual operator decision after ID and crypto receipt verification.
+- The staged original remittance SQL code now generates pickup codes
+  using PostgreSQL cryptographic UUID entropy, instead of predictable
+  SQL `random()`. No new wallet, payment product, duplicate customer
+  ledger, or cash settlement automation.
+- Original admin/customer Telegram alerts after successful canonical
+  order creation, submission, verification and settlement mirror the
+  original status messages; duplicate/idempotent retries do not resend.
+- Added `webapp/.env.telegram-original-full` and the explicit
+  `npm run build:telegram-original-full` script to compile the FULL
+  signed original customer/KYC/admin/remittance UI without falling back
+  to Railway. It contains **public boolean build flags ONLY**.
+- Updated the existing CI workflow to produce TWO completely separate
+  audited artifacts: `saraf-original-serverless-preview` (read-only)
+  and `saraf-original-full-migration-candidate` (full signed
+  React transport). This is a build only, **no tgcloud push**.
+
+### Actual automated validation
+GitHub Actions run **41018854979** on commit `e19126d1a` completed
+all five checks successfully: isolated PostgreSQL original finance/admin
+and money idempotency tests, Python remittance, React UI,
+Telegram native Deno/full-candidate build, and deployed public negative
+security tests. The full candidate artifact was uploaded to the run.
+Later source-only documentation changes do not imply live cutover.
+
+### Hard remaining production blockers (do NOT claim ready)
+1. The exact CURRENT migration code for all signed Supabase Edge functions
+   and all service-role-only staged SQL RPCs has **not** been deployed /
+   migrated into the canonical production project. Never turn on server-side
+   financial/KYC/admin feature flags before signed real-bot end-to-end
+   testing and private admin review.
+2. The full Telegram Serverless candidate is **not yet published** to the
+   original BotFather-controlled bot, and the current main-branch release
+   workflow intentionally rejects `publish` until full parity. This
+   rollout requires the BotFather CLI credential and real signed
+   initData tests with **the ORIGINAL bot**, verified funds and backup.
+3. Completion media upload and sending original transaction details
+   photos/documents to customers, original separate admin bot
+   inline-keyboard UX, and original chat-side KYC photo-conversation
+   require further exact parity (the signed Mini App already supports
+   valid text Tx details and image-based KYC).
+4. Cron market snapshots / social posts and Meta webhook queue/worker
+   are staged Railway-free but disabled pending private credentials,
+   original platform webhook reconfiguration, reliability, and rollback
+   tests. These schedules will not run from a nondefault PR branch.
+5. Real canonical KYC storage, user ownership, wallet/deposit
+   reconciliation, manual cash payout and irreversible completed-order
+   paths have **synthetic** tests only; no live financial transactions
+   were generated or approved during migration.
+
+**Release safety:** Do NOT silently switch away from Railway or merge an
+incomplete release. Preserve old webhook and customer records until
+these checks are explicitly green for the exact original bot, then
+perform a reversible cutover.
+
 ## 2026-10-29 — original remittance RPC integration and production readiness (latest)
 
 - Repaired the isolated PostgreSQL 16 fixture to include canonical
