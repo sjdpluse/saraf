@@ -9,7 +9,8 @@ export async function originalAdminCommand(action,input={}){
  const initData=getInitData();
  if(!initData)throw new Error('پنل مدیریت را از ربات اصلی صراف باز کنید.');
  const allowed=['stats','spreads','orders.pending','spread.set',
- 'order.confirm','broadcast.create','broadcast.status'];
+ 'order.confirm','broadcast.create','broadcast.status',
+ 'kyc.pending','kyc.review'];
  if(!allowed.includes(action))throw new Error('دستور مدیریت پشتیبانی نمی‌شود.');
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),15000);
