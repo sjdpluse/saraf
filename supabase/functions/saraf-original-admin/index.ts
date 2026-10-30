@@ -38,7 +38,8 @@ function isOwner(userId:number){
 function isWrite(action:string){
  return action==='spread.set'||action==='order.confirm'||
    action==='broadcast.create'||action==='kyc.review'||
-   action==='order.reject'||action==='order.complete';
+   action==='order.reject'||action==='order.complete'||
+   action==='remittances.transition';
 }
 async function notifyOriginalCustomer(orderId:number,chatId:number,asset:string){
  if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
@@ -89,6 +90,37 @@ async function notifyOriginalFinalized(chatId:number,orderId:number,
    signal:AbortSignal.timeout(6500),
   });
   return r.ok;
+ }catch{return false;}
+}
+async function notifyOriginalRemittanceCustomer(row:{
+ chat_id:number;order_code:string;status:string;
+ beneficiary_full_name?:string;payout_afn?:number;pickup_code?:string,
+}){
+ if(!BOT||!Number.isSafeInteger(row.chat_id)||row.chat_id<=0)return false;
+ const code=row.order_code;
+ const support=Deno.env.get('SUPPORT_TELEGRAM_USERNAME')||'@sarafiaf_bot';
+ let message='';
+ if(row.status==='payout_ready'){
+  if(!/^\d{6}$/.test(String(row.pickup_code||'')))return false;
+  message='✅ حوالهٔ شما ('+code+') آمادهٔ پرداخت در افغانستان است.\n\n'+
+   'گیرنده: '+String(row.beneficiary_full_name||'')+'\n'+
+   'مبلغ قابل دریافت: '+Number(row.payout_afn||0).toLocaleString('en-US')+
+   ' افغانی\nکد دریافت: '+row.pickup_code+'\n\n'+
+   'کد دریافت را فقط با گیرنده شریک کنید. گیرنده هنگام دریافت باید تذکره همراه داشته باشد.';
+ }else if(row.status==='completed'){
+  message='✅ حوالهٔ شما ('+code+') با موفقیت به گیرنده پرداخت و تکمیل شد.';
+ }else if(row.status==='on_hold'){
+  message='⏸ حوالهٔ شما ('+code+') برای بررسی بیشتر موقتاً متوقف شده است. برای پیگیری: '+support;
+ }else if(row.status==='cancelled'){
+  message='❌ حوالهٔ شما ('+code+') لغو شد. برای جزئیات با پشتیبانی تماس بگیرید: '+support;
+ }else return false;
+ try{
+  const response=await fetch('https://api.telegram.org/bot'+BOT+'/sendMessage',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({chat_id:row.chat_id,text:message}),
+   signal:AbortSignal.timeout(6500),
+  });
+  return response.ok;
  }catch{return false;}
 }
 Deno.serve(async(req:Request)=>{
@@ -234,6 +266,59 @@ Deno.serve(async(req:Request)=>{
      row.chat_id,row.order_id,row.asset,row.status,details);
    return answer(origin,200,{result:{
      order_id:row.order_id,status:row.status,duplicate:!!row.duplicate,
+     customer_notified:notified,
+   }});
+  }
+  if(action==='remittances.pending'){
+   // Original remittance_admin.py private inbox: only actionable statuses.
+   const r=await db.from('remittance_orders').select(
+    'id,chat_id,status,asset,network,crypto_amount,payout_afn,beneficiary_full_name,beneficiary_phone,beneficiary_province,beneficiary_city,beneficiary_id_document_path,tx_hash,verification_status,chain_confirmations,created_at'
+    ).in('status',['transfer_submitted','on_hold','payout_ready'])
+     .order('created_at',{ascending:true}).limit(30);
+   if(r.error)throw r.error;
+   const bucket=db.storage.from(Deno.env.get('USDT_KYC_DOCS_BUCKET')||'usdt-kyc-docs');
+   const orders=await Promise.all((r.data||[]).map(async row=>{
+     const path=String(row.beneficiary_id_document_path||'');
+     const own=path.startsWith('remittances/'+row.chat_id+'/')&&!path.includes('..');
+     const signed=own?await bucket.createSignedUrl(path,90):null;
+     // A pickup code stays in private DB and is sent only to the customer
+     // when payout_ready; it never appears in the admin inbox response.
+     const {beneficiary_id_document_path:discard,...safe}=row;
+     return {...safe,beneficiary_id_url:signed&&!signed.error?
+       signed.data?.signedUrl||null:null};
+   }));
+   return answer(origin,200,{orders});
+  }
+  if(action==='remittances.transition'){
+   const id=Number(input.order_id);
+   const transition=String(input.transition||'');
+   const pickup=String(input.pickup_code||'').trim();
+   if(!Number.isSafeInteger(id)||id<=0||
+      !['ready','hold','cancel','pay'].includes(transition))
+     return answer(origin,400,{error:'INVALID_REMITTANCE_ADMIN_INPUT'});
+   if(transition==='pay'&&!/^[0-9]{6}$/.test(pickup))
+     return answer(origin,400,{error:'INVALID_PICKUP_CODE'});
+   const saved=await db.rpc('saraf_original_admin_remittance',{
+     p_admin:actor.id,p_order_id:id,p_action:transition,
+     p_pickup_code:transition==='pay'?pickup:null,
+   });
+   if(saved.error){
+     const known=new Set(['INVALID_REMITTANCE_ADMIN_INPUT',
+      'REMITTANCE_NOT_FOUND','INVALID_REMITTANCE_TRANSITION','INVALID_PICKUP_CODE']);
+     const code=known.has(saved.error.message)?saved.error.message:'REMITTANCE_ADMIN_UNAVAILABLE';
+     return answer(origin,code==='REMITTANCE_NOT_FOUND'?404:409,{error:code});
+   }
+   // NEVER return pickup_code to the admin web client or audit logs.
+   // The original service sends it to the authenticated customer only.
+   const result=saved.data as {
+     order_id:number;chat_id:number;order_code:string;status:string;
+     duplicate:boolean;beneficiary_full_name?:string;
+     payout_afn?:number;pickup_code?:string;
+   };
+   const notified=result.duplicate?true:await notifyOriginalRemittanceCustomer(result);
+   return answer(origin,200,{result:{
+     order_id:result.order_id,order_code:result.order_code,
+     status:result.status,duplicate:!!result.duplicate,
      customer_notified:notified,
    }});
   }
