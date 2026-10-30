@@ -75,6 +75,8 @@ CREATE TABLE public.remittance_orders(
  deposit_wallet text NOT NULL,pickup_code text,
  status text NOT NULL DEFAULT 'awaiting_transfer',
  verification_status text NOT NULL DEFAULT 'not_submitted',
+ admin_note text,crypto_confirmed_by bigint,crypto_confirmed_at timestamptz,
+ paid_by bigint,paid_at timestamptz,
  tx_hash text,updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX remittance_orders_chat_id_idempotency_key_key
