@@ -1,4 +1,5 @@
 import { getInitData } from "./telegram";
+import { ApiError, asOriginalApiError } from "./apiError.mjs";
 import { normalizeAsset } from "./brand";
 import { IS_TELEGRAM_NATIVE, NATIVE_UNAVAILABLE_MESSAGE } from "./runtime";
 import { nativeCall } from "./nativeApi";
@@ -7,30 +8,6 @@ import { uploadOriginalIdentity } from "./legacyKycBridge";
 import { uploadOriginalImage } from "./legacyUploads";
 import { originalFinanceCall } from './originalFinanceBridge';
 import { renderOriginalOrderCardPreview } from './originalOrderCardPng';
-
-class ApiError extends Error {
-  constructor(message, status, code) {
-    super(message);
-    this.status = status;
-    this.code = code;
-  }
-}
-/**
- * All original Railway FastAPI routes used to raise ApiError in the React UI.
- * Supabase adapters have their own Error subclasses; without this boundary,
- * buy/sell KYC recovery (IDENTITY_VERIFICATION_REQUIRED), expired quotes,
- * uploads, and visible backend errors silently fall into the generic branch.
- */
-export function asOriginalApiError(error) {
-  if (error instanceof ApiError) return error;
-  const status = Number(error?.status);
-  const code = typeof error?.code === 'string' ? error.code : 'SERVICE_UNAVAILABLE';
-  const message = typeof error?.message === 'string' && error.message.trim()
-    ? error.message : 'اتصال با خدمات صراف برقرار نشد.';
-  return new ApiError(message, Number.isInteger(status) && status >= 400 && status < 600
-    ? status : 503, code);
-}
-
 
 function newIdempotencyKey() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
