@@ -1,0 +1,81 @@
+name: Restore ORIGINAL Saraf admin post button and Mini App UI (no Meta posts)
+on:
+  push:
+    branches: [migration/telegram-native-serverless-poc]
+    paths: [.github/workflows/saraf-original-manual-social-ui-release.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  release-admin-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: saraf-original-production
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Regress ALL original market menus, original money error recovery and signed Meta admin
+        run: |
+          node --test serverless-poc/tests/*.test.js
+          node --check serverless-poc/tgcloud/lib/original_admin_parse.js
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+      - name: Verify original user bot and webhook WITHOUT switching service
+        run: |
+          node --input-type=module -e '
+            const bot=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+            if(!/^[0-9]{5,15}:[A-Za-z0-9_-]{30,}$/.test(bot||""))throw Error("ORIGINAL_BOT_TOKEN_MISSING");
+            if(!/^app8533795882:[A-Za-z0-9_-]{16,}$/.test(process.env.TGCLOUD_TOKEN||""))throw Error("ORIGINAL_TGCLOUD_TOKEN_MISSING");
+            const base="https://api.telegram.org/bot"+bot+"/";
+            const me=await (await fetch(base+"getMe")).json();
+            const hook=await (await fetch(base+"getWebhookInfo")).json();
+            if(!me.ok||me.result.username!=="sarafiaf_bot")throw Error("NOT_ORIGINAL_BOT");
+            if(!hook.ok||hook.result.url!=="https://cloud.telegram.org/app8533795882/webhook")throw Error("WEBHOOK_NOT_ORIGINAL_SERVERLESS");
+            console.log("Verified original Saraf serverless bot and unchanged webhook.");
+          '
+      - name: Build original React without changing UI business logic
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Assemble allowlisted original Telegram release
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test -s serverless-poc/.release-original/dist/index.html
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+      - name: Fetch ORIGINAL deployed revision to prevent sync overwrite
+        working-directory: serverless-poc/.release-original
+        run: |
+          npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+      - name: Publish only admin command parser and same original React (NO money/webhook/server handlers)
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud push tgcloud/lib/original_admin_parse.js dist/
+      - name: Verify original webhook and original React reachable
+        run: |
+          node --input-type=module -e '
+            const base="https://api.telegram.org/bot"+process.env.SARAF_ORIGINAL_BOT_TOKEN+"/";
+            const hook=await (await fetch(base+"getWebhookInfo")).json();
+            if(!hook.ok||hook.result.url!=="https://cloud.telegram.org/app8533795882/webhook")throw Error("WEBHOOK_MISMATCH");
+            let ok=false;
+            for(let i=0;i<4;i++){
+              const response=await fetch("https://app8533795882.tgcloud.ai/",{cache:"no-store"});
+              if(response.ok&&(await response.text()).toLowerCase().includes("<html")){ok=true;break;}
+              await new Promise(resolve=>setTimeout(resolve,2000));
+            }
+            if(!ok)throw Error("ORIGINAL_SARAF_REACT_APP_UNAVAILABLE");
+            console.log("Original Saraf admin UI deployed, original webhook unchanged, no Meta posts or financial writes.");
+          '
