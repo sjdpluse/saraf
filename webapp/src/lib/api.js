@@ -23,44 +23,46 @@ const remittanceRetryKeys = new Map();
 async function request(path, { method = "GET", body, isForm = false, headers: extraHeaders = {} } = {}) {
   if (IS_TELEGRAM_NATIVE) {
     try {
+    // Await every signed bridge call: `return promise` bypasses this catch,
+    // leaving original React KYC/quote recovery without ApiError codes.
     // Only explicitly migrated reads are routed to native Telegram Serverless.
     // No financial API call can silently fall back to Railway or expose initData.
-    if (path === '/market/snapshot' && method === 'GET') return nativeCall('getMarketSnapshot');
-    if (path === '/usdt/stats' && method === 'GET') return canonicalCall('stats.get');
-    if (path === '/usdt/profile' && method === 'GET') return canonicalCall('profile.get');
+    if (path === '/market/snapshot' && method === 'GET') return await nativeCall('getMarketSnapshot');
+    if (path === '/usdt/stats' && method === 'GET') return await canonicalCall('stats.get');
+    if (path === '/usdt/profile' && method === 'GET') return await canonicalCall('profile.get');
     if (path === '/usdt/profile' && method === 'POST') {
       if (!isForm || !body) throw new ApiError('معلومات پروفایل معتبر نیست.', 400);
-      return canonicalCall('profile.save', {
+      return await canonicalCall('profile.save', {
         first_name: body.get('first_name'),
         last_name: body.get('last_name'),
         phone: body.get('phone'),
       });
     }
-    if (path === '/usdt/kyc' && method === 'POST') return uploadOriginalIdentity(body);
-    if (path === '/usdt/upload-receipt' && method === 'POST') return uploadOriginalImage('receipt',body);
+    if (path === '/usdt/kyc' && method === 'POST') return await uploadOriginalIdentity(body);
+    if (path === '/usdt/upload-receipt' && method === 'POST') return await uploadOriginalImage('receipt',body);
     if (path === '/remittances/upload-beneficiary-id' && method === 'POST')
-      return uploadOriginalImage('beneficiary',body);
-    if (path === '/usdt/orders/me' && method === 'GET') return canonicalCall('orders.me');
-    if (path === '/usdt/payment-info' && method === 'GET') return originalFinanceCall('payment.info');
-    if (path === '/stablecoins/config' && method === 'GET') return originalFinanceCall('stablecoins.config');
-    if (path === '/remittances/config' && method === 'GET') return originalFinanceCall('remittances.config');
-    if (path === '/remittances/me' && method === 'GET') return canonicalCall('remittances.me');
+      return await uploadOriginalImage('beneficiary',body);
+    if (path === '/usdt/orders/me' && method === 'GET') return await canonicalCall('orders.me');
+    if (path === '/usdt/payment-info' && method === 'GET') return await originalFinanceCall('payment.info');
+    if (path === '/stablecoins/config' && method === 'GET') return await originalFinanceCall('stablecoins.config');
+    if (path === '/remittances/config' && method === 'GET') return await originalFinanceCall('remittances.config');
+    if (path === '/remittances/me' && method === 'GET') return await canonicalCall('remittances.me');
     // Original signed Telegram / Supabase quote and order API. Supabase and
     // React feature switches remain OFF until original-bot E2E validation.
     if(path==='/usdt/quote'&&method==='POST')
-      return originalFinanceCall('quote',body);
+      return await originalFinanceCall('quote',body);
     if(path==='/usdt/orders/buy'&&method==='POST')
-      return originalFinanceCall('order.buy',{
+      return await originalFinanceCall('order.buy',{
         ...body,idempotency_key:extraHeaders['Idempotency-Key'],
       });
     if(path==='/usdt/orders/sell'&&method==='POST')
-      return originalFinanceCall('order.sell',{
+      return await originalFinanceCall('order.sell',{
         ...body,idempotency_key:extraHeaders['Idempotency-Key'],
       });
     if(path==='/remittances/quote'&&method==='POST')
-      return originalFinanceCall('remittances.quote',body);
+      return await originalFinanceCall('remittances.quote',body);
     if(path==='/remittances'&&method==='POST')
-      return originalFinanceCall('remittances.create',{
+      return await originalFinanceCall('remittances.create',{
         ...body,idempotency_key:extraHeaders['Idempotency-Key'],
       });
     // Preserve the ORIGINAL Python pricing/payment semantics. Until those
@@ -73,19 +75,19 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
     if(method==='POST' && originalWritePaths.has(path))
       throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE,503,'NOT_MIGRATED');
     let match=path.match(/^\/usdt\/orders\/(\d+)\/rate$/);
-    if (match && method==='POST') return canonicalCall('orders.rate', {
+    if (match && method==='POST') return await canonicalCall('orders.rate', {
       order_id:Number(match[1]),...body,
     });
     match=path.match(/^\/remittances\/(\d+)\/tx$/);
     if(match&&method==='POST')
-      return originalFinanceCall('remittances.tx',{...body,order_id:Number(match[1])});
+      return await originalFinanceCall('remittances.tx',{...body,order_id:Number(match[1])});
     match=path.match(/^\/reviews(?:\?limit=(\d+)&offset=(\d+))?$/);
-    if (match && method==='GET') return canonicalCall('reviews.list', {
+    if (match && method==='GET') return await canonicalCall('reviews.list', {
       limit:Number(match[1])||20,offset:Number(match[2])||0,
     });
-    if (path==='/reviews' && method==='POST') return canonicalCall('reviews.create',body);
+    if (path==='/reviews' && method==='POST') return await canonicalCall('reviews.create',body);
     match=path.match(/^\/reviews\/(\d+)\/(reply|vote)$/);
-    if (match && method==='POST') return canonicalCall(
+    if (match && method==='POST') return await canonicalCall(
       match[2]==='vote'?'reviews.vote':'reviews.reply',
       {review_id:Number(match[1]),...body},
     );
