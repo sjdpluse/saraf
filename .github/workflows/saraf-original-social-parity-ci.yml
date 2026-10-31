@@ -11,6 +11,9 @@ on:
       - webapp/src/lib/originalAdminBridge.js
       - serverless-poc/tgcloud/lib/original_admin_parse.js
       - scripts/run_original_manual_social_worker.py
+      - tests/test_original_manual_social_worker.py
+      - services/facebook_service.py
+      - services/instagram_service.py
       - serverless-poc/tests/original_manual_social_migration.test.js
   workflow_dispatch:
 permissions:
@@ -36,6 +39,8 @@ jobs:
           node --test serverless-poc/tests/original_market_menu_restore.test.js
           node --check serverless-poc/tgcloud/lib/original_admin_parse.js
           python -m py_compile scripts/run_original_manual_social_worker.py
+          python -m unittest discover -s tests -p 'test_original_manual_social_worker.py' -v
+          python -m py_compile services/facebook_service.py services/instagram_service.py
           deno check supabase/functions/saraf-original-admin/index.ts
       - name: Typecheck original React app with signed full railway-free adapter
         working-directory: webapp
