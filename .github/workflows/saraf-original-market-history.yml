@@ -1,0 +1,43 @@
+name: Original Saraf Railway-free reference and local market history (verified pinned release)
+on:
+  schedule:
+    # Previous original Python jobs.py: reference half-hourly, local quarter-hourly.
+    # The worker skips too-recent FX rows (20m) and local rows (10m).
+    - cron: '0,15,30,45 * * * *'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Which original public rate-history job (no money or social posts)?'
+        type: choice
+        required: true
+        options: [both, reference, local]
+permissions:
+  contents: read
+concurrency:
+  group: original-saraf-market-history
+  cancel-in-progress: false
+jobs:
+  original-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    env:
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      # Pin exact reviewed and tested worker, not moving/unsafe HEAD.
+      - uses: actions/checkout@v4
+        with:
+          ref: bf4095f2076fc7405fe0d2ebea665dabc146e015
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconfirm original Python rate history parity and scoped action HMAC
+        run: |
+          node --check scripts/run_original_saraf_market_snapshots.mjs
+          node --test serverless-poc/tests/original_history_without_railway.test.js
+      - name: Original currency/gold/silver reference snapshot
+        if: github.event_name == 'schedule' || inputs.task == 'both' || inputs.task == 'reference'
+        run: node scripts/run_original_saraf_market_snapshots.mjs reference
+      - name: Original Sarai Shahzada/Herat/Da Afghanistan Bank market snapshot
+        if: github.event_name == 'schedule' || inputs.task == 'both' || inputs.task == 'local'
+        run: node scripts/run_original_saraf_market_snapshots.mjs local
