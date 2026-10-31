@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 import os
 import re
 GRAPH_API_VERSION = os.getenv("FACEBOOK_GRAPH_API_VERSION", "v26.0").strip()
-if not re.fullmatch(r"v[0-9]{1,2}\\.[0-9]", GRAPH_API_VERSION):
+if not re.fullmatch(r"v[0-9]{1,2}\.[0-9]", GRAPH_API_VERSION):
     GRAPH_API_VERSION = "v26.0"
 PHOTO_API_URL = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{{page_id}}/photos"
 _TIMEOUT = 30.0
