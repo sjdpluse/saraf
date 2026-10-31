@@ -1,0 +1,36 @@
+name: Restore original Saraf missing FX/gold/silver historical updates (one-time, no money)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-history-one-shot.yml
+      - scripts/run_original_saraf_market_snapshots.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: original-saraf-market-history
+  cancel-in-progress: false
+jobs:
+  restore-original-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: saraf-original-production
+    env:
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm original market job code and no finance routes
+        run: |
+          node --check scripts/run_original_saraf_market_snapshots.mjs
+          node --test serverless-poc/tests/original_history_without_railway.test.js
+      - name: Restore original stored reference FX XAU XAG market history
+        run: node scripts/run_original_saraf_market_snapshots.mjs reference
+      - name: Restore original stored local Sarai Shahzada and local markets
+        run: node scripts/run_original_saraf_market_snapshots.mjs local
