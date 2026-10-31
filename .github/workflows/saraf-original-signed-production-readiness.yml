@@ -1,4 +1,5 @@
 name: Original Saraf signed PRODUCTION readiness (read only, no publish)
+# Post-migration verification after restoring admin, Meta and all original menus; no live writes.
 on:
   push:
     branches:
