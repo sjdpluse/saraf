@@ -1,0 +1,88 @@
+name: Restore ORIGINAL Saraf Telegram menus on existing Serverless bot (no finance changes)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-restore-original-telegram-menus.yml
+      - serverless-poc/tgcloud/handlers/message.js
+      - serverless-poc/tgcloud/lib/legacy_menus.js
+      - serverless-poc/tests/original_market_menu_restore.test.js
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  restore-original-market-menus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: saraf-original-production
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Verify original forex and gold menus and node syntax
+        run: |
+          set -euo pipefail
+          node --check serverless-poc/tgcloud/handlers/message.js
+          node --check serverless-poc/tgcloud/lib/legacy_menus.js
+          node --test serverless-poc/tests/original_market_menu_restore.test.js
+          test ! -e serverless-poc/tgcloud/schema.js
+          ! grep -E '(SUPABASE_SERVICE_ROLE_KEY|PUBLIC_DEPOSIT_WALLETS)' serverless-poc/tgcloud/handlers/message.js
+      - name: Verify existing original bot target and CURRENT Telegram Serverless webhook
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TGCLOUD_TOKEN" == app8533795882:* ]] || { echo "::error::Incorrect original BotFather app"; exit 1; }
+          node --input-type=module -e '
+            const t=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+            if(!t)throw Error("MISSING_ORIGINAL_BOT_TOKEN");
+            const root="https://api.telegram.org/bot"+t+"/";
+            const who=await (await fetch(root+"getMe")).json();
+            const hook=await (await fetch(root+"getWebhookInfo")).json();
+            if(!who.ok || who.result.username!=="sarafiaf_bot")throw Error("ORIGINAL_BOT_MISMATCH");
+            if(!hook.ok || hook.result.url!=="https://cloud.telegram.org/app8533795882/webhook")
+              throw Error("ORIGINAL_WEBHOOK_NOT_ON_TELEGRAM_SERVERLESS");
+            console.log("Confirmed original @sarafiaf_bot already serving Telegram Serverless; no webhook changes.");
+          '
+      - name: Build original webapp only to assemble allowlisted local release
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Prepare exact ORIGINAL release without any financial native tables
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test -s serverless-poc/.release-original/dist/index.html
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+      - name: Install pinned tgcloud and FETCH existing deployed revision
+        working-directory: serverless-poc/.release-original
+        run: |
+          npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+      - name: Publish ONLY restored original menu + incoming text handler, NEVER replace payments
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud push tgcloud/lib/legacy_menus.js tgcloud/handlers/message.js
+      - name: Ensure same ORIGINAL Telegram webhook and no Railway restart or financial writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            const t=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+            const info=await (await fetch("https://api.telegram.org/bot"+t+"/getWebhookInfo")).json();
+            if(!info.ok || info.result.url!=="https://cloud.telegram.org/app8533795882/webhook")
+              throw Error("ORIGINAL_WEBHOOK_CHANGED_UNEXPECTEDLY");
+            console.log("Original production webhook remains on Telegram Serverless. Restored full reply keyboard modules only.");
+          '
