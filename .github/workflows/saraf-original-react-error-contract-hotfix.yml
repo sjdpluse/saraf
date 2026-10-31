@@ -1,13 +1,7 @@
 name: Repair ORIGINAL Saraf Mini App buy/sell/KYC error recovery (no changed financial logic)
+# One-off production React repair verified in GitHub Actions 41219216267.
+# Further deployments are intentional/manual; no automatic production writes.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-original-react-error-contract-hotfix.yml
-      - webapp/src/lib/api.js
-      - webapp/src/lib/apiError.mjs
-      - serverless-poc/tests/original_railway_exit_error_contract.test.js
   workflow_dispatch:
 permissions:
   contents: read
