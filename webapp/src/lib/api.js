@@ -15,6 +15,22 @@ class ApiError extends Error {
     this.code = code;
   }
 }
+/**
+ * All original Railway FastAPI routes used to raise ApiError in the React UI.
+ * Supabase adapters have their own Error subclasses; without this boundary,
+ * buy/sell KYC recovery (IDENTITY_VERIFICATION_REQUIRED), expired quotes,
+ * uploads, and visible backend errors silently fall into the generic branch.
+ */
+export function asOriginalApiError(error) {
+  if (error instanceof ApiError) return error;
+  const status = Number(error?.status);
+  const code = typeof error?.code === 'string' ? error.code : 'SERVICE_UNAVAILABLE';
+  const message = typeof error?.message === 'string' && error.message.trim()
+    ? error.message : 'اتصال با خدمات صراف برقرار نشد.';
+  return new ApiError(message, Number.isInteger(status) && status >= 400 && status < 600
+    ? status : 503, code);
+}
+
 
 function newIdempotencyKey() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -29,6 +45,7 @@ const remittanceRetryKeys = new Map();
 
 async function request(path, { method = "GET", body, isForm = false, headers: extraHeaders = {} } = {}) {
   if (IS_TELEGRAM_NATIVE) {
+    try {
     // Only explicitly migrated reads are routed to native Telegram Serverless.
     // No financial API call can silently fall back to Railway or expose initData.
     if (path === '/market/snapshot' && method === 'GET') return nativeCall('getMarketSnapshot');
@@ -96,6 +113,9 @@ async function request(path, { method = "GET", body, isForm = false, headers: ex
       {review_id:Number(match[1]),...body},
     );
     throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
+    } catch (error) {
+      throw asOriginalApiError(error);
+    }
   }
   const headers = { "X-Telegram-Init-Data": getInitData(), ...extraHeaders };
   if (!isForm && body !== undefined) headers["Content-Type"] = "application/json";
@@ -118,8 +138,12 @@ async function requestBlob(path, body) {
       throw new ApiError(NATIVE_UNAVAILABLE_MESSAGE, 503, 'NOT_MIGRATED');
     // Same signed quote, owner profile and network/wallet checks as original
     // Python endpoint; only the 1320x900 PNG rasterization occurs locally.
-    const verified=await originalFinanceCall('card.preview',body);
-    return renderOriginalOrderCardPreview(verified);
+    try {
+      const verified=await originalFinanceCall('card.preview',body);
+      return await renderOriginalOrderCardPreview(verified);
+    } catch (error) {
+      throw asOriginalApiError(error);
+    }
   }
   const res = await fetch(`/api${path}`, {
     method: "POST",
