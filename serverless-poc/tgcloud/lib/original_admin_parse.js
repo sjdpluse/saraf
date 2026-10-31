@@ -1,9 +1,12 @@
 // Pure original admin command parsing with no SDK/runtime secrets.
-const FLAGS=new Set(['stats','spreads','usdtpending','setspread','usdtconfirm','broadcast']);
+const FLAGS=new Set(['stats','spreads','usdtpending','setspread','usdtconfirm','broadcast','post','publish']);
 const VALID_CODES=new Set(['usd','eur','gbp','pkr','irr','aed','inr','sar',
  'try','cny','aud','cad','chf','sek']);
 export function parseOriginalAdminCommand(input){
  const raw=String(input||'').trim();
+ if(raw==='📢 نشر پست (فیسبوک/اینستاگرام)') {
+  return {name:'post',query:new URLSearchParams({action:'admin',admin:'post'})};
+ }
  const m=/^\/([a-z]+)(?:@[A-Za-z0-9_]+)?(?:\s+(.*))?$/i.exec(raw);
  if(!m)return null;
  const name=m[1].toLowerCase(),args=(m[2]||'').trim();
@@ -27,6 +30,7 @@ export function parseOriginalAdminCommand(input){
   if(/^[1-9]\d{0,12}$/.test(id))out.query.set('order_id',id);
   else out.usage='استفاده: /usdtconfirm 12';
  }
+ if(name==='post'||name==='publish')out.query.set('admin','post');
  if(name==='broadcast'){
   // The original command is now a signed admin Mini App composer. It never
   // sends a broadcast by chat-text alone; server-side ACL, separate OFF flag
