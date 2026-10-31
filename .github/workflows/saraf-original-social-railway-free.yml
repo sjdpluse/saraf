@@ -1,0 +1,132 @@
+name: Original Saraf Facebook + Instagram posting without Railway (private, gated)
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Readiness audit, one private admin manual post queue item, or original USD-triggered auto posts'
+        type: choice
+        required: true
+        options: [audit, manual, auto]
+permissions:
+  contents: read
+concurrency:
+  # Manual and automatic jobs MUST NOT race to publish the same image/rate
+  # across Meta; the original Python code and Supabase state remain canonical.
+  group: saraf-original-meta-social-publish
+  cancel-in-progress: false
+jobs:
+  original-social:
+    runs-on: ubuntu-latest
+    timeout-minutes: 26
+    environment: saraf-original-production
+    env:
+      SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED: ${{ secrets.SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED }}
+      SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED: ${{ secrets.SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED }}
+      SARAF_ORIGINAL_CUTOVER_APPROVED: ${{ secrets.SARAF_ORIGINAL_CUTOVER_APPROVED }}
+      SUPABASE_URL: https://cvernmhpnsgdtegvblyc.supabase.co
+      SUPABASE_KEY: ${{ secrets.SARAF_ORIGINAL_SUPABASE_KEY }}
+      BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+      FACEBOOK_PAGE_ID: ${{ secrets.SARAF_ORIGINAL_FACEBOOK_PAGE_ID }}
+      FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.SARAF_ORIGINAL_FACEBOOK_PAGE_ACCESS_TOKEN }}
+      FACEBOOK_CHANGE_THRESHOLD_PERCENT: ${{ vars.SARAF_ORIGINAL_FACEBOOK_CHANGE_PERCENT || '0.5' }}
+      INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+      INSTAGRAM_CHANGE_THRESHOLD_PERCENT: ${{ vars.SARAF_ORIGINAL_INSTAGRAM_CHANGE_PERCENT || '0.5' }}
+      FACEBOOK_GRAPH_API_VERSION: v26.0
+      INSTAGRAM_USER_ACCESS_TOKEN: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_USER_ACCESS_TOKEN }}
+      INSTAGRAM_APP_SECRET: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_APP_SECRET }}
+      INSTAGRAM_USER_ID: ${{ secrets.SARAF_ORIGINAL_INSTAGRAM_USER_ID }}
+      INSTAGRAM_BUSINESS_USERNAME: ${{ vars.SARAF_ORIGINAL_INSTAGRAM_USERNAME }}
+      SARAF_LOGO_URL: ${{ vars.SARAF_ORIGINAL_LOGO_URL }}
+      SOCIAL_POSTS_BUCKET: ${{ vars.SARAF_ORIGINAL_SOCIAL_POSTS_BUCKET || 'social-posts' }}
+    steps:
+      - name: Audit social secret names without printing values or posting
+        if: github.event_name == 'workflow_dispatch' && inputs.task == 'audit'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in SUPABASE_KEY FACEBOOK_PAGE_ID FACEBOOK_PAGE_ACCESS_TOKEN INSTAGRAM_BUSINESS_ACCOUNT_ID; do
+            if [[ -z "${!key}" ]]; then echo "MISSING_GITHUB_SECRET_ORIGINAL_$key"; else echo "CONFIGURED_$key"; fi
+          done
+          if [[ "$SARAF_ORIGINAL_CUTOVER_APPROVED" != true ]]; then echo "CUTOVER_NOT_APPROVED"; fi
+          if [[ "$SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED" != true ]]; then echo "MANUAL_SOCIAL_PUBLISH_DISABLED"; fi
+          if [[ "$SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED" != true ]]; then echo "AUTO_SOCIAL_PUBLISH_DISABLED"; fi
+          echo "Read-only audit complete — no Meta posting, no queue claim."
+      - name: Original social automation not yet explicitly activated
+        if: >-
+          (github.event.schedule == '*/5 * * * *' && (env.SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED != 'true' ||
+           env.SARAF_ORIGINAL_CUTOVER_APPROVED != 'true')) ||
+          (github.event.schedule == '*/10 * * * *' && (env.SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED != 'true' ||
+           env.SARAF_ORIGINAL_CUTOVER_APPROVED != 'true'))
+        run: echo "Original Saraf social worker safely OFF; no Meta posts sent."
+      - name: Checkout exact reviewed ORIGINAL Python code
+        if: >-
+          (env.SARAF_ORIGINAL_CUTOVER_APPROVED == 'true' &&
+            ((env.SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED == 'true' &&
+              (github.event.schedule == '*/5 * * * *' || inputs.task == 'manual')) ||
+             (env.SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED == 'true' &&
+              (github.event.schedule == '*/10 * * * *' || inputs.task == 'auto'))))
+        uses: actions/checkout@v4
+        with:
+          ref: 343525d3565c96e6bb00ee542f141d23314d0e2d
+          persist-credentials: false
+      - name: Verify all ORIGINAL Meta credentials before any queue claim or Graph calls
+        if: >-
+          (env.SARAF_ORIGINAL_CUTOVER_APPROVED == 'true' &&
+            ((env.SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED == 'true' &&
+              (github.event.schedule == '*/5 * * * *' || inputs.task == 'manual')) ||
+             (env.SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED == 'true' &&
+              (github.event.schedule == '*/10 * * * *' || inputs.task == 'auto'))))
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SUPABASE_KEY FACEBOOK_PAGE_ID FACEBOOK_PAGE_ACCESS_TOKEN INSTAGRAM_BUSINESS_ACCOUNT_ID; do
+            [[ -n "${!name}" ]] || { echo "::error::MISSING_ORIGINAL_SOCIAL_SECRET_$name"; exit 1; }
+          done
+          echo "Original social posting configuration present. No secret contents logged."
+      - uses: actions/setup-python@v5
+        if: >-
+          (env.SARAF_ORIGINAL_CUTOVER_APPROVED == 'true' &&
+            ((env.SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED == 'true' &&
+              (github.event.schedule == '*/5 * * * *' || inputs.task == 'manual')) ||
+             (env.SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED == 'true' &&
+              (github.event.schedule == '*/10 * * * *' || inputs.task == 'auto'))))
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install ORIGINAL Python and Chromium PNG renderer
+        if: >-
+          (env.SARAF_ORIGINAL_CUTOVER_APPROVED == 'true' &&
+            ((env.SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED == 'true' &&
+              (github.event.schedule == '*/5 * * * *' || inputs.task == 'manual')) ||
+             (env.SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED == 'true' &&
+              (github.event.schedule == '*/10 * * * *' || inputs.task == 'auto'))))
+        run: |
+          python -m pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+          test -f assets/fonts/Peyda-Regular.ttf
+          python -m py_compile scripts/run_original_manual_social_worker.py services/facebook_service.py services/instagram_service.py
+      - name: Publish ONE signed original manual admin request (force original two platforms)
+        if: >-
+          (env.SARAF_ORIGINAL_CUTOVER_APPROVED == 'true' &&
+           env.SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED == 'true' &&
+           (github.event.schedule == '*/5 * * * *' || inputs.task == 'manual'))
+        run: python scripts/run_original_manual_social_worker.py --once
+      - name: Original USD-triggered Facebook automatic post
+        if: >-
+          (env.SARAF_ORIGINAL_CUTOVER_APPROVED == 'true' &&
+           env.SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED == 'true' &&
+           (github.event.schedule == '*/10 * * * *' || inputs.task == 'auto'))
+        env:
+          SARAF_ORIGINAL_JOBS_ENABLED: 'true'
+        run: python scripts/run_original_saraf_jobs.py --task facebook
+      - name: Original USD-triggered Instagram automatic post
+        if: >-
+          (env.SARAF_ORIGINAL_CUTOVER_APPROVED == 'true' &&
+           env.SARAF_ORIGINAL_SOCIAL_AUTOMATION_ENABLED == 'true' &&
+           (github.event.schedule == '*/10 * * * *' || inputs.task == 'auto'))
+        env:
+          SARAF_ORIGINAL_JOBS_ENABLED: 'true'
+        run: python scripts/run_original_saraf_jobs.py --task instagram
