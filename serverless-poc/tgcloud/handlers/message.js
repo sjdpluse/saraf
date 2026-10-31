@@ -15,6 +15,18 @@ const notificationsButton={inline_keyboard:[[{
 }]]};
 
 const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
+const welcome=(name='دوست عزیز')=>
+  'سلام '+String(name||'دوست عزیز')+' 👋\n\n'+
+  'به صراف خوش آمدید.\n'+
+  'پلتفرم هوشمند بازار و خدمات مالی افغانستان.\n\n'+
+  '💵 نرخ ارزها  |  🥇 طلا  |  🥈 نقره  |  🪙 رمزارزها\n'+
+  '📊 مقایسه با گذشته  |  🔄 مبدل ارز  |  🪙 خرید و فروش USDT / USDC\n\n'+
+  'از منوی زیر گزینهٔ مورد نظر خود را انتخاب کنید. 👇';
+export const isMainMenuRequest=text=>{
+  const s=String(text||'').trim();
+  return /^(?:\/(?:start|menu|help|home|ping)(?:@[A-Za-z0-9_]+)?(?:\s.*)?|منو|منوی اصلی|خانه|بازگشت|🔙 بازگشت|🔙 منوی اصلی|🏠 منوی اصلی)$/iu.test(s);
+};
+
 export const currencyText = (rates, codes = VALID_CODES) =>
   codes.filter(c => rates[c]).map(c => `${label(c)}: ${money(rates[c], 4)} افغانی`).join('\n');
 export const goldText = (rows, labelText) =>
@@ -45,26 +57,42 @@ async function onReadOnlyMessage(chatId, input) {
     case '/remittances': return reply(chatId,
       '💸 حواله‌های قبلی شما در Supabase حفظ شده‌اند.\n'+
       'نمایش امن سوابق از طریق Mini App پس از فعال‌شدن اتصال Supabase در دسترس خواهد بود.');
-    case '💵 نرخ ارزها': return reply(chatId, 'کدام ارز مدنظر شماست؟ یا «نمایش همهٔ نرخ‌ها» را بزنید.', currencyList());
+    case '💵 نرخ ارزها':
+    case '/rates':
+    case '/currency':
+    case 'نرخ ارزها':
+    case 'نرخ اسعار':
+      return reply(chatId, 'کدام ارز مدنظر شماست؟ یا «نمایش همهٔ نرخ‌ها» را بزنید.', currencyList());
     case '🥇 نرخ طلا':
+    case '/gold':
+    case 'نرخ طلا':
       return reply(chatId, 'عیار مدنظر خود را انتخاب کنید، «نمایش همهٔ عیارها» را بزنید، یا از ماشین‌حساب خرید/فروش استفاده کنید.', goldList());
-    case '🥈 نرخ نقره': {
+    case '🥈 نرخ نقره':
+    case '/silver':
+    case 'نرخ نقره': {
       const symbol = 'XAG';
       const [{ rates }, metal] = await Promise.all([getReferenceRates(), getMetalPrice(symbol)]);
       const rows = metalBreakdown(symbol, metal.price, rates.usd);
       return reply(chatId, goldText(rows, '🥈 نرخ لحظه‌یی نقره (خالص)') +
         '\n⚠️ صرفاً اطلاعات مرجع؛ نرخ قطعی معامله نیست.', silverCalcMode());
     }
-    case '🪙 نرخ رمزارزها': {
+    case '🪙 نرخ رمزارزها':
+    case '/crypto': {
       const { prices, source } = await getCryptoPrices();
       return reply(chatId, '🪙 نرخ رمزارزها (USD) — منبع: ' + source + '\n' +
         Object.entries(prices).map(([symbol, price]) => `${cryptoLabel(symbol)} (${symbol.toUpperCase()}): $${price < 0.001 ? price.toFixed(8) : money(price, price < 1 ? 4 : 2)}`).join('\n'));
     }
-    case '🔄 مبدل ارز جهانی': return reply(chatId,
+    case '🔄 مبدل ارز جهانی':
+    case '/converter':
+      return reply(chatId,
       '🔄 مبدل ارز جهانی\n\nابتدا ارز مبدأ را انتخاب کنید:', converterFrom());
-    case '📊 مقایسه با گذشته': return reply(chatId,
+    case '📊 مقایسه با گذشته':
+    case '/compare':
+      return reply(chatId,
       '📊 چه چیزی را می‌خواهید با گذشته مقایسه کنید؟', compareTarget());
-    case 'خرید و فروش | USDT/USDC': return reply(chatId,
+    case 'خرید و فروش | USDT/USDC':
+    case '/usdt':
+      return reply(chatId,
       '🪙 خرید و فروش USDT / USDC\nدارایی و نوع معامله را انتخاب کنید:',
       originalStablecoinMenu());
     case 'Saraf - JustMarkets': return reply(chatId,
@@ -75,7 +103,9 @@ async function onReadOnlyMessage(chatId, input) {
       aboutKeyboard());
     default: {
       const m = /^\/convert(?:@[a-zA-Z0-9_]+)?\s+([a-zA-Z]{3})\s+([a-zA-Z]{3})\s+(\d+(?:\.\d+)?)$/i.exec(input);
-      if (!m) return reply(chatId, 'لطفاً از منو استفاده کنید یا دستور /convert USD AFN 100 را امتحان نمایید.');
+      if (!m) return reply(chatId,
+        '🏠 منوی اصلی صراف\nلطفاً یکی از گزینه‌های نرخ اسعار، طلا، نقره، رمزارز، مبدل یا خرید و فروش USDT/USDC را انتخاب کنید.',
+        originalBotMenu());
       const [, fromRaw, toRaw, amountRaw] = m;
       const from = fromRaw.toLowerCase(), to = toRaw.toLowerCase(), amount = Number(amountRaw);
       const { rates } = await getReferenceRates();
@@ -98,20 +128,25 @@ export default async function (message) {
   if (!input) return;
   if (await handleOriginalAdminCommand(message)) return;
   if (await handleOriginalCalcReply(message)) return;
-  if (/^\/(?:stop)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) return reply(chatId,
-    '🔕 برای خروج از دریافت پیام‌های همگانی، وضعیت اشتراک را در Mini App تأیید کنید.\n'+
-    'سفارش‌ها و اطلاعات حساب شما محفوظ می‌ماند.',notificationsButton);
-  if (/^\/(?:start|ping)(?:@[a-zA-Z0-9_]+)?(?:\s|$)/i.test(input)) {
-    await reply(chatId,'برای فعال‌سازی دریافت پیام‌های همگانی، گزینهٔ زیر را در Mini App انتخاب کنید.',notificationsButton);
-    return reply(chatId,'سلام '+String(message.from?.first_name||'دوست عزیز')+' 👋\n\n'+
-      'به صراف خوش آمدید.\nپلتفرم هوشمند بازار و خدمات مالی افغانستان.\n\n'+
-      'از منوی زیر گزینهٔ مورد نظر خود را انتخاب کنید. 👇',originalBotMenu());
+  // Always restore the ORIGINAL Saraf keyboard after WebApp use; never
+  // leave customers stranded in an USDT-only menu.
+  if (isMainMenuRequest(input)) {
+    return reply(chatId,welcome(message.from?.first_name),originalBotMenu());
   }
+  if (/^\/stop(?:@[A-Za-z0-9_]+)?(?:\s|$)/i.test(input)) {
+    await reply(chatId,
+      '🔕 مدیریت اشتراک پیام‌های همگانی از طریق مینی‌اپ صراف انجام می‌شود.',
+      notificationsButton);
+    return reply(chatId,'🏠 منوی اصلی صراف',originalBotMenu());
+  }
+  if (/^\/notifications(?:@[A-Za-z0-9_]+)?(?:\s|$)/i.test(input))
+    return reply(chatId,
+      '🔔 مدیریت پیام‌های همگانی در مینی‌اپ اصلی صراف:',notificationsButton);
   // Do not expose financial actions or ambiguous shadow records in the customer bot.
   try {
     await onReadOnlyMessage(chatId, input);
   } catch (error) {
-    console.warn('Saraf read-only pilot handler failed', String(error));
+    console.warn('Original Saraf menu handler failed', String(error));
     await reply(chatId, '⚠️ دریافت اطلاعات ممکن نشد. چند لحظه دیگر دوباره امتحان کنید.');
   }
 }
