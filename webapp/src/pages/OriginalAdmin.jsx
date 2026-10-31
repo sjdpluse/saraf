@@ -21,19 +21,23 @@ export default function OriginalAdmin({navigate}){
  const [pickupCodes,setPickupCodes]=useState({});
  const [broadcastMessage,setBroadcastMessage]=useState('');
  const [broadcastKey,setBroadcastKey]=useState('');
+ const [socialRequestId,setSocialRequestId]=useState(null);
+ const [socialKey,setSocialKey]=useState('');
  async function load(action,input={}){
   setBusy(true);setError('');
   try{
    const response=await originalAdminCommand(action,input);
    setResult({action,...response});
+   return response;
   }catch(e){
    setResult(null);setError(e?.message||'ارتباط با مدیریت ناموفق بود.');
+   return null;
   }finally{setBusy(false);}
  }
  useEffect(()=>{
   const params=new URLSearchParams(location.search);
   const command=params.get('admin')||'';
-  const requested=['stats','spreads','pending','setspread','confirm','broadcast','kyc','complete','remittances']
+  const requested=['stats','spreads','pending','setspread','confirm','broadcast','kyc','complete','remittances','post']
    .includes(command)?command:'stats';
   const next=requested==='remittances'?'remittances.pending':requested==='complete'?'orders.confirmed':requested==='kyc'?'kyc.pending':requested==='broadcast'?'broadcast':requested==='pending'?'orders.pending':
    requested==='confirm'?'orders.pending':requested==='setspread'?'spreads':requested;
@@ -141,6 +145,24 @@ export default function OriginalAdmin({navigate}){
   }
   await load('broadcast.create',{message:body,idempotency_key:id});
  }
+ async function manualSocialPost(){
+  // Original handlers/admin.py manual_post(force=True) requires deliberate
+  // admin confirmation; queue the same two posts without direct browser Graph
+  // API calls. Preserve idempotency if Telegram UI/network retries.
+  if(!await showConfirm('آیا پست نرخ لحظه‌یی اسعار، طلا و نقره در هر دو صفحهٔ اصلی فیسبوک و اینستاگرام صراف منتشر شود؟'))return;
+  let key=socialKey;
+  if(!key){key=globalThis.crypto?.randomUUID?.()||'';
+   if(!key){setError('شناسهٔ امن نشر پست در دسترس نیست.');return;}
+   setSocialKey(key);
+  }
+  const created=await load('social.post.create',{idempotency_key:key});
+  const id=Number(created?.result?.request_id);
+  if(Number.isSafeInteger(id)&&id>0)setSocialRequestId(id);
+ }
+ async function checkManualSocialPost(){
+  if(!Number.isSafeInteger(Number(socialRequestId))||Number(socialRequestId)<=0)return;
+  await load('social.post.status',{request_id:Number(socialRequestId)});
+ }
  async function saveSpread(event){
   event.preventDefault();
   const num=Number(pct);
@@ -163,7 +185,25 @@ export default function OriginalAdmin({navigate}){
    <button disabled={busy} onClick={()=>{setSection('orders.confirmed');load('orders.confirmed');}}>📦 سفارش‌های تأییدشده</button>
    <button disabled={busy} onClick={()=>{setSection('remittances.pending');load('remittances.pending');}}>💸 حواله‌های در جریان</button>
    <button disabled={busy} onClick={()=>{setSection('kyc.pending');load('kyc.pending');}}>🪪 احراز هویت</button>
+   <button disabled={busy} onClick={()=>setSection('post')}>📢 نشر پست فیسبوک/اینستاگرام</button>
   </div>
+  {section==='post'&&<section className="notice">
+   <h2>📢 نشر پست اصلی صراف در فیسبوک و اینستاگرام</h2>
+   <p>همان تصویر و کپشن نرخ لحظه‌یی نسخهٔ اصلی. نشر تنها پس از تأیید مدیر و آماده‌بودن اتصال Meta انجام می‌شود؛ تغییر در پرداخت مشتریان ندارد.</p>
+   <button type="button" disabled={busy||Boolean(socialRequestId)}
+     onClick={manualSocialPost}>✅ تأیید و درخواست نشر در هر دو صفحه</button>
+   {socialRequestId&&<div style={{marginTop:12}}>
+    <p>شناسهٔ درخواست: {socialRequestId}</p>
+    <button type="button" disabled={busy} onClick={checkManualSocialPost}>🔄 بررسی نتیجه نشر</button>
+   </div>}
+   {['social.post.create','social.post.status'].includes(result?.action)&&
+    <p role="status">وضعیت نشر: {result?.result?.status||'نامعلوم'}
+    {result?.result?.facebook&&' | Facebook: '+result.result.facebook}
+    {result?.result?.instagram&&' | Instagram: '+result.result.instagram}
+    </p>}
+   {socialRequestId&&['done','partial','failed','needs_review'].includes(result?.result?.status)&&
+    <button type="button" onClick={()=>{setSocialKey('');setSocialRequestId(null);setResult(null);}}>درخواست جدید</button>}
+  </section>}
   {busy&&<p role="status">در حال بررسی ...</p>}
   {error&&<p role="alert" style={{color:'#b42318'}}>{error}</p>}
   {result?.action==='stats'&&<section className="notice">
