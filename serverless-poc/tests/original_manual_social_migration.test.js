@@ -41,7 +41,7 @@ test('original manual queue is idempotent private and never automatically repeat
  assert.match(sql,/for update skip locked/i);
  assert.match(sql,/security invoker/i);
  assert.match(timeoutSql,/state='needs_review'/);
- assert.doesNotMatch(timeoutSql,/state='queued'.*state='processing'/s);
+ assert.match(timeoutSql,/where state='processing' and started_at</);
 });
 test('same original Python services still perform actual branded image posting, no alternate Meta writer',()=>{
  assert.match(runner,/from jobs import get_current_quotes_and_metals/);
