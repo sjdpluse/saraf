@@ -51,7 +51,9 @@ async function recent(db:Db,table:string,ageMinutes:number){
  const result=await db.from(table).select('recorded_at')
   .order('recorded_at',{ascending:false}).limit(1);
  if(result.error)throw Error('HISTORY_READ_UNAVAILABLE');
- const last=result.data?.[0]?.recorded_at;
+ // This one selected field is shared by each of the four typed history
+ // tables; Supabase's union-table select type is otherwise inferred as never.
+ const last=(result.data as unknown as Array<{recorded_at:string}>|null)?.[0]?.recorded_at;
  return !!last && Date.now()-Date.parse(last)<ageMinutes*60000;
 }
 const positive=(v:unknown)=>Number.isFinite(Number(v))&&Number(v)>0;
