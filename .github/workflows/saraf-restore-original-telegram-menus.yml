@@ -1,13 +1,7 @@
 name: Restore ORIGINAL Saraf Telegram menus on existing Serverless bot (no finance changes)
+# One-off production repair already deployed and verified in run 41217476251.
+# Disable automatic re-deployment of a financial bot on arbitrary pushes.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-restore-original-telegram-menus.yml
-      - serverless-poc/tgcloud/handlers/message.js
-      - serverless-poc/tgcloud/lib/legacy_menus.js
-      - serverless-poc/tests/original_market_menu_restore.test.js
   workflow_dispatch:
 permissions:
   contents: read
