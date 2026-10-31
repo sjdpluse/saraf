@@ -21,7 +21,14 @@ from services import supabase_service as db
 
 logger = logging.getLogger(__name__)
 
-PHOTO_API_URL = "https://graph.facebook.com/v19.0/{page_id}/photos"
+# Meta Graph API v19.0 expired May 2026. Keep the ORIGINAL image, caption
+# and USD-trigger algorithm; only target a supported API transport version.
+import os
+import re
+GRAPH_API_VERSION = os.getenv("FACEBOOK_GRAPH_API_VERSION", "v26.0").strip()
+if not re.fullmatch(r"v[0-9]{1,2}\\.[0-9]", GRAPH_API_VERSION):
+    GRAPH_API_VERSION = "v26.0"
+PHOTO_API_URL = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{{page_id}}/photos"
 _TIMEOUT = 30.0
 DIVIDER = "━━━━━━━━━━"
 WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbDBaZqC1FuAw0kj2G07"
