@@ -1,11 +1,7 @@
 name: Restore original Saraf missing FX/gold/silver historical updates (one-time, no money)
+# Historical gap restored and DB verified in run 41220244944.
+# Repeating jobs are now pinned on main: saraf-original-market-history.yml.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-original-history-one-shot.yml
-      - scripts/run_original_saraf_market_snapshots.mjs
   workflow_dispatch:
 permissions:
   contents: read
