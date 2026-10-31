@@ -5,6 +5,7 @@ import {parseOriginalAdminCommand} from '../tgcloud/lib/original_admin_parse.js'
 const root=(relative)=>readFileSync(new URL('../../'+relative,import.meta.url),'utf8');
 const edge=root('supabase/functions/saraf-original-admin/index.ts');
 const ui=root('webapp/src/pages/OriginalAdmin.jsx');
+const menu=root('webapp/src/pages/Menu.jsx');
 const bridge=root('webapp/src/lib/originalAdminBridge.js');
 const runner=root('scripts/run_original_manual_social_worker.py');
 const sql=root('supabase/migrations/20261031_original_social_manual_queue.sql');
@@ -22,6 +23,15 @@ test('original manual post text/button and /post point to existing signed admin 
  assert.match(ui,/await showConfirm\(/);
  assert.match(bridge,/['"]social\.post\.create['"]/);
  assert.match(bridge,/['"]social\.post\.status['"]/);
+});
+test('original admin-only Mini App menu appears only after independently signed server-side allowlist',()=>{
+ assert.match(menu,/originalAdminCommand\('access'\)/);
+ assert.match(menu,/result\?\.is_admin===true/);
+ assert.match(menu,/adminVisible&&<button/);
+ assert.match(menu,/\.catch\(\(\)=>\{if\(mounted\)setAdminVisible\(false\)/);
+ assert.match(edge,/if\(action==='access'\)return answer\(origin,200,\{is_admin:true\}\)/);
+ assert.ok(edge.indexOf('if(!isOwner(actor.id))')<edge.indexOf("if(action==='access')"));
+ assert.match(bridge,/['"]access['"]/);
 });
 test('public cannot bypass signed original Telegram admin and independent Meta publish switch',()=>{
  const auth=edge.indexOf('const actor=await verifyTelegramInitData(');
