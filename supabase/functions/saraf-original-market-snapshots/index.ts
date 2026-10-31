@@ -19,7 +19,31 @@ const json=(status:number,body:unknown)=>new Response(JSON.stringify(body),{
  status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',
   'X-Content-Type-Options':'nosniff'},
 });
-type Db=ReturnType<typeof createClient>;
+// Explicit existing public history schema: this client CANNOT insert financial,
+// KYC, customer or administrator records; only these four existing rate tables.
+type HistoryTable<Row,Insert>={Row:Row;Insert:Insert;Update:Partial<Insert>;Relationships:[]};
+type At={recorded_at:string};
+type CurrencyHistory={currency:string;afn_rate:number}&At;
+type MetalHistory={price_usd_per_oz:number}&At;
+type LocalHistory={market:string;currency:string;buy:number;sell:number}&At;
+type HistoryDatabase={public:{
+ Tables:{
+  currency_history:HistoryTable<CurrencyHistory&{id:number},CurrencyHistory>;
+  gold_history:HistoryTable<MetalHistory&{id:number;afn_per_gram_24k:number},
+    MetalHistory&{afn_per_gram_24k:number}>;
+  silver_history:HistoryTable<MetalHistory&{id:number;afn_per_gram:number},
+    MetalHistory&{afn_per_gram:number}>;
+  local_market_history:HistoryTable<LocalHistory&{id:number},LocalHistory>;
+ };
+ Views:Record<string,never>;
+ Functions:Record<string,never>;
+ Enums:Record<string,never>;
+ CompositeTypes:Record<string,never>;
+}};
+const createHistoryClient=()=>createClient<HistoryDatabase>(URL,KEY,{
+ auth:{persistSession:false,autoRefreshToken:false},
+});
+type Db=ReturnType<typeof createHistoryClient>;
 const now=()=>new Date().toISOString();
 // Fail closed if state is unknown: never create duplicate historical prices
 // on spurious retries, and never replace existing prices with fallback zeros.
@@ -34,7 +58,7 @@ const positive=(v:unknown)=>Number.isFinite(Number(v))&&Number(v)>0;
 async function reference(db:Db){
  if(await recent(db,'currency_history',20))
   return {status:'ALREADY_RECENT',currency_rows:0,gold_rows:0,silver_rows:0};
- const rates=await fetchOriginalCurrencyRates();
+ const rates=await fetchOriginalCurrencyRates() as Record<string,number>;
  if(!positive(rates.usd)||Number(rates.usd)<10||Number(rates.usd)>1000)
   throw Error('INVALID_ORIGINAL_REFERENCE_USD');
  const rows=CODES.filter(c=>positive(rates[c]))
@@ -72,7 +96,8 @@ async function reference(db:Db){
 async function local(db:Db){
  if(await recent(db,'local_market_history',10))
   return {status:'ALREADY_RECENT',local_rows:0};
- const markets=await fetchOriginalLocalMarkets();
+ const markets=await fetchOriginalLocalMarkets() as
+  Record<string,Record<string,{buy:number;sell:number}>>;
  let rows:{market:string;currency:string;buy:number;sell:number;recorded_at:string}[]=[];
  for(const market of ['sarai_shahzada','khorasan_market','da_afg_bank']){
   const entries=markets[market]||{};
@@ -111,8 +136,7 @@ Deno.serve(async req=>{
   req.headers.get('x-saraf-market-time')||'',
   req.headers.get('x-saraf-market-signature')||'');
  if(!valid)return json(401,{error:'INVALID_MARKET_JOB_SIGNATURE'});
- const db=createClient(URL,KEY,{auth:{
-  persistSession:false,autoRefreshToken:false}});
+ const db=createHistoryClient();
  try{
   const outcome=body.action==='reference'?await reference(db):await local(db);
   return json(200,{mode:'ORIGINAL_SARAF_HISTORICAL_MARKET_ONLY',action:body.action,...outcome});
