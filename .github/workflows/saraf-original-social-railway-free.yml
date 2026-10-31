@@ -70,7 +70,7 @@ jobs:
               (github.event.schedule == '*/10 * * * *' || inputs.task == 'auto'))))
         uses: actions/checkout@v4
         with:
-          ref: 343525d3565c96e6bb00ee542f141d23314d0e2d
+          ref: 9f539286bbe95cc027b8f603ee9b5105b10e3ff9
           persist-credentials: false
       - name: Verify all ORIGINAL Meta credentials before any queue claim or Graph calls
         if: >-
