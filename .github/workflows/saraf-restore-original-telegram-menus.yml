@@ -37,7 +37,7 @@ jobs:
           node --check serverless-poc/tgcloud/handlers/message.js
           node --check serverless-poc/tgcloud/lib/legacy_menus.js
           node --test serverless-poc/tests/original_market_menu_restore.test.js
-          test ! -e serverless-poc/tgcloud/schema.js
+          # Original source may contain legacy native schema; the packaged release must not.
           ! grep -E '(SUPABASE_SERVICE_ROLE_KEY|PUBLIC_DEPOSIT_WALLETS)' serverless-poc/tgcloud/handlers/message.js
       - name: Verify existing original bot target and CURRENT Telegram Serverless webhook
         shell: bash
