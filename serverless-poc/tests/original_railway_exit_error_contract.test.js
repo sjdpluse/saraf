@@ -41,6 +41,14 @@ test('original native UI wraps every signed customer and admin-agnostic financia
  assert.match(code,/from ['"]\.\/apiError\.mjs['"]/);
  assert.match(code,/if \(IS_TELEGRAM_NATIVE\) \{\s*try \{/);
  assert.match(code,/throw asOriginalApiError\(error\)/);
+ // Returning a Promise without await skips the surrounding try/catch in JS.
+ // This previously made the original KYC recovery logic fail silently.
+ const native=code.slice(code.indexOf('if (IS_TELEGRAM_NATIVE) {'),
+   code.indexOf('const headers = { "X-Telegram-Init-Data"',code.indexOf('if (IS_TELEGRAM_NATIVE) {')));
+ assert.doesNotMatch(native,/return (?:canonicalCall|originalFinanceCall|uploadOriginalIdentity|uploadOriginalImage|nativeCall)\(/);
+ assert.match(native,/return await originalFinanceCall\('order\.buy'/);
+ assert.match(native,/return await originalFinanceCall\('order\.sell'/);
+ assert.match(native,/return await uploadOriginalIdentity\(body\)/);
  assert.match(code,/return await renderOriginalOrderCardPreview\(verified\)/);
  for(const route of [
   '/usdt/quote','/usdt/orders/buy','/usdt/orders/sell',
