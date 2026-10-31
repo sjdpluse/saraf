@@ -14,7 +14,7 @@ LOGGER = logging.getLogger("saraf.original_manual_social")
 
 
 def assert_ready(environment=None):
-    env = environment or os.environ
+    env = os.environ if environment is None else environment
     required = {
         "SARAF_ORIGINAL_SOCIAL_PUBLISH_ENABLED",
         "SARAF_ORIGINAL_CUTOVER_APPROVED",
