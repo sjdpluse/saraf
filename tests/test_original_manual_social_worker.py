@@ -61,6 +61,8 @@ class SocialPortTests(unittest.TestCase):
         jobs = types.ModuleType("jobs")
         jobs.get_current_quotes_and_metals = quotes
         services = types.ModuleType("services")
+        services.facebook_service = types.SimpleNamespace()
+        services.instagram_service = types.SimpleNamespace()
         with patch.dict(sys.modules, {"jobs": jobs, "services": services}):
             result = asyncio.run(publish_original_pair())
         self.assertEqual(result[:2], ("failed", "failed"))
