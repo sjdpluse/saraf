@@ -196,6 +196,8 @@ Deno.serve(async(req:Request)=>{
  const db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});
 
  try{
+  // Lightweight signed role discovery; HMAC and server allowlist checked above.
+  if(action==='access')return answer(origin,200,{is_admin:true});
   if(action==='stats'){
    const r=await db.from('users').select('chat_id',{count:'exact',head:true})
      .eq('is_active',true);
