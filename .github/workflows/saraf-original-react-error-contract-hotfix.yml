@@ -1,0 +1,92 @@
+name: Repair ORIGINAL Saraf Mini App buy/sell/KYC error recovery (no changed financial logic)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-react-error-contract-hotfix.yml
+      - webapp/src/lib/api.js
+      - webapp/src/lib/apiError.mjs
+      - serverless-poc/tests/original_railway_exit_error_contract.test.js
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  original-react-contract:
+    runs-on: ubuntu-latest
+    environment: saraf-original-production
+    timeout-minutes: 25
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Validate all original menu and trading contract regressions
+        run: |
+          set -euo pipefail
+          node --test serverless-poc/tests/*.test.js
+          node --check webapp/src/lib/apiError.mjs
+          node --check webapp/src/lib/api.js
+      - name: Validate original bot and deployed webhook BEFORE touching assets
+        run: |
+          node --input-type=module -e '
+            const t=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+            if(!/^[0-9]{5,15}:[A-Za-z0-9_-]{30,}$/.test(t||""))
+              throw Error("MISSING_ORIGINAL_BOT_TOKEN");
+            if(!/^app8533795882:[A-Za-z0-9_-]{16,}$/.test(process.env.TGCLOUD_TOKEN||""))
+              throw Error("WRONG_ORIGINAL_TGCLOUD_PROJECT");
+            const base="https://api.telegram.org/bot"+t+"/";
+            const me=await (await fetch(base+"getMe")).json();
+            const info=await (await fetch(base+"getWebhookInfo")).json();
+            if(!me.ok||me.result.username!=="sarafiaf_bot")throw Error("NOT_ORIGINAL_BOT");
+            if(!info.ok||info.result.url!=="https://cloud.telegram.org/app8533795882/webhook")
+              throw Error("ORIGINAL_WEBHOOK_NOT_SERVERLESS");
+            console.log("Original webhook and bot verified. No webhook changes required.");
+          '
+      - name: Build ORIGINAL React UI with all existing original finance/admin/KYC capabilities
+        working-directory: webapp
+        run: |
+          set -euo pipefail
+          grep -q '^VITE_SARAF_ORIGINAL_TRANSACTIONS_ENABLED=true$' .env.telegram-original-full
+          grep -q '^VITE_SARAF_ORIGINAL_KYC_ENABLED=true$' .env.telegram-original-full
+          grep -q '^VITE_SARAF_ORIGINAL_UPLOADS_ENABLED=true$' .env.telegram-original-full
+          grep -q '^VITE_SARAF_CANONICAL_BRIDGE_ENABLED=true$' .env.telegram-original-full
+          npm ci
+          npm run build:telegram-original-full
+      - name: Inspect target and sync only current original Telegram Serverless revision
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test -s serverless-poc/.release-original/dist/index.html
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+      - name: Install pinned tgcloud then fetch current module revision
+        working-directory: serverless-poc/.release-original
+        run: |
+          npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+      - name: Publish only same ORIGINAL React UI assets, not handlers, money, or webhook
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud push dist/
+      - name: Verify original Telegram webhook remains unchanged
+        run: |
+          node --input-type=module -e '
+            const base="https://api.telegram.org/bot"+process.env.SARAF_ORIGINAL_BOT_TOKEN+"/";
+            const info=await (await fetch(base+"getWebhookInfo")).json();
+            if(!info.ok||info.result.url!=="https://cloud.telegram.org/app8533795882/webhook")
+              throw Error("WEBHOOK_CHANGED");
+            const response=await fetch("https://app8533795882.tgcloud.ai/",{cache:"no-store"});
+            if(!response.ok||!/<html[\\s>]/i.test(await response.text()))
+              throw Error("ORIGINAL_APP_NOT_SERVING_HTML");
+            console.log("Original React published successfully; existing menus and Telegram serverless webhook preserved.");
+          '
