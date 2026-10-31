@@ -24,7 +24,14 @@ from services.facebook_service import _build_current_state
 
 logger = logging.getLogger(__name__)
 
-GRAPH_BASE = "https://graph.facebook.com/v19.0"
+# Meta retired Graph API v19.0 in May 2026. Preserve ORIGINAL publishing
+# and rate/image business logic while using a supported API version.
+import os
+import re
+GRAPH_API_VERSION = os.getenv("FACEBOOK_GRAPH_API_VERSION", "v26.0").strip()
+if not re.fullmatch(r"v[0-9]{1,2}\\.[0-9]", GRAPH_API_VERSION):
+    GRAPH_API_VERSION = "v26.0"
+GRAPH_BASE = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
 _TIMEOUT = 30.0
 _PUBLISH_POLL_ATTEMPTS = 8
 _PUBLISH_POLL_DELAY_SECONDS = 2.5
