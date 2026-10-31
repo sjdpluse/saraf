@@ -1,10 +1,9 @@
 name: Restore ORIGINAL Saraf admin post button and Mini App UI (no Meta posts)
 # Original admin UI released successfully in run 41231102316 (88/88 tests).
 # Explicit manual dispatch only: never auto-publish a financial bot again.
+# Verified original admin-only menu live after 89/89 tests in run 41231680604.
+# Disable unintended automatic redeployments of the financial Mini App.
 on:
-  push:
-    branches: [migration/telegram-native-serverless-poc]
-    paths: [.github/workflows/saraf-original-manual-social-ui-release.yml]
   workflow_dispatch:
 permissions:
   contents: read
