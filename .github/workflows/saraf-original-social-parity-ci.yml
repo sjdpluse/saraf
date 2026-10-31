@@ -1,0 +1,44 @@
+name: Original Saraf admin Facebook and Instagram port parity (NO LIVE POSTS)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-social-parity-ci.yml
+      - supabase/functions/saraf-original-admin/**
+      - supabase/migrations/20261031_original_social_manual_*.sql
+      - webapp/src/pages/OriginalAdmin.jsx
+      - webapp/src/lib/originalAdminBridge.js
+      - serverless-poc/tgcloud/lib/original_admin_parse.js
+      - scripts/run_original_manual_social_worker.py
+      - serverless-poc/tests/original_manual_social_migration.test.js
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify ORIGINAL bot + admin backend rules, NEVER PUBLISH
+        run: |
+          set -euo pipefail
+          node --test serverless-poc/tests/original_manual_social_migration.test.js
+          node --test serverless-poc/tests/original_market_menu_restore.test.js
+          node --check serverless-poc/tgcloud/lib/original_admin_parse.js
+          python -m py_compile scripts/run_original_manual_social_worker.py
+          deno check supabase/functions/saraf-original-admin/index.ts
+      - name: Typecheck original React app with signed full railway-free adapter
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
