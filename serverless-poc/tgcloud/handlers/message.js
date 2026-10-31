@@ -1,12 +1,12 @@
-// Saraf read-only Telegram-native bot. The existing Supabase database is the
-// canonical financial store; do not read shadow Telegram SQLite order tables.
+// Original Saraf Telegram menus restored on Telegram Serverless.
+// Original canonical Supabase remains the only financial ledger.
 import { api } from 'sdk';
 import { CURRENCIES, VALID_CODES, label, money, currencyKeyboard, mainKeyboard } from '../lib/currencies.js';
 import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.js';
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
 import { getCryptoPrices, cryptoLabel } from '../lib/cryptos.js';
 import { getLocalMarketRates } from '../lib/local_market_service.js';
-import { currencyList,goldList,silverCalcMode,compareTarget,converterFrom,originalBotMenu,aboutKeyboard,originalStablecoinMenu } from '../lib/legacy_menus.js';
+import { currencyList,goldList,silverCalcMode,compareTarget,converterFrom,originalBotMenu,aboutKeyboard,originalStablecoinMenu,originalMiniAppLink } from '../lib/legacy_menus.js';
 import { handleOriginalCalcReply } from '../lib/legacy_calc.js';
 import {handleOriginalAdminCommand} from '../lib/original_admin_entry.js';
 const NOTIFICATION_URL='https://app8533795882.tgcloud.ai/?action=notifications';
@@ -46,17 +46,16 @@ async function onReadOnlyMessage(chatId, input) {
 
     case '👤 پروفایل':
     case '/profile': return reply(chatId,
-      '👤 معلومات حساب اصلی صراف در Supabase نگهداری می‌شود.\n'+
-      'برای مشاهده اطلاعات واقعی، Mini App همین ربات را باز کنید.\n'+
-      '⚠️ حساب آزمایشی دیتابیس جداگانه نیست.');
+      '👤 پروفایل اصلی صراف محفوظ است. برای مشاهده و ویرایش معلومات خود مینی‌اپ اصلی را باز کنید.',
+      {inline_keyboard:[[{text:'👤 پروفایل و تایید هویت',web_app:{url:originalMiniAppLink()}}]]});
     case '📦 سفارش‌های من':
     case '/orders': return reply(chatId,
-      '📦 سفارش‌های قبلی شما در Supabase حفظ شده‌اند.\n'+
-      'نمایش امن تاریخچه از طریق Mini App پس از فعال‌شدن اتصال Supabase در دسترس خواهد بود.');
+      '📦 سفارش‌های خرید و فروش شما در همان پایگاه دادهٔ اصلی صراف نگهداری می‌شوند.',
+      {inline_keyboard:[[{text:'📦 مشاهده سفارش‌های من',web_app:{url:'https://app8533795882.tgcloud.ai/?action=orders'}}]]});
     case '💸 حواله‌های من':
     case '/remittances': return reply(chatId,
-      '💸 حواله‌های قبلی شما در Supabase حفظ شده‌اند.\n'+
-      'نمایش امن سوابق از طریق Mini App پس از فعال‌شدن اتصال Supabase در دسترس خواهد بود.');
+      '💸 سوابق حواله‌های شما در همان پایگاه دادهٔ اصلی صراف نگهداری می‌شوند.',
+      {inline_keyboard:[[{text:'💸 مشاهده حواله‌های من',web_app:{url:'https://app8533795882.tgcloud.ai/?action=remittances'}}]]});
     case '💵 نرخ ارزها':
     case '/rates':
     case '/currency':
@@ -96,7 +95,9 @@ async function onReadOnlyMessage(chatId, input) {
       '🪙 خرید و فروش USDT / USDC\nدارایی و نوع معامله را انتخاب کنید:',
       originalStablecoinMenu());
     case 'Saraf - JustMarkets': return reply(chatId,
-      'Saraf - JustMarkets\nاین بخش همان Mini App اصلی است و بعد از انتقال کامل در دسترس خواهد بود.');
+      'Saraf - JustMarkets\\nراهنمای ثبت‌نام، وریفیکیشن و دیپازیت در مینی‌اپ اصلی صراف.',
+      {inline_keyboard:[[{text:'🔗 باز کردن JustMarkets صراف',
+        web_app:{url:originalMiniAppLink('justmarkets')}}]]});
     case 'ℹ️ درباره ربات':
     case '/about': return reply(chatId,
       '🏦 صراف\n\nیک تجربهٔ مالی هوشمند، ساده و ساخته‌شده برای افغانستان\n\nنرخ را ببین. محاسبه کن. با آگاهی تصمیم بگیر.',
