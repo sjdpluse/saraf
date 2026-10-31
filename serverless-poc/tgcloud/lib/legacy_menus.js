@@ -98,6 +98,9 @@ export const originalBotMenu=()=>({
     [{text:'ℹ️ درباره ربات'}],
   ],
   resize_keyboard:true,
+  is_persistent:true,
+  one_time_keyboard:false,
+  input_field_placeholder:'از منوی اصلی صراف انتخاب کنید',
 });
 export const aboutKeyboard=(page='home')=>{
  if(page==='home')return {
