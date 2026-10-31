@@ -15,6 +15,7 @@ const KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
 const READ=Deno.env.get('SARAF_ORIGINAL_ADMIN_READ_ENABLED')==='true';
 const WRITE=Deno.env.get('SARAF_ORIGINAL_ADMIN_WRITES_ENABLED')==='true';
 const BROADCAST=Deno.env.get('SARAF_ORIGINAL_BROADCAST_ENABLED')==='true';
+const SOCIAL_POSTS=Deno.env.get('SARAF_ORIGINAL_SOCIAL_POST_ENABLED')==='true';
 const ADMINS=(Deno.env.get('SARAF_ADMIN_CHAT_IDS')||'')
  .split(',').map(x=>x.trim()).filter(x=>/^[1-9][0-9]{0,15}$/.test(x));
 const CODES=new Set([
@@ -41,7 +42,7 @@ function isWrite(action:string){
  return action==='spread.set'||action==='order.confirm'||
    action==='broadcast.create'||action==='kyc.review'||
    action==='order.reject'||action==='order.complete'||
-   action==='remittances.transition';
+   action==='remittances.transition'||action==='social.post.create';
 }
 async function notifyOriginalCustomer(orderId:number,chatId:number,asset:string){
  if(!BOT||!Number.isSafeInteger(chatId)||chatId<=0)return false;
@@ -365,6 +366,48 @@ Deno.serve(async(req:Request)=>{
      order_id:result.order_id,order_code:result.order_code,
      status:result.status,duplicate:!!result.duplicate,
      customer_notified:notified,
+   }});
+  }
+  // Original admin-only manual Facebook/Instagram post, using same Python
+  // services. This signed UI only queues work; a separate gated worker calls
+  // Meta so the browser never receives an access token.
+  if(action==='social.post.create'){
+   if(!SOCIAL_POSTS)
+    return answer(origin,503,{error:'ORIGINAL_SOCIAL_PUBLISH_NOT_CONFIGURED'});
+   const key=String(input.idempotency_key||'').trim();
+   if(!/^[A-Za-z0-9._:-]{16,120}$/.test(key))
+    return answer(origin,400,{error:'INVALID_SOCIAL_POST_KEY'});
+   const saved=await db.from('saraf_original_manual_social_requests')
+    .insert({admin_chat_id:actor.id,idempotency_key:key})
+    .select('id,state').single();
+   if(saved.error){
+    if(saved.error.code==='23505'){
+     const duplicate=await db.from('saraf_original_manual_social_requests')
+      .select('id,state').eq('admin_chat_id',actor.id)
+      .eq('idempotency_key',key).maybeSingle();
+     if(duplicate.data)
+      return answer(origin,200,{result:{
+       request_id:duplicate.data.id,status:duplicate.data.state,duplicate:true}});
+     return answer(origin,409,{error:'SOCIAL_PUBLISH_ALREADY_IN_PROGRESS'});
+    }
+    return answer(origin,503,{error:'SOCIAL_PUBLISH_QUEUE_UNAVAILABLE'});
+   }
+   return answer(origin,200,{result:{
+    request_id:saved.data?.id,status:'queued',duplicate:false}});
+  }
+  if(action==='social.post.status'){
+   const id=Number(input.request_id);
+   if(!Number.isSafeInteger(id)||id<=0)
+    return answer(origin,400,{error:'INVALID_SOCIAL_POST_ID'});
+   const record=await db.from('saraf_original_manual_social_requests')
+    .select('id,state,facebook_state,instagram_state,created_at,finished_at')
+    .eq('id',id).eq('admin_chat_id',actor.id).maybeSingle();
+   if(record.error)return answer(origin,503,{error:'SOCIAL_POST_STATUS_UNAVAILABLE'});
+   if(!record.data)return answer(origin,404,{error:'SOCIAL_POST_NOT_FOUND'});
+   return answer(origin,200,{result:{
+    request_id:record.data.id,status:record.data.state,
+    facebook:record.data.facebook_state,instagram:record.data.instagram_state,
+    created_at:record.data.created_at,finished_at:record.data.finished_at,
    }});
   }
   if(action==='broadcast.create'){
