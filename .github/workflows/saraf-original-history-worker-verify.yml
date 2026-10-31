@@ -1,0 +1,31 @@
+name: Original Saraf Railway-free FX/gold/silver history parity checks (no deploy)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-history-worker-verify.yml
+      - supabase/functions/saraf-original-market-snapshots/**
+      - serverless-poc/tests/original_history_without_railway.test.js
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  history-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify no public untrusted job writes and original currency history formulas
+        run: |
+          node --test serverless-poc/tests/original_history_without_railway.test.js
+          node --check supabase/functions/saraf-original-market-snapshots/market-auth.mjs
+          node --check supabase/functions/saraf-original-market-snapshots/markets.mjs
+      - name: Verify private ORIGINAL Supabase historical snapshot Edge syntax
+        run: deno check supabase/functions/saraf-original-market-snapshots/index.ts
