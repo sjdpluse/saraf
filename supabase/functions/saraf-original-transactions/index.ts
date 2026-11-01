@@ -502,6 +502,61 @@ Deno.serve(async req=>{
     ]);
     return out(origin,200,saved.data);
   }
+  if(action==='card.issued'){
+   // Recover authentic card data from the canonical committed order even
+   // after the original 10-minute quote has been consumed or app reloaded.
+   const orderId=Number(input.order_id);
+   if(!Number.isSafeInteger(orderId)||orderId<=0)deny('INVALID_ORDER_ID');
+   const saved=await db.from('usdt_orders').select(
+     'id,chat_id,asset,order_type,usdt_amount,usd_rate,total_afn,total_usd,fee_percent,exchange_name,network,wallet_address,status,risk_level,created_at'
+   ).eq('id',orderId).eq('chat_id',user.id).maybeSingle();
+   if(saved.error)deny('ORDER_UNAVAILABLE',503);
+   const order=saved.data;
+   if(!order)deny('ORDER_NOT_FOUND',404);
+   if(!['pending','confirmed','completed'].includes(order.status)||
+      Date.now()-Date.parse(order.created_at)>7*86400000)
+     deny('ORDER_CARD_WINDOW_CLOSED',409);
+   const type=asset(order.asset),deposit=wallets(type);
+   const network=String(order.network||'');
+   const exchange=String(order.exchange_name||'');
+   if(!exchange||!TYPES[type].some(x=>x.code===network))
+     deny('ORDER_CARD_DATA_INVALID',409);
+   const wallet=order.order_type==='buy'
+     ?String(order.wallet_address||''):String(deposit[network]||'');
+   if(!walletShape(network,wallet))deny('ORDER_CARD_WALLET_UNAVAILABLE',409);
+   const profile=await db.from('user_profiles').select(
+     'first_name,last_name,phone,kyc_status,trust_score,successful_orders,selfie_path'
+   ).eq('chat_id',user.id).maybeSingle();
+   if(profile.error)deny('PROFILE_UNAVAILABLE',503);
+   if(!profile.data?.first_name||!profile.data?.last_name||!profile.data?.phone)
+     deny('BASIC_PROFILE_REQUIRED',403);
+   let selfie_url:null|string=null;
+   if(profile.data.selfie_path){
+     const bucket=Deno.env.get('USDT_KYC_DOCS_BUCKET')||'usdt-kyc-docs';
+     const signed=await db.storage.from(bucket).createSignedUrl(
+       String(profile.data.selfie_path),60);
+     if(!signed.error&&signed.data?.signedUrl)selfie_url=signed.data.signedUrl;
+   }
+   return out(origin,200,{
+     order_code:type+'-'+String(order.id).padStart(5,'0'),
+     order_preview:{
+       order_type:order.order_type,asset:type,
+       usdt_amount:Number(order.usdt_amount),usd_rate:Number(order.usd_rate),
+       fee_percent:Number(order.fee_percent||0),
+       total_afn:Number(order.total_afn),total_usd:Number(order.total_usd),
+       exchange_name:exchange,network,risk_level:order.risk_level,
+       wallet_address:wallet,
+       deposit_address:order.order_type==='sell'?wallet:null,
+     },
+     profile:{
+       first_name:profile.data.first_name,last_name:profile.data.last_name,
+       phone:profile.data.phone,kyc_status:profile.data.kyc_status,
+       trust_score:profile.data.trust_score,
+       successful_orders:profile.data.successful_orders,
+     },
+     selfie_url,
+   });
+  }
   if(action==='card.preview'){
     // Original Python card-preview checks signed identity, active quote,
     // exact amount, exchange and asset/network wallet before image rendering.
