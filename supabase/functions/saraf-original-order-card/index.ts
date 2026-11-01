@@ -59,7 +59,9 @@ function captions(order:Record<string,unknown>,profile:Record<string,unknown>|nu
  return {code,customer,admin};
 }
 type DeliverState='sent'|'failed'|'uncertain'|'sending';
-async function deliver(db:ReturnType<typeof createClient>,orderId:number,
+// Supabase generated table schemas are not imported by this standalone Edge.
+// Authorization and state transitions are explicitly validated in this handler.
+async function deliver(db:any,orderId:number,
  chatId:number,recipient:'customer'|'admin',botToken:string,
  image:Blob,caption:string){
  const key={order_id:orderId,chat_id:chatId,recipient};
