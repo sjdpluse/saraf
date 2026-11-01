@@ -4,12 +4,9 @@ name: Original Saraf issued order-card recovery + Railway report UI — static-o
 # its webhook, finance functions, users, database, or Railway services.
 # One-time release of the original signed issued-card recovery and Orders retry UX.
 # Signed card/report Edge functions were already separately deployed to Supabase.
+# One-time production static deployment succeeded: GitHub Actions 41332770286.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-original-railway-card-and-report-repair-ui-release.yml
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
