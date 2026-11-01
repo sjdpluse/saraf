@@ -81,8 +81,10 @@ export default function Sell({ asset = "USDT", onSelectAsset, navigate, showErro
   const [orderCode, setOrderCode] = useState(null);
   const [orderId,setOrderId]=useState(null);
   const [cardDelivery,setCardDelivery]=useState('idle');
+  const [cardDeliveryReason,setCardDeliveryReason]=useState('');
   async function deliverCard(id,code){
     setCardDelivery('sending');
+    setCardDeliveryReason('');
     try{
       const delivered=await api.deliverOriginalOrderCard({
         order_id:id,order_code:code,action:'sell',
@@ -92,7 +94,8 @@ export default function Sell({ asset = "USDT", onSelectAsset, navigate, showErro
         delivered?.admins?.every(a=>a.state==='sent');
       setCardDelivery(successful?'sent':
         delivered?.requires_manual_review?'uncertain':'failed');
-    }catch{
+    }catch(err){
+      setCardDeliveryReason(String(err?.code||err?.message||'CARD_DELIVERY_UNAVAILABLE').slice(0,100));
       // An order is already committed; a notification error must NEVER
       // re-submit it or hide the successful financial order.
       setCardDelivery('failed');
@@ -415,7 +418,7 @@ export default function Sell({ asset = "USDT", onSelectAsset, navigate, showErro
           {cardDelivery==='sending'?'🪪 در حال ارسال گزارش و کارت به تلگرام مشتری و مدیر…':
            cardDelivery==='sent'?'✅ گزارش و کارت دیجیتال به تلگرام مشتری و مدیر ارسال شد.':
            cardDelivery==='uncertain'?'⚠️ وضعیت ارسال برخی کارت‌ها نامشخص است؛ برای جلوگیری از پیام تکراری با پشتیبانی بررسی کنید.':
-           cardDelivery==='failed'?'⚠️ سفارش ثبت شد، ولی ارسال کارت به تلگرام کامل نشد.':'🪪 کارت سفارش پس از ثبت به تلگرام ارسال می‌شود.'}
+           cardDelivery==='failed'?'⚠️ سفارش ثبت شد، ولی ارسال کارت به تلگرام کامل نشد.'+(cardDeliveryReason?' ('+cardDeliveryReason+')':''):'🪪 کارت سفارش پس از ثبت به تلگرام ارسال می‌شود.'}
           {cardDelivery==='failed'&&orderId&&
             <button className="btn btn-outline" type="button" style={{marginTop:10}}
              onClick={()=>deliverCard(orderId,orderCode)}>🔄 تلاش دوباره برای ارسال کارت (بدون ثبت سفارش جدید)</button>}
