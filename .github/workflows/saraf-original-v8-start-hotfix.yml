@@ -82,6 +82,7 @@ jobs:
         shell: bash
         working-directory: serverless-poc/.release-original
         run: |
+          set +e
           set -uo pipefail
           # This SDK probe is intentionally addressed to INVALID chat 0.
           # A 400 "chat not found" proves execution reached api.sendMessage,
