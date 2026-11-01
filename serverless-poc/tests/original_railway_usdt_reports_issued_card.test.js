@@ -30,7 +30,7 @@ test('buy admin report preserves original supplier economics, trust, net profit 
  for(const phrase of ['سفارش خرید USDT','USDT-00079','مبلغ پرداختی مشتری',
    'کارمزد صراف از مشتری','سود خالص صراف','تسویه با تأمین‌کننده',
    'سود تأمین‌کننده','مبلغ کامل تأمین‌کننده','85/100','2 معامله موفق',
-   'Binance','ریسک پایین','ثبت‌شده'])
+   'Binance','ریسک پایین','رسید پرداخت مشتری'])
   assert.ok(admin.includes(phrase),phrase);
  assert.match(admin,/\$0\.51/);
  assert.match(admin,/\$100\.85/);
