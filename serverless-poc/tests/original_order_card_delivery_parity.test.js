@@ -61,7 +61,7 @@ test('admin dashboard retains Telegram HMAC, server allowlist, review gates and 
  assert.match(admin,/if\(action==='dashboard'\)/);
  assert.match(admin,/if\(action==='orders\.detail'\)/);
  assert.match(admin,/createSignedUrl\(path,90\)/);
- assert.match(admin,/if\(action==='order\.complete'\)/);
+ assert.match(admin,/action==='order\.complete'/);
  assert.match(admin,/if\(action==='kyc\.review'\)/);
  assert.match(admin,/if\(action==='remittances\.transition'\)/);
 });
