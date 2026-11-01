@@ -1,17 +1,28 @@
 // Pure original admin command parsing with no SDK/runtime secrets.
+// Preserve URLSearchParams's set/get/toString contract without relying on
+// browser URL globals absent from the Telegram Serverless V8 isolate.
+const queryParams=(initial)=>{
+ const values=Object.assign(Object.create(null),initial);
+ return {
+  set(key,value){ values[key]=String(value); },
+  get(key){ return Object.prototype.hasOwnProperty.call(values,key)?values[key]:null; },
+  toString(){ return Object.entries(values).map(([key,value])=>
+   encodeURIComponent(key)+'='+encodeURIComponent(value)).join('&'); },
+ };
+};
 const FLAGS=new Set(['stats','spreads','usdtpending','setspread','usdtconfirm','broadcast','post','publish']);
 const VALID_CODES=new Set(['usd','eur','gbp','pkr','irr','aed','inr','sar',
  'try','cny','aud','cad','chf','sek']);
 export function parseOriginalAdminCommand(input){
  const raw=String(input||'').trim();
  if(raw==='📢 نشر پست (فیسبوک/اینستاگرام)') {
-  return {name:'post',query:new URLSearchParams({action:'admin',admin:'post'})};
+  return {name:'post',query:queryParams({action:'admin',admin:'post'})};
  }
  const m=/^\/([a-z]+)(?:@[A-Za-z0-9_]+)?(?:\s+(.*))?$/i.exec(raw);
  if(!m)return null;
  const name=m[1].toLowerCase(),args=(m[2]||'').trim();
  if(!FLAGS.has(name))return null;
- const out={name,query:new URLSearchParams({action:'admin'})};
+ const out={name,query:queryParams({action:'admin'})};
  if(name==='stats')out.query.set('admin','stats');
  if(name==='spreads')out.query.set('admin','spreads');
  if(name==='usdtpending')out.query.set('admin','pending');
