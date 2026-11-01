@@ -1,0 +1,109 @@
+name: One-time original Saraf Railway TEXT parity restore — display only
+# Restore the original three-source currency, gold, silver, crypto, history
+# and about message formatting. Absolutely no money, admin rights or UI change.
+# This one-time push is triggered only by adding THIS workflow file to branch.
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-railway-text-parity-release.yml
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  restore-original-display-text-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: saraf-original-production
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Verify ORIGINAL Saraf identity and unmodified Serverless webhook
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${TGCLOUD_TOKEN:-}" == app8533795882:* ]] || exit 1
+          node --input-type=module <<'NODE'
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          if(!token)throw Error('Original Saraf bot token missing');
+          const base='https://api.telegram.org/bot'+token+'/';
+          const me=await(await fetch(base+'getMe')).json();
+          const hook=await(await fetch(base+'getWebhookInfo')).json();
+          if(!me.ok||me.result.username!=='sarafiaf_bot')throw Error('Wrong target bot');
+          if(!hook.ok||hook.result.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('Original bot webhook is not in Telegram Serverless, refuse write');
+          if(hook.result.allowed_updates?.length&&!hook.result.allowed_updates.includes('message'))
+            throw Error('Message updates disabled');
+          console.log('Verified original Saraf and unchanged Telegram Serverless webhook');
+          NODE
+      - name: Regression test entire original bot and original three-source text parity
+        run: |
+          node --test serverless-poc/tests/*.test.js
+          node --check serverless-poc/tgcloud/handlers/message.js
+          node --check serverless-poc/tgcloud/handlers/callback_query.js
+          node --check serverless-poc/tgcloud/lib/legacy_display.js
+          node --check serverless-poc/tgcloud/lib/legacy_about.js
+      - name: Build unchanged original Mini App solely for packaging module manifest
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Assemble original allowlisted release, with NO financial Telegram tables
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test -s serverless-poc/.release-original/dist/index.html
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeOrder.js
+      - name: Install pinned CLI
+        working-directory: serverless-poc/.release-original
+        run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      - name: READ ONLY — sync existing deployed original revision before tiny targeted patch
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+      - name: V8 smoke — /start still reaches Bot API without runtime error (invalid CI chat)
+        shell: bash
+        working-directory: serverless-poc/.release-original
+        run: |
+          set +e
+          output="$(npx --no-install tgcloud run handlers/message '{chat:{id:0,type:"private"},from:{id:0,first_name:"CI"},text:"/start"}' 2>&1)"
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          [[ "$status" -ne 0 ]] && grep -q 'Bad Request: chat not found' <<< "$output" &&
+            ! grep -q 'ReferenceError' <<< "$output"
+      - name: Publish ONLY original display formatters and their Telegram text handlers
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud push \
+            tgcloud/lib/legacy_display.js \
+            tgcloud/lib/legacy_about.js \
+            tgcloud/lib/legacy_live_rates.js \
+            tgcloud/lib/legacy_calc.js \
+            tgcloud/lib/legacy_compare.js \
+            tgcloud/handlers/message.js \
+            tgcloud/handlers/callback_query.js
+      - name: Verify original webhook and user message routing still unchanged
+        run: |
+          node --input-type=module <<'NODE'
+          const response=await fetch('https://api.telegram.org/bot'+process.env.SARAF_ORIGINAL_BOT_TOKEN+'/getWebhookInfo');
+          const data=await response.json();
+          if(!data.ok||data.result.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('Unexpected webhook change');
+          if(data.result.allowed_updates?.length&&!data.result.allowed_updates.includes('message'))
+            throw Error('Unexpected message routing change');
+          console.log('Original three-source Railway text parity deployed; webhook, Mini App, finance and Supabase unchanged.');
+          NODE
