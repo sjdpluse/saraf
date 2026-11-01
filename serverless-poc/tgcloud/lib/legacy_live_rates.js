@@ -37,17 +37,6 @@ export async function originalLiveQuotes(codes=VALID_CODES){
 }
 export const originalCurrencyUnit=code=>
   ['pkr','irr','inr'].includes(code)?1000:1;
-export function originalCurrencyText(code,quote){
- const unit=originalCurrencyUnit(code);
- const local=quote.local;
- const saraf=quote.saraf_quote;
- const fmt=(value)=>Number(value*unit).toLocaleString('en-US',{
-   minimumFractionDigits:2,maximumFractionDigits:2});
- const source=local?'بازار محلی کابل':'بازار جهانی';
- return '( '+unit+' ) '+code.toUpperCase()+'\n'+
-  '🏪 نرخ خرید صراف: '+fmt(saraf.buy)+' افغانی\n'+
-  '🏪 نرخ فروش صراف: '+fmt(saraf.sell)+' افغانی\n'+
-  'منبع نرخ: '+source+
-  (local?'\nسرای شهزاده: خرید '+fmt(local.buy)+
-   ' | فروش '+fmt(local.sell):'');
-}
+// Keep the historic export name for internal callers; source of truth is
+// the 1:1 original Railway-format presentation module.
+export {originalCurrencyText} from './legacy_display.js';
