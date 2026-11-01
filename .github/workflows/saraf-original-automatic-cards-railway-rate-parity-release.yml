@@ -6,12 +6,9 @@ name: ORIGINAL Saraf automatic post-submit cards + Railway local-rate parity —
 # Signed card/report Edge functions were already separately deployed to Supabase.
 # One-time production static deployment succeeded: GitHub Actions 41332770286.
 # One-time guarded UI-only production publish. Supabase money/backend untouched.
+# One-time static-only release succeeded: Actions 41335221585.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-original-automatic-cards-railway-rate-parity-release.yml
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
