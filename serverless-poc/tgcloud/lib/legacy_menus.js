@@ -5,10 +5,13 @@ import { CURRENCIES, VALID_CODES } from './currencies.js';
 const button=(text,callback_data)=>({text,callback_data});
 const MINI_APP_URL='https://app8533795882.tgcloud.ai/';
 export const originalMiniAppLink=(action=null,asset=null)=>{
-  const query=new URLSearchParams({v:'20260905-v3'});
-  if(['buy','sell','justmarkets'].includes(action))query.set('action',action);
-  if(['USDT','USDC'].includes(asset))query.set('asset',asset);
-  return MINI_APP_URL+'?'+query;
+  // Telegram Serverless runs a restricted V8 isolate without URLSearchParams.
+  // These are strict allowlisted literals, so joining them is safe and preserves
+  // exactly the same Mini App deep links as the original Telegram keyboard.
+  const query=['v=20260905-v3'];
+  if(['buy','sell','justmarkets'].includes(action))query.push('action='+action);
+  if(['USDT','USDC'].includes(asset))query.push('asset='+asset);
+  return MINI_APP_URL+'?'+query.join('&');
 };
 export const originalStablecoinMenu=()=>({
   inline_keyboard:[
