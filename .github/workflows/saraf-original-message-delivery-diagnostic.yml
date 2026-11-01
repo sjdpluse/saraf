@@ -1,0 +1,81 @@
+name: Diagnose original Saraf /start delivery (read-only)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-message-delivery-diagnostic.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  investigate-message-delivery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: READ ONLY — inspect original Bot API identity, webhook errors, pending updates, and allowed updates
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const token = process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          if (!token) throw new Error('Original Telegram Bot API secret missing');
+          const base = 'https://api.telegram.org/bot' + token + '/';
+          async function call(method) {
+            const res = await fetch(base + method);
+            const data = await res.json();
+            if (!res.ok || !data.ok) throw new Error(method + ' failed with HTTP ' + res.status);
+            return data.result;
+          }
+          const me = await call('getMe');
+          const hook = await call('getWebhookInfo');
+          const expected = 'https://cloud.telegram.org/app8533795882/webhook';
+          const allowed = hook.allowed_updates ?? null;
+          const result = {
+            bot_username: me.username,
+            webhook_is_original_serverless: hook.url === expected,
+            webhook_present: !!hook.url,
+            has_custom_certificate: !!hook.has_custom_certificate,
+            pending_update_count: hook.pending_update_count ?? null,
+            last_error_date: hook.last_error_date ?? null,
+            last_error_message: hook.last_error_message ?? null,
+            last_synchronization_error_date: hook.last_synchronization_error_date ?? null,
+            max_connections: hook.max_connections ?? null,
+            allowed_updates: allowed,
+          };
+          console.log('Original Saraf read-only Telegram Bot API status:', JSON.stringify(result,null,2));
+          if (me.username !== 'sarafiaf_bot') throw new Error('Wrong original bot');
+          if (hook.url !== expected) throw new Error('Original webhook does not target Telegram Serverless');
+          if (Array.isArray(allowed) && allowed.length && !allowed.includes('message'))
+            throw new Error('Webhook allowed_updates excludes message; /start cannot reach handlers/message.js');
+          if (hook.last_error_date) console.log('::warning::Bot API reports a recent webhook delivery error; check timestamp and message above.');
+          NODE
+      - name: Check original /start source and expected reply keyboard without changing bot
+        run: |
+          node --check serverless-poc/tgcloud/handlers/message.js
+          node --test serverless-poc/tests/original_market_menu_restore.test.js
+      - name: Build the same ORIGINAL Mini App release files (no deployment)
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Package exact original bot allowlist (no deployment)
+        run: node scripts/prepare_saraf_original_release.mjs
+      - name: Install pinned Telegram Serverless CLI in CI sandbox
+        working-directory: serverless-poc/.release-original
+        run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      - name: READ ONLY — fetch and compare original deployed Telegram Serverless handlers
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+      - name: No customer messages, webhook sync, database changes, or production publish
+        run: echo "Diagnostic only. Original Saraf production unchanged."
