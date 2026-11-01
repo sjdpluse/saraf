@@ -13,7 +13,7 @@ test('actual Railway USD pricing: buy uses raw Sarai Shahzada local SELL; sell u
  assert.equal(quote.saraf_quote.buy,64.805);
  const buyRate=quote.local.sell||quote.saraf_quote.sell;
  const sellRate=quote.saraf_quote.buy;
- assert.equal(originalBuyPricing('90',String(buyRate)).usd_rate,65.05);
+ assert.equal(originalBuyPricing('90',String(buyRate)).total_afn,5971.6);
  assert.equal(originalSellPricing('90',String(sellRate)).usd_rate,64.805);
  assert.notEqual(buyRate,71.4);
  assert.notEqual(sellRate,71.4);
