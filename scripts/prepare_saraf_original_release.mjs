@@ -20,6 +20,8 @@ const allowlist=Object.freeze([
   'lib/legacy_rate_engine.js',
   'lib/legacy_compare.js',
   'lib/legacy_live_rates.js',
+  'lib/legacy_display.js',
+  'lib/legacy_about.js',
   'lib/original_admin_entry.js',
   'lib/original_admin_parse.js',
   'lib/currencies.js',
