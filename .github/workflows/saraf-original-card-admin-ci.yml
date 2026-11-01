@@ -6,6 +6,9 @@ on:
     paths:
       - .github/workflows/saraf-original-card-admin-ci.yml
       - 'webapp/src/lib/originalOrderDelivery.js'
+      - 'webapp/src/lib/originalAutoOrderCard.js'
+      - 'webapp/src/App.jsx'
+      - 'serverless-poc/tests/original_automatic_card_and_local_usd_parity.test.js'
       - 'webapp/src/lib/originalOrderCardPng.js'
       - 'webapp/src/lib/api.js'
       - 'webapp/src/lib/originalFinanceBridge.js'
