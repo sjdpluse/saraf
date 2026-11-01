@@ -26,10 +26,10 @@ function isPng(bytes:Uint8Array){
  if(String.fromCharCode(...bytes.slice(12,16))!=='IHDR')return false;
  const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
  return view.getUint32(16)===1320&&view.getUint32(20)===900&&
-   bytes[bytes.length-8]===0&&bytes[bytes.length-7]===0&&
-   bytes[bytes.length-6]===0&&bytes[bytes.length-5]===0&&
-   bytes[bytes.length-4]===73&&bytes[bytes.length-3]===69&&
-   bytes[bytes.length-2]===78&&bytes[bytes.length-1]===68;
+   bytes[bytes.length-12]===0&&bytes[bytes.length-11]===0&&
+   bytes[bytes.length-10]===0&&bytes[bytes.length-9]===0&&
+   bytes[bytes.length-8]===73&&bytes[bytes.length-7]===69&&
+   bytes[bytes.length-6]===78&&bytes[bytes.length-5]===68;
 }
 const cash=(value:unknown,places=2)=>Number(value||0).toLocaleString('en-US',{
  minimumFractionDigits:places,maximumFractionDigits:places,
@@ -164,7 +164,7 @@ Deno.serve(async req=>{
    // If a previous request already uploaded, continue only with exact
    // deterministic order path; never replace a stored card.
    if(uploaded.error){
-    const existing=await bucket.info(path);
+    const existing=await bucket.download(path);
     if(existing.error)return json(origin,503,{error:'CARD_STORAGE_UNAVAILABLE'});
    }
    const updated=await db.from('usdt_orders')
