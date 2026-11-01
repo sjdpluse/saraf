@@ -61,6 +61,11 @@ test('admin dashboard retains Telegram HMAC, server allowlist, review gates and 
  assert.match(admin,/if\(action==='dashboard'\)/);
  assert.match(admin,/if\(action==='orders\.detail'\)/);
  assert.match(admin,/createSignedUrl\(path,90\)/);
+ assert.match(admin,/saraf_original_order_card_deliveries/);
+ assert.match(admin,/card_delivery:delivery.data\|\|\[\]/);
+ const adminUi=read('webapp/src/pages/OriginalAdmin.jsx');
+ assert.match(adminUi,/گزارش ارسال کارت دیجیتال مشتری و مدیر/);
+ assert.match(adminUi,/record.recipient==='customer'/);
  assert.match(admin,/action==='order\.complete'/);
  assert.match(admin,/if\(action==='kyc\.review'\)/);
  assert.match(admin,/if\(action==='remittances\.transition'\)/);
