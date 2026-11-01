@@ -212,7 +212,22 @@ export async function renderOriginalOrderCardPreview(source){
  text(ctx,short,1074,496,14,{ltr:true,align:'center',color:PAL.light});
  rect(ctx,924,536,300,118,26,PAL.cell,PAL.border);
  text(ctx,'کد سفارش',1202,566,16,{color:PAL.muted});
- text(ctx,'PREVIEW',1202,610,28,{ltr:true,bold:true});
+ const issuedCode=String(source?.order_code||'');
+ const realCode=new RegExp('^(USDT|USDC)-[0-9]{5,}
+ rect(ctx,924,676,300,128,26,PAL.cell,PAL.border);
+ text(ctx,'معاملات موفق',1202,702,16,{color:PAL.muted});
+ text(ctx,String(profile.successful_orders??0),1202,732,22,{bold:true});
+ text(ctx,'وضعیت ریسک',1202,756,16,{color:PAL.muted});
+ const riskMap={low:'پایین',medium:'متوسط',high:'بالا'};
+ const riskColors={low:PAL.green,medium:PAL.gold,high:PAL.red};
+ const riskLevel=String(order.risk_level||'');
+ text(ctx,riskMap[riskLevel]||'در انتظار بررسی',1202,785,20,
+  {color:riskColors[riskLevel]||PAL.muted,bold:true});
+ if(coin)try{ctx.drawImage(coin,1126,89,58,58)}catch{}
+ return await blob(canvas);
+}
+).test(issuedCode);
+ text(ctx,realCode?issuedCode:'PREVIEW',1202,610,realCode?23:28,{ltr:true,bold:true});
  rect(ctx,924,676,300,128,26,PAL.cell,PAL.border);
  text(ctx,'معاملات موفق',1202,702,16,{color:PAL.muted});
  text(ctx,String(profile.successful_orders??0),1202,732,22,{bold:true});
