@@ -29,3 +29,11 @@
 .saraf-admin-actions button{padding:12px;border-radius:12px}
 @media (min-width:720px){.saraf-admin-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.saraf-admin-detail-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:340px){.saraf-admin-kpis,.saraf-admin-detail-grid{grid-template-columns:1fr}}
+
+.saraf-admin-delivery-status{background:var(--card,#fff);border:1px solid #e8eef5;border-radius:16px;padding:14px;display:grid;gap:10px}
+.saraf-admin-delivery-status h3{font-size:15px;margin:0}
+.saraf-admin-delivery-status>p{font-size:12px;line-height:1.8;color:#64748b}
+.saraf-admin-delivery-row{display:grid;grid-template-columns:1fr auto;gap:4px;border-top:1px solid #eef1f5;padding:10px 0}
+.saraf-admin-delivery-row span{font-size:13px;color:#374151}
+.saraf-admin-delivery-row b{font-size:13px}
+.saraf-admin-delivery-row small{grid-column:1/-1;color:#64748b;font-size:11px}
