@@ -1,13 +1,10 @@
 name: One-time original Saraf Railway TEXT parity restore — display only
 # Restore the original three-source currency, gold, silver, crypto, history
 # and about message formatting. Absolutely no money, admin rights or UI change.
-# This one-time push is triggered only by adding THIS workflow file to branch.
+# One-time repair succeeded in GitHub Actions run 41326624867.
+# Future runs MUST be manual; never redeploy production bot on git pushes.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-original-railway-text-parity-release.yml
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
