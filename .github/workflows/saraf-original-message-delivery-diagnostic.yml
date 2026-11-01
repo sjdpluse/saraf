@@ -5,6 +5,15 @@ on:
       - migration/telegram-native-serverless-poc
     paths:
       - .github/workflows/saraf-original-message-delivery-diagnostic.yml
+      - serverless-poc/tgcloud/lib/legacy_display.js
+      - serverless-poc/tgcloud/lib/legacy_about.js
+      - serverless-poc/tgcloud/lib/legacy_live_rates.js
+      - serverless-poc/tgcloud/lib/legacy_calc.js
+      - serverless-poc/tgcloud/lib/legacy_compare.js
+      - serverless-poc/tgcloud/handlers/message.js
+      - serverless-poc/tgcloud/handlers/callback_query.js
+      - serverless-poc/tests/original_railway_text_parity.test.js
+      - scripts/prepare_saraf_original_release.mjs
   workflow_dispatch:
 permissions:
   contents: read
