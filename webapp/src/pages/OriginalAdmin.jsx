@@ -281,6 +281,23 @@ export default function OriginalAdmin({navigate}){
     </div>}
     {result.card_url&&<a className="saraf-admin-card-link" href={result.card_url} target="_blank"
       rel="noopener noreferrer" referrerPolicy="no-referrer">🪪 مشاهده کارت ثبت‌شده (لینک خصوصی ۹۰ ثانیه)</a>}
+    <div className="saraf-admin-delivery-status">
+      <h3>🪪 گزارش ارسال کارت دیجیتال مشتری و مدیر</h3>
+      {result.card_delivery?.length?result.card_delivery.map((record,index)=>{
+        const status={
+          sent:'✅ ارسال‌شده',failed:'❌ ناموفق',
+          uncertain:'⚠️ وضعیت نامشخص — بررسی دستی',
+          sending:'⏳ در حال ارسال یا نامشخص',
+        }[record.state]||'ثبت نشده';
+        return <div className="saraf-admin-delivery-row" key={index}>
+          <span>{record.recipient==='customer'?'👤 کارت مشتری':'🛡 کارت مدیر'}</span>
+          <b>{status}</b>
+          <small>تلاش: {cash(record.attempt_count)}
+           {record.sent_at?' | ارسال: '+new Date(record.sent_at).toLocaleString('fa-AF',{timeZone:'Asia/Kabul'}):''}</small>
+        </div>;
+      }):<p>برای این سفارش سابقهٔ ارسال کارت ثبت نشده است. سفارش‌های قدیمی Railway ممکن است سابقهٔ ارسال در جدول جدید نداشته باشند.</p>}
+      <p className="saraf-admin-fineprint">در وضعیت نامشخص، برای جلوگیری از ارسال تکراری ابتدا ارسال واقعی پیام در تلگرام بررسی شود.</p>
+    </div>
     {result.order?.status==='pending'&&<div className="saraf-admin-actions">
       <button disabled={busy} type="button" onClick={()=>confirmOrder(result.order.id)}>✅ تأیید سفارش</button>
       <button disabled={busy} type="button" onClick={()=>rejectOrder(result.order.id)}>❌ رد سفارش</button>
