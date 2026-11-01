@@ -2,13 +2,10 @@ name: Original Saraf order card + admin Mini App — one-time static-only releas
 # Publish only React dist/ after the independently signed card + admin Edge
 # functions have been deployed. NEVER change original Telegram bot handlers,
 # its webhook, finance functions, users, database, or Railway services.
-# This workflow triggers exactly once when first committed.
+# Original UI static-only release succeeded in Actions run 41329148923.
+# Future releases must be explicit; disable implicit production redeployment.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-original-order-cards-admin-ui-release.yml
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
