@@ -1,0 +1,42 @@
+name: Original Saraf NEW order card Edge live auth/flag smoke — READ ONLY
+# Never submit customer orders, upload card images, or send Telegram messages.
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-card-edge-live-smoke.yml
+permissions:
+  contents: read
+jobs:
+  verify-deployed-restricted-edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify ORIGINAL signed card endpoint is enabled, deployed, and denies fake identity
+        run: |
+          node --input-type=module <<'NODE'
+          const endpoint='https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1/saraf-original-order-card';
+          const origin='https://app8533795882.tgcloud.ai';
+          const opt=await fetch(endpoint,{
+            method:'OPTIONS',headers:{Origin:origin,
+             'Access-Control-Request-Method':'POST',
+             'Access-Control-Request-Headers':'X-Telegram-Init-Data'},
+          });
+          if(opt.status!==204||opt.headers.get('access-control-allow-origin')!==origin)
+            throw Error('ORIGINAL_CARD_CORS_NOT_CONFIGURED: '+opt.status);
+          const form=new FormData();
+          form.append('order_id','0');
+          const unauth=await fetch(endpoint,{
+            method:'POST',headers:{Origin:origin,'X-Telegram-Init-Data':'invalid'},
+            body:form,
+          });
+          const result=await unauth.json().catch(()=>null);
+          if(unauth.status!==401||result?.error!=='INVALID_TELEGRAM_AUTH')
+            throw Error('CARD_EDGE_NOT_READY_OR_AUTH_GUARD_FAILED HTTP '+unauth.status+' code '+String(result?.error));
+          console.log('Live original card Edge is enabled, correct CORS and rejects invalid signed users (HTTP 401). No money, card, DB or messages touched.');
+          NODE
