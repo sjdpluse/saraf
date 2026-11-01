@@ -8,8 +8,9 @@ test('original customer bot confirmations are after canonical commit, without pr
  assert.match(source,/await Promise\.allSettled\(\[\s*notifyAdmin\('💸 حوالهٔ جدید/);
  assert.match(source,/notifyCustomer\(user\.id,'✅ درخواست حواله/);
  assert.match(source,/if\(!item\?\.duplicate\)\{/);
- assert.match(source,/notifyCustomer\(user\.id,'✅ درخواست '/);
- assert.match(source,/این پیام تأیید پرداخت نیست/);
+ assert.match(source,/notifyCustomer\(user\.id,customer\)/);
+ assert.match(source,/db\.from\('usdt_orders'\)\.select\(/);
+ assert.match(source,/ثبت سفارش تأیید پرداخت نیست/);
  assert.doesNotMatch(source,/notifyCustomer\(user\.id,[^\n]*pickup_code/);
  assert.match(source,/AbortSignal\.timeout\(6500\)/);
 });
