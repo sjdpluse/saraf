@@ -48,7 +48,8 @@ test('card sent only after successful original financial order, with issued code
   assert.match(page,/deliverOriginalOrderCard/);
   assert.match(page,/setCardDelivery\('sending'\)/);
   assert.match(page,/بدون ثبت سفارش جدید/);
-  assert.match(page,/requires_manual_review/);
+  assert.match(page,/dispatchOriginalOrderCard/);
+  assert.match(page,/rememberOriginalOrderCard/);
  }
  assert.match(api,/verifiedCardSnapshot/);
  assert.match(api,/originalFinanceCall\('card\.issued',\{order_id:Number\(order_id\)\}\)/);
