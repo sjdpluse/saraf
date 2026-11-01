@@ -61,7 +61,7 @@ jobs:
       - name: Check original /start source and expected reply keyboard without changing bot
         run: |
           node --check serverless-poc/tgcloud/handlers/message.js
-          node --test serverless-poc/tests/original_market_menu_restore.test.js
+          node --test serverless-poc/tests/*.test.js
       - name: Build the same ORIGINAL Mini App release files (no deployment)
         working-directory: webapp
         run: |
