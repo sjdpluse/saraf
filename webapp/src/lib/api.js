@@ -228,15 +228,17 @@ export const api = {
   // alters an order amount. The separate Edge checks the persisted row again.
   deliverOriginalOrderCard: async ({order_id,order_code,action,asset,amount}) => {
     if(!IS_TELEGRAM_NATIVE)return null;
-    const snapshot=verifiedCardSnapshot;
+    // Only signed server-provided committed order data may be placed on a
+    // delivered card. Unlike a transient preview, this survives app reload.
+    const issued=await originalFinanceCall('card.issued',{order_id:Number(order_id)});
     const code=String(order_code||'');
     const assetCode=normalizeAsset(asset);
-    if(!snapshot||snapshot.action!==action||snapshot.asset!==assetCode||
-       snapshot.amount!==Number(amount)||
-       !code.startsWith(assetCode+'-')||!/^(USDT|USDC)-[0-9]{5,}$/.test(code))
-      throw new ApiError('برای ارسال کارت، پیش‌نمایش تأییدشده را دوباره باز کنید.',409,'CARD_PREVIEW_MISMATCH');
-    const png=await renderOriginalOrderCardPreview({...snapshot.verified,
-      order_code:code});
+    if(code!==issued.order_code||
+       issued.order_preview?.order_type!==action||
+       issued.order_preview?.asset!==assetCode||
+       Number(issued.order_preview?.usdt_amount)!==Number(amount))
+      throw new ApiError('کارت ثبت‌شده با سفارش اصلی مطابقت ندارد.',409,'ISSUED_CARD_MISMATCH');
+    const png=await renderOriginalOrderCardPreview(issued);
     return await sendOriginalOrderCard(order_id,png);
   },
   getMyOrders: () => request("/usdt/orders/me"),
