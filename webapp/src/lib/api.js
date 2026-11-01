@@ -266,36 +266,3 @@ export const api = {
 };
 
 export { ApiError, newIdempotencyKey };
-).test(String(order_code)))
-      throw new ApiError('برای ارسال کارت، پیش‌نمایش تأییدشده را دوباره باز کنید.',409,'CARD_PREVIEW_MISMATCH');
-    const png=await renderOriginalOrderCardPreview({...snapshot.verified,
-      order_code:String(order_code)});
-    return await sendOriginalOrderCard(order_id,png);
-  },
-  getMyOrders: () => request("/usdt/orders/me"),
-  getStats: () => request("/usdt/stats"),
-  getReviews: (limit = 20, offset = 0) => request(`/reviews?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`),
-  createReview: (body) => request("/reviews", { method: "POST", body: { body } }),
-  replyToReview: (reviewId, body) => request(`/reviews/${reviewId}/reply`, { method: "POST", body: { body } }),
-  voteReview: (reviewId, vote) => request(`/reviews/${reviewId}/vote`, { method: "POST", body: { vote } }),
-  getPaymentInfo: () => request("/usdt/payment-info"),
-  rateOrder: (orderId, rating, comment) => request(`/usdt/orders/${orderId}/rate`, { method: "POST", body: { rating, comment } }),
-  uploadReceipt: (file) => {
-    const form = new FormData();
-    form.append("file", file);
-    return request("/usdt/upload-receipt", { method: "POST", body: form, isForm: true });
-  },
-
-  getRemittanceConfig: () => request("/remittances/config"),
-  getRemittanceQuote: (payload) => request("/remittances/quote", { method: "POST", body: payload }),
-  uploadRemittanceBeneficiaryId: (file) => {
-    const form = new FormData();
-    form.append("file", file);
-    return request("/remittances/upload-beneficiary-id", { method: "POST", body: form, isForm: true });
-  },
-  createRemittance: (payload) => request("/remittances", { method: "POST", body: payload, headers: { "Idempotency-Key": remittanceRetryKey(payload) } }),
-  submitRemittanceTx: (orderId, txHash) => request(`/remittances/${orderId}/tx`, { method: "POST", body: { tx_hash: txHash } }),
-  getMyRemittances: () => request("/remittances/me"),
-};
-
-export { ApiError, newIdempotencyKey };
