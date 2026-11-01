@@ -50,6 +50,25 @@ function OrderDetail({ order, onBack, onRated, showError }) {
   const asset = orderAsset(order);
   const logo = assetLogo(asset);
   const code = orderCode(order);
+  const [cardBusy,setCardBusy]=useState(false);
+  const [cardStatus,setCardStatus]=useState('');
+  const canRecoverCard=['pending','confirmed','completed'].includes(order.status)&&
+   Date.now()-new Date(order.created_at).getTime()<7*86400000;
+  async function recoverCard(){
+   setCardBusy(true);setCardStatus('در حال تهیه کارت اصلی سفارش و ارسال به تلگرام…');
+   try{
+    const response=await api.deliverOriginalOrderCard({
+     order_id:order.id,order_code:code,action:order.order_type,
+     asset,amount:Number(order.usdt_amount),
+    });
+    setCardStatus(response?.customer==='sent'&&
+      response?.admins?.every(x=>x.state==='sent')
+       ?'✅ کارت دیجیتال سفارش به مشتری و مدیر ارسال شده است.'
+       :'⚠️ وضعیت ارسال کامل نیست. در بخش مدیریت وضعیت هر گیرنده را بررسی کنید.');
+   }catch(err){
+    setCardStatus('❌ ارسال کارت انجام نشد: '+(err?.code||err?.message||'خطای ارتباطی'));
+   }finally{setCardBusy(false);}
+  }
 
   async function submitRating(stars) {
     setRating(stars);
@@ -85,6 +104,16 @@ function OrderDetail({ order, onBack, onRated, showError }) {
           {order.network && <div className="row"><span className="label">شبکه</span><span className="value">{order.network}</span></div>}
         </div>
       </div>
+
+      {canRecoverCard&&<div className="card animate-in" style={{marginTop:12}}>
+        <div className="section-title">🪪 کارت دیجیتال سفارش</div>
+        <p>کارت معتبر همان سفارش ثبت‌شده را بدون ثبت سفارش یا پرداخت دوباره به تلگرام ارسال کنید.</p>
+        <button type="button" className="btn btn-secondary"
+          disabled={cardBusy} onClick={recoverCard}>
+          {cardBusy?'در حال بررسی…':'📨 دریافت / ارسال دوباره کارت سفارش'}
+        </button>
+        {cardStatus&&<p className="notice" role="status" style={{marginTop:10}}>{cardStatus}</p>}
+      </div>}
 
       {canTrackOrder(order) && (
         <div className="card animate-in order-tracking-card" style={{ animationDelay: "0.03s" }}>
