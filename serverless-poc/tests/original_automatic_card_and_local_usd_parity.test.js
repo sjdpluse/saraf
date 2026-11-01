@@ -1,6 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {selectOriginalBasis} from '../../supabase/functions/saraf-original-transactions/rates.mjs';
+import {originalBuyPricing,originalSellPricing} from '../../supabase/functions/saraf-original-transactions/pricing.mjs';
+
+test('actual Railway USD pricing: buy uses raw Sarai Shahzada local SELL; sell uses Saraf BUY spread around local midpoint',()=>{
+ const quote=selectOriginalBasis('usd',{usd:71.4},
+  {sarai_shahzada:{usd:{buy:64.95,sell:65.05}}},{usd:0.6});
+ assert.equal(quote.local.sell,65.05);
+ assert.equal(quote.saraf_quote.basis,'local');
+ // Local midpoint is 65; 0.6% spread means buy is 64.805.
+ assert.equal(quote.saraf_quote.buy,64.805);
+ const buyRate=quote.local.sell||quote.saraf_quote.sell;
+ const sellRate=quote.saraf_quote.buy;
+ assert.equal(originalBuyPricing('90',String(buyRate)).usd_rate,65.05);
+ assert.equal(originalSellPricing('90',String(sellRate)).usd_rate,64.805);
+ assert.notEqual(buyRate,71.4);
+ assert.notEqual(sellRate,71.4);
+});
+
 const state=new Map();
 globalThis.window={localStorage:{
  getItem:key=>state.get(key)||null,
