@@ -11,7 +11,7 @@ const TOKEN=Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN')||'';
 const ADMIN_TOKEN=Deno.env.get('SARAF_ADMIN_BOT_TOKEN')||'';
 const ADMINS=(Deno.env.get('SARAF_ADMIN_CHAT_IDS')||'').split(',')
  .map(v=>v.trim()).filter(v=>/^[1-9][0-9]{0,15}$/.test(v));
-const ENABLED=Deno.env.get('SARAF_ORIGINAL_TRANSACTIONS_ENABLED')==='true';
+const ENABLED=Deno.env.get('SARAF_ORIGINAL_FINANCIAL_API_ENABLED')==='true';
 const MAX_BYTES=5*1024*1024;
 const json=(origin:string,status:number,body:unknown)=>new Response(JSON.stringify(body),{
  status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',
