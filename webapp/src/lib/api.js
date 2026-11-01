@@ -229,9 +229,17 @@ export const api = {
   deliverOriginalOrderCard: async ({order_id,order_code,action,asset,amount}) => {
     if(!IS_TELEGRAM_NATIVE)return null;
     const snapshot=verifiedCardSnapshot;
-    if(!snapshot||snapshot.action!==action||snapshot.asset!==normalizeAsset(asset)||
+    const code=String(order_code||'');
+    const assetCode=normalizeAsset(asset);
+    if(!snapshot||snapshot.action!==action||snapshot.asset!==assetCode||
        snapshot.amount!==Number(amount)||
-       !new RegExp('^'+normalizeAsset(asset)+'-[0-9]{5,}
+       !code.startsWith(assetCode+'-')||!/^(USDT|USDC)-[0-9]{5,}$/.test(code))
+      throw new ApiError('برای ارسال کارت، پیش‌نمایش تأییدشده را دوباره باز کنید.',409,'CARD_PREVIEW_MISMATCH');
+    const png=await renderOriginalOrderCardPreview({...snapshot.verified,
+      order_code:code});
+    return await sendOriginalOrderCard(order_id,png);
+  },
+  getMyOrders: () => request("/usdt/orders/me"),
   getStats: () => request("/usdt/stats"),
   getReviews: (limit = 20, offset = 0) => request(`/reviews?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`),
   createReview: (body) => request("/reviews", { method: "POST", body: { body } }),
