@@ -79,6 +79,26 @@ export default function Sell({ asset = "USDT", onSelectAsset, navigate, showErro
   const [cardPreviewUrl, setCardPreviewUrl] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [orderCode, setOrderCode] = useState(null);
+  const [orderId,setOrderId]=useState(null);
+  const [cardDelivery,setCardDelivery]=useState('idle');
+  async function deliverCard(id,code){
+    setCardDelivery('sending');
+    try{
+      const delivered=await api.deliverOriginalOrderCard({
+        order_id:id,order_code:code,action:'sell',
+        asset:selectedAsset,amount:parseFloat(amount),
+      });
+      const successful=delivered?.customer==='sent'&&
+        delivered?.admins?.every(a=>a.state==='sent');
+      setCardDelivery(successful?'sent':
+        delivered?.requires_manual_review?'uncertain':'failed');
+    }catch{
+      // An order is already committed; a notification error must NEVER
+      // re-submit it or hide the successful financial order.
+      setCardDelivery('failed');
+    }
+  }
+
 
   const step = STEPS[stepIdx];
   const networks = stablecoinConfig?.[selectedAsset]?.sell_networks || [];
@@ -273,9 +293,15 @@ export default function Sell({ asset = "USDT", onSelectAsset, navigate, showErro
         in_person_code: receiveMethod === "in_person" ? inPersonCode : null,
       });
       clearPreview();
+      setOrderId(res.order_id);
       setOrderCode(res.order_code);
       setStepIdx(9);
       hapticSuccess();
+      // Send the committed order's signed customer card and independent
+      // canonical-data captions to the customer and authorized admins.
+      // No retry of the financial RPC. The delivery service deduplicates
+      // per order and recipient, including uncertain Telegram responses.
+      void deliverCard(res.order_id,res.order_code);
     } catch (err) {
       hapticError();
       if (err instanceof ApiError && err.code === "IDENTITY_VERIFICATION_REQUIRED") {
@@ -384,7 +410,16 @@ export default function Sell({ asset = "USDT", onSelectAsset, navigate, showErro
       )}
 
       {step === "done" && (
-        <div className="card success-screen animate-in"><div className="success-icon"><CheckCircle size={36} weight="fill" /></div><div style={{ fontWeight: 700, fontSize: 16 }}>سفارش فروش {selectedAsset} ثبت شد</div><div className="code num">{orderCode}</div><div className="notice" style={{ textAlign: "right" }}>پس از تأیید تراکنش {selectedAsset} توسط تیم ما، مبلغ ظرف کمتر از ۱ ساعت پرداخت خواهد شد.<br />پشتیبانی: @SJDPLUS</div><button className="btn btn-secondary" onClick={() => navigate("orders")}><ClipboardText size={17} /> مشاهدهٔ سفارش‌های من</button><button className="btn btn-outline" onClick={() => navigate("home")}><House size={17} /> بازگشت به منوی اصلی</button></div>
+        <div className="card success-screen animate-in"><div className="success-icon"><CheckCircle size={36} weight="fill" /></div><div style={{ fontWeight: 700, fontSize: 16 }}>سفارش فروش {selectedAsset} ثبت شد</div><div className="code num">{orderCode}</div>
+        <div className="notice" role="status" style={{textAlign:"right",marginTop:10}}>
+          {cardDelivery==='sending'?'🪪 در حال ارسال گزارش و کارت به تلگرام مشتری و مدیر…':
+           cardDelivery==='sent'?'✅ گزارش و کارت دیجیتال به تلگرام مشتری و مدیر ارسال شد.':
+           cardDelivery==='uncertain'?'⚠️ وضعیت ارسال برخی کارت‌ها نامشخص است؛ برای جلوگیری از پیام تکراری با پشتیبانی بررسی کنید.':
+           cardDelivery==='failed'?'⚠️ سفارش ثبت شد، ولی ارسال کارت به تلگرام کامل نشد.':'🪪 کارت سفارش پس از ثبت به تلگرام ارسال می‌شود.'}
+          {cardDelivery==='failed'&&orderId&&
+            <button className="btn btn-outline" type="button" style={{marginTop:10}}
+             onClick={()=>deliverCard(orderId,orderCode)}>🔄 تلاش دوباره برای ارسال کارت (بدون ثبت سفارش جدید)</button>}
+        </div><div className="notice" style={{ textAlign: "right" }}>پس از تأیید تراکنش {selectedAsset} توسط تیم ما، مبلغ ظرف کمتر از ۱ ساعت پرداخت خواهد شد.<br />پشتیبانی: @SJDPLUS</div><button className="btn btn-secondary" onClick={() => navigate("orders")}><ClipboardText size={17} /> مشاهدهٔ سفارش‌های من</button><button className="btn btn-outline" onClick={() => navigate("home")}><House size={17} /> بازگشت به منوی اصلی</button></div>
       )}
     </div>
   );
