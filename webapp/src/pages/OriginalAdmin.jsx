@@ -188,7 +188,7 @@ export default function OriginalAdmin({navigate}){
    <button disabled={busy} onClick={()=>{setSection('remittances.pending');load('remittances.pending');}}>💸 حواله‌های در جریان</button>
    <button disabled={busy} onClick={()=>{setSection('kyc.pending');load('kyc.pending');}}>🪪 احراز هویت</button>
    <button disabled={busy} onClick={()=>setSection('post')}>📢 نشر پست فیسبوک/اینستاگرام</button>
-  </div>
+  </nav>
   {section==='post'&&<section className="notice">
    <h2>📢 نشر پست اصلی صراف در فیسبوک و اینستاگرام</h2>
    <p>همان تصویر و کپشن نرخ لحظه‌یی نسخهٔ اصلی. نشر تنها پس از تأیید مدیر و آماده‌بودن اتصال Meta انجام می‌شود؛ تغییر در پرداخت مشتریان ندارد.</p>
