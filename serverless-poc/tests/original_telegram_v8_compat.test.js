@@ -10,6 +10,7 @@ test('Telegram Serverless V8 has no URLSearchParams/URL constructor: all release
   'handlers/message.js','handlers/callback_query.js',
   'lib/legacy_menus.js','lib/legacy_calc.js','lib/legacy_calculators.js',
   'lib/legacy_rate_engine.js','lib/legacy_compare.js','lib/legacy_live_rates.js',
+  'lib/legacy_display.js','lib/legacy_about.js',
   'lib/original_admin_entry.js','lib/original_admin_parse.js',
   'lib/currencies.js','lib/reference_rates.js','lib/metals.js',
   'lib/cryptos.js','lib/local_market_parser.js','lib/local_market_service.js',
