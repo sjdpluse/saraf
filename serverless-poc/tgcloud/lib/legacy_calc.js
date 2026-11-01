@@ -6,6 +6,7 @@ import { getMetalPrice, metalBreakdown } from './metals.js';
 import { originalLiveQuotes } from './legacy_live_rates.js';
 import { originalCurrencyCalculation, originalMetalCalculation } from './legacy_calculators.js';
 import { hasValidCurrency, validKarat, codeLabel } from './legacy_menus.js';
+import {DIVIDER,conversionText} from './legacy_display.js';
 const money=(v,d=2)=>Number(v).toLocaleString('en-US',
  {minimumFractionDigits:d,maximumFractionDigits:d});
 
@@ -35,8 +36,7 @@ export async function handleOriginalCalcReply(message) {
      throw Error('ارز معتبر نیست.');
    const {rates}=await getReferenceRates();
    const {result:converted,unit}=convertUsingAfnRates(rates,from,to,amount);
-   result='🔄 نتیجهٔ تبدیل\n'+money(amount)+' '+codeLabel(from)+' = '+
-    money(converted,4)+' '+codeLabel(to)+'\nنرخ واحد: '+money(unit,6);
+   result=conversionText(from,to,amount,converted,unit);
   } else if(kind==='currency') {
    if(args.length!==1||!hasValidCurrency(args[0]))throw Error('ارز نامعتبر است.');
    // Original handlers/currency.py uses local Sarai Shahzada bid/ask,
@@ -45,13 +45,14 @@ export async function handleOriginalCalcReply(message) {
    const q=quotes[args[0]];
    if(!q)throw Error('نرخ ارز در دسترس نیست.');
    const calc=originalCurrencyCalculation(amount,q);
-   result='🧮 نتیجهٔ محاسبه — '+money(amount)+' '+codeLabel(args[0])+'\n';
+   result=codeLabel(args[0]).split(' ')[0]+' *نتیجهٔ محاسبه — '+money(amount)+
+    ' '+codeLabel(args[0]).split(' ').slice(1).join(' ')+'*\n';
    if(calc.local) {
-    result+='\n🏛 بر اساس نرخ '+calc.local_market_label+'\n'+
+    result+='\n🏛 *بر اساس نرخ '+calc.local_market_label+'*\n'+
      'اگر بفروشید: '+money(calc.local.sell_afn,1)+' افغانی\n'+
-     'اگر بخرید: '+money(calc.local.buy_afn,1)+' افغانی\n';
+     'اگر بخرید: '+money(calc.local.buy_afn,1)+' افغانی\n'+DIVIDER+'\n';
    }
-   result+='\n💱 بر اساس نرخ صرافی‌های محلی\n'+
+   result+='\n💱 *بر اساس نرخ صرافی‌های محلی*\n'+
     'اگر بفروشید: '+money(calc.saraf.sell_afn,1)+' افغانی\n'+
     'اگر بخرید: '+money(calc.saraf.buy_afn,1)+' افغانی';
   } else {
@@ -63,16 +64,16 @@ export async function handleOriginalCalcReply(message) {
    const [r,m]=await Promise.all([getReferenceRates(),getMetalPrice(symbol)]);
    const rows=metalBreakdown(symbol,m.price,r.rates.usd);
    const x=originalMetalCalculation(symbol,rows,karat,amount,mode);
-   result='🧮 نتیجهٔ محاسبهٔ '+(mode==='buy'?'خرید':'فروش')+
-    (symbol==='XAU'?' طلا':' نقره')+'\n'+
+   result='🧮 *نتیجهٔ محاسبهٔ '+(mode==='buy'?'خرید':'فروش')+
+    (symbol==='XAU'?' طلا':' نقره')+'*\n\n'+
     (symbol==='XAU'?'عیار: '+karat+' | ':'')+'مقدار: '+amount+' گرم\n'+
     'قیمت پایه: '+money(x.base_afn,symbol==='XAU'?0:1)+' افغانی ('+
     money(x.base_usd)+'$)\n'+x.adjustment_label+': '+
     money(x.adjustment_pct,1)+'٪\n\n💰 مبلغ نهایی: '+
-    money(x.final_afn,symbol==='XAU'?0:1)+' افغانی ('+
+    '*'+money(x.final_afn,symbol==='XAU'?0:1)+' افغانی* ('+
     money(x.final_usd)+'$)';
   }
-  await api.sendMessage({chat_id:chat,text:result});
+  await api.sendMessage({chat_id:chat,text:result,parse_mode:'Markdown'});
  }catch(error) {
   console.warn('Original calculator failed',String(error?.message||'unknown'));
   await api.sendMessage({chat_id:chat,text:'⚠️ محاسبه ناموفق بود؛ نرخ معتبر در دسترس نیست یا معلومات اشتباه است.'});
