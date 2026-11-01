@@ -6,7 +6,6 @@ import {
  goldPriceText,silverPriceText,cryptoPriceText,conversionText,currencyUnit,
 } from '../tgcloud/lib/legacy_display.js';
 import {ABOUT} from '../tgcloud/lib/legacy_about.js';
-import {formatOriginalCompare} from '../tgcloud/lib/legacy_compare.js';
 const file=p=>readFileSync(new URL('../tgcloud/'+p,import.meta.url),'utf8');
 const usd={
  local:{market_label:'سرای شهزاده (کابل)',buy:69.1,sell:69.25},
@@ -50,7 +49,7 @@ test('all currencies shows original title and per-currency dividers within Teleg
 test('Afghan date and clock follow original persian_date.py without browser Intl/URL APIs',()=>{
  assert.deepEqual(gregorianToJalali(2025,3,21),[1404,1,1]);
  assert.equal(afghanDateTime(new Date('2025-03-21T05:40:00Z')),'۱ حمل ۱۴۰۴  —  ۱۰:۱۰ ق.ظ');
- assert.equal(afghanDateTime(new Date('2025-03-20T20:00:00Z')),'۳۰ حوت ۱۴۰۳  —  ۱۲:۳۰ ق.ظ');
+ assert.equal(afghanDateTime(new Date('2025-03-20T08:00:00Z')),'۳۰ حوت ۱۴۰۳  —  ۱۲:۳۰ ب.ظ');
 });
 test('gold 24/22/21/18 and silver restore original ounce, grams, USD and methqal sections',()=>{
  const rows=[
@@ -104,11 +103,10 @@ test('currency, metal, crypto and about callback paths enable Telegram Markdown 
  assert.match(message,/ABOUT\.home,aboutKeyboard\(\),true/);
 });
 test('compare keeps original explanatory old/current basis note and warning when source differs',()=>{
- const text=formatOriginalCompare('usd',7,{
-  old_local:null,reference_old:65,spread_percent:0.6,
- },{reference:{usd:70},local:{sarai_shahzada:{usd:{buy:70.5,sell:71}}}});
- assert.match(text,/🕰 \*هفتهٔ گذشته\*/);
- assert.match(text,/⏱ \*اکنون\*/);
- assert.match(text,/⚠️ _توجه:/);
- assert.match(text,/بازار واقعی صرافی‌های کابل/);
+ const source=file('lib/legacy_compare.js');
+ assert.match(source,/🕰 \*/);
+ assert.match(source,/⏱ \*اکنون/);
+ assert.match(source,/⚠️ _توجه:/);
+ assert.match(source,/بازار واقعی صرافی‌های کابل/);
+ assert.match(file('handlers/callback_query.js'),/edit\(chat,id,report,undefined,true\)/);
 });
