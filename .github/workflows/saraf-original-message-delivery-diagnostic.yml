@@ -77,5 +77,14 @@ jobs:
         run: |
           npx --no-install tgcloud fetch
           npx --no-install tgcloud status
+      - name: Execute original handler inside tgcloud V8 with safe synthetic non-private update (no API calls)
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud run handlers/message '{chat:{id:0,type:"group"},from:{id:1},text:"/start"}'
+      - name: Diagnose /start SDK reply using invalid chat 0 (expected Bot API 400, never sends to a user)
+        working-directory: serverless-poc/.release-original
+        continue-on-error: true
+        run: |
+          npx --no-install tgcloud run handlers/message '{chat:{id:0,type:"private"},from:{id:0,first_name:"CI"},text:"/start"}'
       - name: No customer messages, webhook sync, database changes, or production publish
         run: echo "Diagnostic only. Original Saraf production unchanged."
