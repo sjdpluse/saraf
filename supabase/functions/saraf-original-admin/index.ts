@@ -247,9 +247,17 @@ Deno.serve(async(req:Request)=>{
      const signed=await db.storage.from('usdt-cards').createSignedUrl(path,90);
      if(!signed.error)card_url=signed.data?.signedUrl||null;
    }
-   // No original document/selfie paths, private KYC files or deposit secrets.
+   const delivery=await db.from('saraf_original_order_card_deliveries')
+     .select('recipient,state,attempt_count,sent_at,updated_at')
+     .eq('order_id',id).order('recipient',{ascending:true}).limit(30);
+   if(delivery.error)return answer(origin,503,{error:'CARD_DELIVERY_STATUS_UNAVAILABLE'});
+   // Only an original signed administrator may read per-order delivery results.
+   // Never reveal recipient IDs, external Telegram tokens, or private KYC paths.
    const {card_image_path:discard,...order}=r.data;
-   return answer(origin,200,{order,profile:profile.data||null,card_url});
+   return answer(origin,200,{
+     order,profile:profile.data||null,card_url,
+     card_delivery:delivery.data||[],
+   });
   }
   if(action==='stats'){
    const r=await db.from('users').select('chat_id',{count:'exact',head:true})
