@@ -4,12 +4,9 @@ name: Original Saraf admin card delivery audit — static-only update
 # its webhook, finance functions, users, database, or Railway services.
 # Extend the signed order detail screen with per-recipient Telegram card send audit.
 # Trigger only on creation of this one-time workflow.
+# Static-only original admin audit update succeeded in run 41329524372.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-original-admin-delivery-status-release.yml
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
