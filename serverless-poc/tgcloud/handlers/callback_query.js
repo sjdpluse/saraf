@@ -5,13 +5,16 @@ import { VALID_CODES, money } from '../lib/currencies.js';
 import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.js';
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
 import { getOriginalCompareReport } from '../lib/legacy_compare.js';
-import { originalLiveQuotes,originalCurrencyText } from '../lib/legacy_live_rates.js';
+import { originalLiveQuotes } from '../lib/legacy_live_rates.js';
+import {originalCurrencyText,allCurrencyText,goldPriceText,conversionText,afghanDateTime,converterIntro,currencyLabel} from '../lib/legacy_display.js';
+import {ABOUT} from '../lib/legacy_about.js';
 import { codeLabel,hasValidCurrency,validKarat,currencyList,currencyQuote,
   goldCalcMode,goldCalcKarat,comparePeriod,converterFrom,converterTo,
   converterAmounts,aboutKeyboard,originalStablecoinMenu } from '../lib/legacy_menus.js';
 const fmt=(n,d=2)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
-const edit=(chat,id,text,markup)=>api.editMessageText({
-  chat_id:chat,message_id:id,text,...(markup?{reply_markup:markup}:{})});
+const edit=(chat,id,text,markup,markdown=false)=>api.editMessageText({
+  chat_id:chat,message_id:id,text,...(markup?{reply_markup:markup}:{}),
+  ...(markdown?{parse_mode:'Markdown'}:{})});
 const prompt=(chat,tag,text)=>api.sendMessage({
   chat_id:chat,text:text+'\n['+tag+']',
   reply_markup:{force_reply:true,selective:true},
@@ -19,19 +22,8 @@ const prompt=(chat,tag,text)=>api.sendMessage({
 async function convert(chat,id,from,to,amount){
   const {rates}=await getReferenceRates();
   const {result,unit}=convertUsingAfnRates(rates,from,to,amount);
-  return edit(chat,id,'🔄 نتیجهٔ تبدیل\n\n'+fmt(amount)+' '+codeLabel(from)+
-    ' = '+fmt(result,4)+' '+codeLabel(to)+
-    '\nنرخ واحد: ۱ '+codeLabel(from)+' = '+fmt(unit,6)+' '+codeLabel(to));
+  return edit(chat,id,conversionText(from,to,amount,result,unit),undefined,true);
 }
-const ABOUT={
-  home:'🏦 صراف\nیک تجربهٔ مالی هوشمند، ساده و ساخته‌شده برای افغانستان.\n\nنرخ را ببین. محاسبه کن. با آگاهی تصمیم بگیر.',
-  markets:'📊 بازارها و نرخ‌ها\nارزهای خارجی، طلا، نقره و رمزارزها',
-  tools:'🧮 ابزارهای مالی صراف\nمبدل ارز، مقایسه با گذشته، ماشین‌حساب طلا و نقره',
-  usdt:'🪙 خدمات USDT / USDC\nنسخه اصلی Mini App در حال انتقال است.',
-  security:'🛡 امنیت و تایید هویت\nبررسی اسناد و سفارش‌ها طبق روال اصلی',
-  developer:'👨‍💻 سجاد محمدی — بنیان‌گذار و سازندهٔ صراف\nارتباط: @SJDPLUS',
-  disclaimer:'⚠️ شرایط استفاده\nنرخ‌های عمومی توصیهٔ سرمایه‌گذاری نیستند.\n© 2026 صراف',
-};
 export default async function(query){
   const chat=query?.message?.chat?.id,id=query?.message?.message_id;
   if(!Number.isSafeInteger(chat)||!Number.isSafeInteger(id)||
@@ -43,54 +35,56 @@ export default async function(query){
       if(a==='open_usdt')return api.sendMessage({chat_id:chat,
         text:'🪙 خرید و فروش USDT / USDC\nدارایی و نوع معامله را انتخاب کنید:',
         reply_markup:originalStablecoinMenu()});
-      if(ABOUT[a])return edit(chat,id,ABOUT[a],aboutKeyboard(a));
+      if(ABOUT[a])return edit(chat,id,ABOUT[a],aboutKeyboard(a),true);
     }
     if(type==='cur'||type==='ref'){
-      if(a==='list')return edit(chat,id,'کدام ارز مدنظر شماست؟',currencyList());
+      if(a==='list')return edit(chat,id,'کدام ارز مدنظر شماست؟ یا «نمایش همهٔ نرخ‌ها» را بزنید.',currencyList());
       const quotes=await originalLiveQuotes(a==='all'?VALID_CODES:[a]);
-      if(a==='all')return edit(chat,id,'💵 نرخ خرید و فروش ارزها\n\n'+
-        VALID_CODES.filter(c=>quotes[c]).map(c=>
-          codeLabel(c)+'\n'+originalCurrencyText(c,quotes[c])).join('\n\n'));
-      if(!hasValidCurrency(a)||!quotes[a])return;
-      return edit(chat,id,codeLabel(a)+'\n'+originalCurrencyText(a,quotes[a]),
-        currencyQuote(a));
+      if(a==='all')return edit(chat,id,allCurrencyText(quotes),undefined,true);
+      if(!hasValidCurrency(a))return;
+      if(!quotes[a])return edit(chat,id,'⚠️ در حال حاضر نرخ این ارز در دسترس نیست.');
+      return edit(chat,id,originalCurrencyText(a,quotes[a]),currencyQuote(a),true);
     }
     if(type==='curcalc'&&hasValidCurrency(a))
-      return prompt(chat,'currency:'+a,'مقدار ارز را وارد کنید؛ مثال 100');
+      return prompt(chat,'currency:'+a,currencyLabel(a).replace(/^[^ ]+ /,'')+
+        ' شما به افغانی چند می‌شود؟\n'+afghanDateTime()+
+        '\n\nلطفاً مقدار را فقط بصورت عدد بنویسید. مثلاً (100)');
     if(type==='gold'||type==='goldref'){
       if(a==='calc')return edit(chat,id,'می‌خواهید طلا بخرید یا بفروشید؟',goldCalcMode());
       if(a==='all'||validKarat(a)){
         const [{rates},m]=await Promise.all([getReferenceRates(),getMetalPrice('XAU')]);
-        const rows=metalBreakdown('XAU',m.price,rates.usd)
-          .filter(r=>a==='all'||r.karat===Number(a));
-        return edit(chat,id,'🥇 نرخ لحظه‌یی طلا\nقیمت جهانی هر اونس: $'+
-          fmt(m.price,2)+'\n'+rows.map(r=>'عیار '+r.karat+
-          ': هر گرم '+fmt(r.afnGram,1)+'، هر مثقال '+fmt(r.afnMethqal,1)+' افغانی').join('\n'));
+        const rows=metalBreakdown('XAU',m.price,rates.usd);
+        return edit(chat,id,goldPriceText(rows,m.price,a),undefined,true);
       }
     }
     if(type==='goldcalc_mode'&&['buy','sell'].includes(a))
-      return edit(chat,id,'عیار طلا را انتخاب کنید:',goldCalcKarat(a));
+      return edit(chat,id,'عیار طلای مورد نظر برای '+(a==='buy'?'خرید':'فروش')+
+        ' را انتخاب کنید:',goldCalcKarat(a));
     if(type==='goldcalc_karat'&&['buy','sell'].includes(a)&&validKarat(parts[2]))
-      return prompt(chat,'gold:'+a+':'+parts[2],'چند گرم طلا؟ مثال 4.6');
+      return prompt(chat,'gold:'+a+':'+parts[2],'چند گرم طلای عیار '+parts[2]+
+        ' می‌خواهید '+(a==='buy'?'خرید':'فروش')+
+        ' کنید؟ لطفاً فقط عدد را بنویسید (مثال: 10 یا 4.6)');
     if(type==='silvercalc_mode'&&['buy','sell'].includes(a))
-      return prompt(chat,'silver:'+a,'چند گرم نقره؟ مثال 4.6');
+      return prompt(chat,'silver:'+a,'چند گرم نقره می‌خواهید '+
+        (a==='buy'?'خرید':'فروش')+
+        ' کنید؟ لطفاً فقط عدد را بنویسید (مثال: 10 یا 4.6)');
     if(type==='convfrom'){
-      if(a==='back')return edit(chat,id,'🔄 ارز مبدأ را انتخاب کنید:',converterFrom());
+      if(a==='back')return edit(chat,id,converterIntro,converterFrom(),true);
       if(hasValidCurrency(a))return edit(chat,id,'ارز مبدأ: '+codeLabel(a)+
-        '\nارز مقصد را انتخاب کنید:',converterTo(a));
+        '\n\nحالا ارز مقصد را انتخاب کنید:',converterTo(a));
     }
     if(type==='convto'&&hasValidCurrency(a)&&hasValidCurrency(parts[2])&&a!==parts[2])
       return edit(chat,id,codeLabel(a)+' ➜ '+codeLabel(parts[2])+
-        '\nچه مقداری را تبدیل می‌کنید؟',converterAmounts(a,parts[2]));
+        '\n\nچه مقداری را می‌خواهید تبدیل کنید؟',converterAmounts(a,parts[2]));
     if(type==='convamt'&&hasValidCurrency(a)&&hasValidCurrency(parts[2])){
       if(parts[3]==='custom')return prompt(chat,'converter:'+a+':'+parts[2],
-        'مقدار موردنظر را عددی بنویسید؛ مثال 250');
+        'لطفاً مقدار مورد نظر را فقط به‌صورت عدد بنویسید (مثال: 250)');
       const num=Number(parts[3]);
       if(Number.isFinite(num)&&num>0&&num<=1e9)return convert(chat,id,a,parts[2],num);
     }
     if(type==='cmp_target'&&(a==='gold'||hasValidCurrency(a)))
       return edit(chat,id,(a==='gold'?'🥇 طلا (عیار ۲۴)':codeLabel(a))+
-        '\nبا چه زمانی مقایسه شود؟',comparePeriod(a));
+        '\n\nبا چه زمانی مقایسه شود؟',comparePeriod(a));
     if(type==='cmp_period'){
       const days=Number(parts[2]);
       if(![1,7,30,90].includes(days))return;
