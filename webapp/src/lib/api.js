@@ -8,6 +8,7 @@ import { uploadOriginalIdentity } from "./legacyKycBridge";
 import { uploadOriginalImage } from "./legacyUploads";
 import { originalFinanceCall } from './originalFinanceBridge';
 import { renderOriginalOrderCardPreview } from './originalOrderCardPng';
+import {sendOriginalOrderCard} from './originalOrderDelivery';
 
 function newIdempotencyKey() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -17,6 +18,9 @@ function newIdempotencyKey() {
 }
 
 const latestQuotes = new Map();
+// Only snapshots returned by the verified original finance Edge may be used
+// to render issued customer cards after the matching order is committed.
+let verifiedCardSnapshot=null;
 const orderRetryKeys = new Map();
 const remittanceRetryKeys = new Map();
 
@@ -118,8 +122,12 @@ async function requestBlob(path, body) {
     // Same signed quote, owner profile and network/wallet checks as original
     // Python endpoint; only the 1320x900 PNG rasterization occurs locally.
     try {
+      verifiedCardSnapshot=null;
       const verified=await originalFinanceCall('card.preview',body);
-      return await renderOriginalOrderCardPreview(verified);
+      const rendered=await renderOriginalOrderCardPreview(verified);
+      verifiedCardSnapshot={verified,action:body.action,asset:body.asset,
+       amount:Number(body.amount),quote_id:Number(body.quote_id)};
+      return rendered;
     } catch (error) {
       throw asOriginalApiError(error);
     }
@@ -216,6 +224,46 @@ export const api = {
     const providerLabel = onlineProviderLabel(payload.receive_method);
     const bankInfo = providerLabel ? `${providerLabel} — ${payload.bank_info || ""}`.trim() : payload.bank_info;
     return request("/usdt/orders/sell", { method: "POST", body: { ...payload, asset, receive_method: provider ? "online" : payload.receive_method, receive_provider: provider, bank_info: bankInfo, quote_id: q.quote_id }, headers: { "Idempotency-Key": retryKey("sell", asset, q.quote_id) } });
+  },
+  // This delivery is visual/reporting only; it never creates, approves or
+  // alters an order amount. The separate Edge checks the persisted row again.
+  deliverOriginalOrderCard: async ({order_id,order_code,action,asset,amount}) => {
+    if(!IS_TELEGRAM_NATIVE)return null;
+    const snapshot=verifiedCardSnapshot;
+    if(!snapshot||snapshot.action!==action||snapshot.asset!==normalizeAsset(asset)||
+       snapshot.amount!==Number(amount)||
+       !new RegExp('^'+normalizeAsset(asset)+'-[0-9]{5,}
+  getStats: () => request("/usdt/stats"),
+  getReviews: (limit = 20, offset = 0) => request(`/reviews?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`),
+  createReview: (body) => request("/reviews", { method: "POST", body: { body } }),
+  replyToReview: (reviewId, body) => request(`/reviews/${reviewId}/reply`, { method: "POST", body: { body } }),
+  voteReview: (reviewId, vote) => request(`/reviews/${reviewId}/vote`, { method: "POST", body: { vote } }),
+  getPaymentInfo: () => request("/usdt/payment-info"),
+  rateOrder: (orderId, rating, comment) => request(`/usdt/orders/${orderId}/rate`, { method: "POST", body: { rating, comment } }),
+  uploadReceipt: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/usdt/upload-receipt", { method: "POST", body: form, isForm: true });
+  },
+
+  getRemittanceConfig: () => request("/remittances/config"),
+  getRemittanceQuote: (payload) => request("/remittances/quote", { method: "POST", body: payload }),
+  uploadRemittanceBeneficiaryId: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/remittances/upload-beneficiary-id", { method: "POST", body: form, isForm: true });
+  },
+  createRemittance: (payload) => request("/remittances", { method: "POST", body: payload, headers: { "Idempotency-Key": remittanceRetryKey(payload) } }),
+  submitRemittanceTx: (orderId, txHash) => request(`/remittances/${orderId}/tx`, { method: "POST", body: { tx_hash: txHash } }),
+  getMyRemittances: () => request("/remittances/me"),
+};
+
+export { ApiError, newIdempotencyKey };
+).test(String(order_code)))
+      throw new ApiError('برای ارسال کارت، پیش‌نمایش تأییدشده را دوباره باز کنید.',409,'CARD_PREVIEW_MISMATCH');
+    const png=await renderOriginalOrderCardPreview({...snapshot.verified,
+      order_code:String(order_code)});
+    return await sendOriginalOrderCard(order_id,png);
   },
   getMyOrders: () => request("/usdt/orders/me"),
   getStats: () => request("/usdt/stats"),
