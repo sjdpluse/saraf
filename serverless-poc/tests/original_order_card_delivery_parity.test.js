@@ -43,7 +43,8 @@ test('idempotent delivery outbox prevents repeat photo sends after success or un
 });
 test('card sent only after successful original financial order, with issued code and retry without new order',()=>{
  for(const page of [buy,sell]){
-  assert.ok(page.indexOf('await api.create')<page.indexOf('void deliverCard('));
+  assert.ok(page.indexOf('await api.create')<page.indexOf('await deliverCard(res.order_id,res.order_code)'));
+  assert.match(page,/rememberOriginalOrderCard\(\{/);
   assert.match(page,/deliverOriginalOrderCard/);
   assert.match(page,/setCardDelivery\('sending'\)/);
   assert.match(page,/بدون ثبت سفارش جدید/);
