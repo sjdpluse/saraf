@@ -156,9 +156,19 @@ Deno.serve(async req=>{
   if(!order.data)return json(origin,404,{error:'ORDER_NOT_FOUND'});
   const row=order.data;
   if(!['pending','confirmed','completed'].includes(row.status)||
-     Date.now()-Date.parse(row.created_at)>48*3600*1000)
+     Date.now()-Date.parse(row.created_at)>7*86400000)
    return json(origin,409,{error:'ORDER_CARD_WINDOW_CLOSED'});
   const path='orders/'+id+'.png',bucket=db.storage.from('usdt-cards');
+  let existingPath=path;
+  if(row.card_image_path){
+   // Railway cards were stored at the original order-code path, not at the
+   // new deterministic Serverless path. Preserve that exact private image;
+   // NEVER overwrite it or create a substitute for an existing card.
+   existingPath=String(row.card_image_path);
+   if(existingPath.includes('..')||existingPath.startsWith('/')||
+      existingPath.length>240||!existingPath.toLowerCase().endsWith('.png'))
+     return json(origin,409,{error:'ORIGINAL_CARD_PATH_INVALID'});
+  }
   if(!row.card_image_path){
    const uploaded=await bucket.upload(path,data,{
     contentType:'image/png',upsert:false,cacheControl:'0',
@@ -173,12 +183,9 @@ Deno.serve(async req=>{
     .update({card_image_path:path}).eq('id',id).eq('chat_id',user.id)
     .is('card_image_path',null).select('id').maybeSingle();
    if(updated.error)return json(origin,503,{error:'CARD_LINK_UNAVAILABLE'});
-  }else if(row.card_image_path!==path){
-   // Legacy Railway card: do not overwrite an earlier persisted image.
-   return json(origin,409,{error:'ORIGINAL_CARD_ALREADY_EXISTS'});
   }
   // Always resend the STORED original image, not an uncommitted browser file.
-  const stored=await bucket.download(path);
+  const stored=await bucket.download(existingPath);
   if(stored.error||!stored.data)
    return json(origin,503,{error:'CARD_DOWNLOAD_UNAVAILABLE'});
   const png=stored.data;
