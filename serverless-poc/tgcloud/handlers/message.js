@@ -4,7 +4,9 @@ import { api } from 'sdk';
 import { CURRENCIES, VALID_CODES, label, money, currencyKeyboard, mainKeyboard } from '../lib/currencies.js';
 import { getReferenceRates, convertUsingAfnRates } from '../lib/reference_rates.js';
 import { getMetalPrice, metalBreakdown } from '../lib/metals.js';
-import { getCryptoPrices, cryptoLabel } from '../lib/cryptos.js';
+import { getCryptoPrices } from '../lib/cryptos.js';
+import {silverPriceText,cryptoPriceText,converterIntro,conversionText} from '../lib/legacy_display.js';
+import {ABOUT} from '../lib/legacy_about.js';
 import { getLocalMarketRates } from '../lib/local_market_service.js';
 import { currencyList,goldList,silverCalcMode,compareTarget,converterFrom,originalBotMenu,aboutKeyboard,originalStablecoinMenu,originalMiniAppLink } from '../lib/legacy_menus.js';
 import { handleOriginalCalcReply } from '../lib/legacy_calc.js';
@@ -14,7 +16,10 @@ const notificationsButton={inline_keyboard:[[{
   text:'🔔 مدیریت پیام‌های همگانی صراف',web_app:{url:NOTIFICATION_URL}
 }]]};
 
-const reply = (chatId, text, reply_markup) => api.sendMessage({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) });
+const reply = (chatId, text, reply_markup, markdown=false) => api.sendMessage({
+  chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}),
+  ...(markdown ? {parse_mode:'Markdown'} : {}),
+});
 const welcome=(name='دوست عزیز')=>
   'سلام '+String(name||'دوست عزیز')+' 👋\n\n'+
   'به صراف خوش آمدید.\n'+
@@ -72,19 +77,20 @@ async function onReadOnlyMessage(chatId, input) {
       const symbol = 'XAG';
       const [{ rates }, metal] = await Promise.all([getReferenceRates(), getMetalPrice(symbol)]);
       const rows = metalBreakdown(symbol, metal.price, rates.usd);
-      return reply(chatId, goldText(rows, '🥈 نرخ لحظه‌یی نقره (خالص)') +
-        '\n⚠️ صرفاً اطلاعات مرجع؛ نرخ قطعی معامله نیست.', silverCalcMode());
+      return reply(chatId,silverPriceText(rows,metal.price),silverCalcMode(),true);
     }
     case '🪙 نرخ رمزارزها':
     case '/crypto': {
-      const { prices, source } = await getCryptoPrices();
-      return reply(chatId, '🪙 نرخ رمزارزها (USD) — منبع: ' + source + '\n' +
-        Object.entries(prices).map(([symbol, price]) => `${cryptoLabel(symbol)} (${symbol.toUpperCase()}): $${price < 0.001 ? price.toFixed(8) : money(price, price < 1 ? 4 : 2)}`).join('\n'));
+      const [{prices,source},reference]=await Promise.all([
+        getCryptoPrices(),getReferenceRates().catch(()=>({rates:{}})),
+      ]);
+      return reply(chatId,cryptoPriceText(prices,reference.rates.usd,
+        {stale:source==='cache-stale'}),undefined,true);
     }
     case '🔄 مبدل ارز جهانی':
     case '/converter':
       return reply(chatId,
-      '🔄 مبدل ارز جهانی\n\nابتدا ارز مبدأ را انتخاب کنید:', converterFrom());
+      converterIntro,converterFrom(),true);
     case '📊 مقایسه با گذشته':
     case '/compare':
       return reply(chatId,
@@ -100,8 +106,7 @@ async function onReadOnlyMessage(chatId, input) {
         web_app:{url:originalMiniAppLink('justmarkets')}}]]});
     case 'ℹ️ درباره ربات':
     case '/about': return reply(chatId,
-      '🏦 صراف\n\nیک تجربهٔ مالی هوشمند، ساده و ساخته‌شده برای افغانستان\n\nنرخ را ببین. محاسبه کن. با آگاهی تصمیم بگیر.',
-      aboutKeyboard());
+      ABOUT.home,aboutKeyboard(),true);
     default: {
       const m = /^\/convert(?:@[a-zA-Z0-9_]+)?\s+([a-zA-Z]{3})\s+([a-zA-Z]{3})\s+(\d+(?:\.\d+)?)$/i.exec(input);
       if (!m) return reply(chatId,
@@ -111,7 +116,7 @@ async function onReadOnlyMessage(chatId, input) {
       const from = fromRaw.toLowerCase(), to = toRaw.toLowerCase(), amount = Number(amountRaw);
       const { rates } = await getReferenceRates();
       const { result, unit } = convertUsingAfnRates(rates, from, to, amount);
-      return reply(chatId, `🔄 ${money(amount)} ${from.toUpperCase()} = ${money(result, 4)} ${to.toUpperCase()}\nنرخ واحد: ${money(unit, 6)}\n⚠️ نرخ مرجع جهانی، نه نرخ معامله.`);
+      return reply(chatId,conversionText(from,to,amount,result,unit),undefined,true);
     }
   }
 }
