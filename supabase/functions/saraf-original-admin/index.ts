@@ -198,6 +198,59 @@ Deno.serve(async(req:Request)=>{
  try{
   // Lightweight signed role discovery; HMAC and server allowlist checked above.
   if(action==='access')return answer(origin,200,{is_admin:true});
+  if(action==='dashboard'){
+   // Read-only operational counts, behind the same verified Telegram HMAC
+   // and server-only administrator allowlist as all existing admin actions.
+   const [
+     active,pending,confirmed,completed,kyc,remittance,recentOrders,recentCount,
+   ]=await Promise.all([
+     db.from('users').select('chat_id',{count:'exact',head:true}).eq('is_active',true),
+     db.from('usdt_orders').select('id',{count:'exact',head:true}).eq('status','pending'),
+     db.from('usdt_orders').select('id',{count:'exact',head:true}).eq('status','confirmed'),
+     db.from('usdt_orders').select('id',{count:'exact',head:true}).eq('status','completed'),
+     db.from('user_profiles').select('chat_id',{count:'exact',head:true})
+       .eq('kyc_status','pending').not('id_document_path','is',null)
+       .not('selfie_path','is',null),
+     db.from('remittance_orders').select('id',{count:'exact',head:true})
+       .in('status',['transfer_submitted','on_hold','payout_ready']),
+     db.from('usdt_orders').select('id,asset,order_type,usdt_amount,total_afn,status,created_at,risk_level')
+       .order('created_at',{ascending:false}).limit(8),
+     db.from('usdt_orders').select('id',{count:'exact',head:true})
+       .gte('created_at',new Date(Date.now()-86400000).toISOString()),
+   ]);
+   const list=[active,pending,confirmed,completed,kyc,remittance,recentOrders,recentCount];
+   if(list.some(r=>r.error))return answer(origin,503,{error:'DASHBOARD_UNAVAILABLE'});
+   return answer(origin,200,{
+     active_users:active.count||0,pending_orders:pending.count||0,
+     confirmed_orders:confirmed.count||0,completed_orders:completed.count||0,
+     pending_kyc:kyc.count||0,pending_remittances:remittance.count||0,
+     new_orders_24h:recentCount.count||0,recent_orders:recentOrders.data||[],
+     generated_at:new Date().toISOString(),
+   });
+  }
+  if(action==='orders.detail'){
+   const id=Number(input.order_id);
+   if(!Number.isSafeInteger(id)||id<=0)
+     return answer(origin,400,{error:'INVALID_ORDER_ID'});
+   const r=await db.from('usdt_orders').select(
+     'id,chat_id,username,full_name,phone,order_type,asset,usdt_amount,usd_rate,total_afn,total_usd,fee_percent,status,created_at,confirmed_at,completed_at,cancelled_at,network,exchange_name,wallet_address,payment_method,receive_method,bank_info,in_person_code,risk_level,risk_reasons,card_image_path,pricing_model,market_margin_usd,supplier_profit_usd,saraf_profit_usd,customer_discount_usd,supplier_payout_usd,saraf_profit_afn,supplier_profit_afn,supplier_payout_afn'
+   ).eq('id',id).maybeSingle();
+   if(r.error)return answer(origin,503,{error:'ORDER_DETAIL_UNAVAILABLE'});
+   if(!r.data)return answer(origin,404,{error:'ORDER_NOT_FOUND'});
+   const profile=await db.from('user_profiles')
+     .select('first_name,last_name,phone,kyc_status,trust_score,successful_orders')
+     .eq('chat_id',r.data.chat_id).maybeSingle();
+   if(profile.error)return answer(origin,503,{error:'CUSTOMER_PROFILE_UNAVAILABLE'});
+   let card_url:null|string=null;
+   const path=String(r.data.card_image_path||'');
+   if(path&&path.length<240&&!path.includes('..')){
+     const signed=await db.storage.from('usdt-cards').createSignedUrl(path,90);
+     if(!signed.error)card_url=signed.data?.signedUrl||null;
+   }
+   // No original document/selfie paths, private KYC files or deposit secrets.
+   const {card_image_path:discard,...order}=r.data;
+   return answer(origin,200,{order,profile:profile.data||null,card_url});
+  }
   if(action==='stats'){
    const r=await db.from('users').select('chat_id',{count:'exact',head:true})
      .eq('is_active',true);
@@ -217,7 +270,7 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==='orders.pending'){
    const r=await db.from('usdt_orders')
-     .select('id,order_type,asset,usdt_amount,total_afn,status,created_at')
+     .select('id,order_type,asset,usdt_amount,total_afn,status,created_at,risk_level,network,exchange_name')
      .eq('status','pending').order('created_at',{ascending:true}).limit(20);
    if(r.error)throw r.error;
    return answer(origin,200,{orders:r.data||[]});
@@ -272,7 +325,7 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==='orders.confirmed'){
    const r=await db.from('usdt_orders').select(
-     'id,order_type,asset,usdt_amount,total_afn,status,created_at'
+     'id,order_type,asset,usdt_amount,total_afn,status,created_at,risk_level,network,exchange_name'
     ).eq('status','confirmed').order('created_at',{ascending:true}).limit(20);
    if(r.error)throw r.error;
    return answer(origin,200,{orders:r.data||[]});
