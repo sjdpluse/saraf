@@ -1,0 +1,112 @@
+name: One-time original Saraf /start V8 hotfix — menus only
+# One-time repair of an observed production runtime ReferenceError:
+# URLSearchParams is not defined in Telegram Serverless V8.
+# Never change original webhook, ledger, orders, KYC, frontend or Railway.
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-v8-start-hotfix.yml
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  repair-original-telegram-menu-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    environment: saraf-original-production
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Preflight original bot and unchanged Serverless webhook
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${TGCLOUD_TOKEN:-}" == app8533795882:* ]] || exit 1
+          node --input-type=module <<'NODE'
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          if(!token)throw Error('Original bot token missing');
+          const base='https://api.telegram.org/bot'+token+'/';
+          async function get(method){
+            const response=await fetch(base+method);
+            const json=await response.json();
+            if(!response.ok||!json.ok)throw Error('Telegram Bot API '+method+' failed');
+            return json.result;
+          }
+          const me=await get('getMe'), hook=await get('getWebhookInfo');
+          if(me.username!=='sarafiaf_bot')throw Error('Original bot mismatch');
+          if(hook.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('Original bot is not pointing to Telegram Serverless; refuse release');
+          if(Array.isArray(hook.allowed_updates)&&hook.allowed_updates.length&&
+            !hook.allowed_updates.includes('message'))throw Error('Message updates not enabled');
+          console.log('Original bot, webhook and message update routing validated; webhook will not be changed.');
+          NODE
+      - name: All existing original callback and V8 compatibility regressions
+        run: |
+          node --test serverless-poc/tests/*.test.js
+          node --check serverless-poc/tgcloud/handlers/message.js
+          node --check serverless-poc/tgcloud/lib/legacy_menus.js
+          node --check serverless-poc/tgcloud/lib/original_admin_parse.js
+          node --check serverless-poc/tgcloud/lib/cryptos.js
+      - name: Build unchanged original React bundle to package correct allowlisted modules
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Prepare original release without alternate Telegram financial database
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test -s serverless-poc/.release-original/dist/index.html
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+      - name: Install pinned Telegram Serverless CLI
+        working-directory: serverless-poc/.release-original
+        run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      - name: READ ONLY fetch deployed original revision before targeted repair
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+      - name: Prove /start reaches the SDK without URLSearchParams exception, using invalid chat ID zero
+        shell: bash
+        working-directory: serverless-poc/.release-original
+        run: |
+          set -uo pipefail
+          # This SDK probe is intentionally addressed to INVALID chat 0.
+          # A 400 "chat not found" proves execution reached api.sendMessage,
+          # while no real customer receives a test message.
+          output="$(npx --no-install tgcloud run handlers/message '{chat:{id:0,type:"private"},from:{id:0,first_name:"CI"},text:"/start"}' 2>&1)"
+          status=$?
+          printf '%s\n' "$output"
+          if [[ $status -eq 0 ]] || ! grep -qi 'Bad Request: chat not found' <<< "$output"; then
+            echo "::error::Original /start handler did not reach the expected Telegram Bot API response."
+            exit 1
+          fi
+          if grep -q 'ReferenceError' <<< "$output"; then exit 1; fi
+          echo "Original /start V8 runtime path validated up to Bot API. Safe invalid chat 0 used."
+      - name: ATOMIC TARGETED PUSH — only 3 fixed non-financial bot library modules
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud push tgcloud/lib/legacy_menus.js tgcloud/lib/original_admin_parse.js tgcloud/lib/cryptos.js
+      - name: Verify original Telegram webhook and allowed message routing still unchanged
+        run: |
+          node --input-type=module <<'NODE'
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          const data=await(await fetch('https://api.telegram.org/bot'+token+'/getWebhookInfo')).json();
+          if(!data.ok||data.result.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('Original webhook unexpectedly changed');
+          const list=data.result.allowed_updates??[];
+          if(list.length&&!list.includes('message'))throw Error('Original /start update now excluded');
+          console.log('Original /start V8-only hotfix published. Original Serverless webhook unchanged; no money or Mini App changes.');
+          NODE
