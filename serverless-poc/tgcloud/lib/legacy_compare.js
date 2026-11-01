@@ -33,37 +33,41 @@ export function formatOriginalCompare(target,days,historical,current){
   const old=Number(historical?.reference_old);
   const now=Number(current?.gold);
   if(!(now>0))throw Error('GOLD_RATE_NOT_AVAILABLE');
-  if(!(old>0))return '📊 🥇 طلا (عیار ۲۴)\n\nنرخ فعلی: '+
-   fmt(now,1)+' افغانی به ازای هر گرم\n\n'+
-   'هنوز دادهٔ تاریخی کافی برای این بازهٔ زمانی ذخیره نشده است.';
+  if(!(old>0))return '📊 *🥇 طلا (عیار ۲۴)*\n\nنرخ فعلی: *'+
+   fmt(now,1)+' افغانی* به ازای هر گرم\n\n'+
+   'هنوز دادهٔ تاریخی کافی برای این بازهٔ زمانی ذخیره نشده است. لطفاً کمی بعد دوباره امتحان کنید.';
   const change=(now-old)/old*100;
-  return '📊 🥇 طلا (عیار ۲۴) — مقایسه با '+period+
-   '\n\n🕰 '+period+': '+fmt(old,1)+' افغانی (هر گرم)'+
-   '\n⏱ اکنون: '+fmt(now,1)+' افغانی'+
-   '\nتغییر: '+(change>0?'🔺':change<0?'🔻':'⏸️')+
-   ' '+(change>=0?'+':'')+fmt(change,2)+'٪';
+  const arrow=change>0?'🔺':change<0?'🔻':'⏸️';
+  return '📊 *🥇 طلا (عیار ۲۴)* — مقایسه با '+period+
+   '\n\n🕰 *'+period+'*: '+fmt(old,1)+' افغانی (هر گرم)'+
+   '\n⏱ *اکنون*: *'+fmt(now,1)+' افغانی* (هر گرم)\n\nتغییر: '+
+   arrow+' *'+(change>=0?'+':'')+fmt(change,2)+'%*';
  }
  const saved=historical?.spread_percent==null?{}:
   {[target]:Number(historical.spread_percent)};
  const quote=selectOriginalBasis(target,current.reference,current.local||{},saved);
  const old=historicalOriginalBasis(historical?.old_local,historical?.reference_old);
  const name=codeLabel(target);
- if(!(old.rate>0))return '📊 '+name+'\n\nخرید فعلی: '+
-  fmt(quote.saraf_quote.buy)+' | فروش فعلی: '+
-  fmt(quote.saraf_quote.sell)+' افغانی\n\n'+
-  'هنوز دادهٔ تاریخی کافی برای این بازهٔ زمانی ذخیره نشده است.';
+ const basis=BASIS[quote.saraf_quote.basis]||quote.saraf_quote.basis;
+ if(!(old.rate>0))return '📊 *'+name+'*\n\nخرید فعلی: *'+
+  fmt(quote.saraf_quote.buy)+'* | فروش فعلی: *'+
+  fmt(quote.saraf_quote.sell)+'* افغانی\n_(بر اساس '+basis+')_\n\n'+
+  'هنوز دادهٔ تاریخی کافی برای این بازهٔ زمانی ذخیره نشده است. ربات هر چند دقیقه یک بار نرخ‌ها را ثبت می‌کند؛ لطفاً کمی بعد دوباره امتحان کنید.';
  const oldQuote=applyOriginalSpread(old.rate,target,saved);
  const change=(quote.saraf_quote.basis_rate-old.rate)/old.rate*100;
- return '📊 '+name+' — مقایسه با '+period+
-  '\n\n🕰 '+period+'\nخرید: '+fmt(oldQuote.buy)+
+ const arrow=change>0?'🔺':change<0?'🔻':'⏸️';
+ const oldBasis=BASIS[old.basis]||old.basis;
+ const note=old.basis!==quote.saraf_quote.basis?
+  '\n\n⚠️ _توجه: نرخ فعلی بر اساس '+basis+
+  ' و نرخ گذشته بر اساس '+oldBasis+
+  ' محاسبه شده (به‌دلیل نبود دادهٔ بازار محلی در آن زمان)._':'';
+ return '📊 *'+name+'* — مقایسه با '+period+
+  '\n\n🕰 *'+period+'*\nخرید: '+fmt(oldQuote.buy)+
   ' | فروش: '+fmt(oldQuote.sell)+' افغانی'+
-  '\n\n⏱ اکنون\nخرید: '+fmt(quote.saraf_quote.buy)+
-  ' | فروش: '+fmt(quote.saraf_quote.sell)+' افغانی'+
-  '\nتغییر: '+(change>0?'🔺':change<0?'🔻':'⏸️')+
-  ' '+(change>=0?'+':'')+fmt(change,2)+'٪'+
-  '\n(بر اساس '+(BASIS[quote.saraf_quote.basis]||quote.saraf_quote.basis)+')'+
-  (old.basis!==quote.saraf_quote.basis?
-   '\n⚠️ منبع نرخ فعلی و گذشته متفاوت است.':'');
+  '\n\n⏱ *اکنون*\nخرید: *'+fmt(quote.saraf_quote.buy)+
+  '* | فروش: *'+fmt(quote.saraf_quote.sell)+'* افغانی'+
+  '\n\nتغییر: '+arrow+' *'+(change>=0?'+':'')+fmt(change,2)+'%*'+
+  '\n_(بر اساس '+basis+')_'+note;
 }
 export async function getOriginalCompareReport(target,days){
  const history=await fetchOriginalHistory(target,days);
