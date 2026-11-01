@@ -124,10 +124,9 @@ async function requestBlob(path, body) {
     try {
       verifiedCardSnapshot=null;
       const verified=await originalFinanceCall('card.preview',body);
-      const rendered=await renderOriginalOrderCardPreview(verified);
       verifiedCardSnapshot={verified,action:body.action,asset:body.asset,
        amount:Number(body.amount),quote_id:Number(body.quote_id)};
-      return rendered;
+      return await renderOriginalOrderCardPreview(verified);
     } catch (error) {
       throw asOriginalApiError(error);
     }
