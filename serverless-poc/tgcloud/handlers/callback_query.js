@@ -90,7 +90,7 @@ export default async function(query){
       if(![1,7,30,90].includes(days))return;
       if(a!=='gold'&&!hasValidCurrency(a))return;
       const report=await getOriginalCompareReport(a,days);
-      return edit(chat,id,report);
+      return edit(chat,id,report,undefined,true);
     }
     // Old Python messages may contain usdt_* callback buttons after cutover.
     // The old in-chat state cannot be trusted in a stateless JS invocation.
