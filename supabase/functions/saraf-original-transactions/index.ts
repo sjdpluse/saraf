@@ -16,6 +16,7 @@ import {
 } from './remittance.mjs';
 import {originalRiskLevel} from './risk.mjs';
 import {verifyOriginalReleaseProof} from './preflight.mjs';
+import {buildOriginalOrderReports} from './original-order-reports.mjs';
 
 const ORIGIN='https://app8533795882.tgcloud.ai';
 const TOKEN=Deno.env.get('SARAF_TELEGRAM_BOT_TOKEN')||'';
@@ -188,22 +189,22 @@ function safeQuote(q:Json){
  // These fields match ORIGINAL Mini App return contract, no extra fee.
  return q;
 }
-async function notifyAdmin(text:string){
+async function notifyAdmin(text:string,html=false){
  if(!ADMINS.length||!ADMIN_TOKEN)return;
  await Promise.allSettled(ADMINS.map(async chat=>{
   const response=await fetch('https://api.telegram.org/bot'+ADMIN_TOKEN+'/sendMessage',{
    method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({chat_id:chat,text}),signal:AbortSignal.timeout(7000),
+   body:JSON.stringify({chat_id:chat,text,...(html?{parse_mode:'HTML'}:{})}),signal:AbortSignal.timeout(7000),
   });
   if(!response.ok)console.warn('Saraf admin alert non-200',response.status);
  }));
 }
-async function notifyCustomer(chatId:number,text:string){
+async function notifyCustomer(chatId:number,text:string,html=false){
  if(!TOKEN||!Number.isSafeInteger(chatId)||chatId<=0)return;
  // Use the original customer bot; status remains pending and unapproved.
  const response=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendMessage',{
   method:'POST',headers:{'Content-Type':'application/json'},
-  body:JSON.stringify({chat_id:chatId,text}),
+  body:JSON.stringify({chat_id:chatId,text,...(html?{parse_mode:'HTML'}:{})}),
   signal:AbortSignal.timeout(6500),
  });
  if(!response.ok)console.warn('Saraf customer alert non-200',response.status);
@@ -737,41 +738,54 @@ Deno.serve(async req=>{
    }
    const item=rpc.data as Json;
    if(!item?.duplicate){
-    // Read the ORIGINAL committed order; never trust the browser or reprice.
+    // All original notices use the PERSISTED immutable buy/sell order and
+    // user profile. No current market repricing, browser-supplied fields,
+    // invented bank accounts or automatic financial approvals.
     const saved=await db.from('usdt_orders').select(
-     'id,chat_id,asset,order_type,usdt_amount,total_afn,total_usd,usd_rate,network,exchange_name,phone,payment_method,receive_method,risk_level,supplier_payout_usd,saraf_profit_usd'
+     'id,chat_id,username,full_name,phone,asset,order_type,usdt_amount,usd_rate,total_afn,total_usd,network,exchange_name,wallet_address,status,source,payment_method,receive_method,in_person_code,bank_info,tx_proof,receipt_file_id,risk_level,risk_reasons,supplier_profit_usd,supplier_profit_afn,supplier_payout_usd,supplier_payout_afn,saraf_profit_usd,saraf_profit_afn'
     ).eq('id',item.order_id).eq('chat_id',user.id).maybeSingle();
-    const row=saved.error?null:saved.data;
-    const kind=side==='buy'?'خرید':'فروش';
-    const code=String(item.order_code||type+'-'+String(item.order_id).padStart(5,'0'));
-    const fmt=(v:unknown,d=2)=>Number(v||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
-    const customer=row?(
-     '✅ سفارش '+kind+' '+type+' در صراف ثبت شد.\n\nکد سفارش: '+code+
-     '\nمقدار: '+fmt(row.usdt_amount)+' '+type+
-     '\nمبلغ: '+fmt(row.total_afn,1)+' افغانی'+
-     '\nنرخ دالر: '+fmt(row.usd_rate)+' افغانی'+
-     '\nصرافی: '+String(row.exchange_name||'-')+
-     '\nشبکه: '+String(row.network||'-')+
-     '\nوضعیت: در انتظار بررسی مدیر.\n\n'+
-     (side==='buy'?'پس از تأیید پرداخت، دارایی به آدرس ثبت‌شده ارسال می‌شود.':
-       'پس از بررسی و تأیید انتقال، پرداخت مطابق روش انتخابی انجام می‌شود.')+
-     '\n🆘 پشتیبانی: @SJDPLUS\n⚠️ ثبت سفارش تأیید پرداخت نیست.'
-    ):('✅ درخواست '+kind+' '+type+' در صراف ثبت شد.\nکد سفارش: '+code+'\nدر انتظار بررسی مدیر.');
-    const admin=row?(
-     '🆕 سفارش '+kind+' '+type+' — بررسی دستی\n\nکد: '+code+
-     '\nکاربر: '+user.id+'\nمقدار: '+fmt(row.usdt_amount)+' '+type+
-     '\nمبلغ: '+fmt(row.total_afn,1)+' افغانی'+
-     '\nنرخ دالر: '+fmt(row.usd_rate)+' افغانی'+
-     '\nمجموع: $'+fmt(row.total_usd)+
-     '\nصرافی: '+String(row.exchange_name||'-')+
-     '\nشبکه: '+String(row.network||'-')+
-     '\nروش پرداخت/دریافت: '+String(row.payment_method||row.receive_method||'-')+
-     '\nریسک: '+String(row.risk_level||'نامشخص')+
-     (side==='buy'?'\nمبلغ تأمین‌کننده: $'+fmt(row.supplier_payout_usd)+
-       '\nسود صراف: $'+fmt(row.saraf_profit_usd):'')+
-     '\nوضعیت: pending — تأیید و تسویه تنها به‌صورت دستی.'
-    ):('🆕 سفارش '+kind+' '+type+'\nکد: '+code+'\nکاربر: '+user.id+'\nوضعیت: pending');
-    await Promise.allSettled([notifyAdmin(admin),notifyCustomer(user.id,customer)]);
+    const profile=await db.from('user_profiles').select(
+      'first_name,last_name,phone,kyc_status,trust_score,successful_orders'
+    ).eq('chat_id',user.id).maybeSingle();
+    if(saved.error||!saved.data||profile.error){
+      // Money order is already committed; NEVER fail the response and
+      // encourage a new payment/order just because messaging has an outage.
+      console.warn('Saraf original notice source unavailable; order persisted');
+    }else{
+      const messages=buildOriginalOrderReports(saved.data,profile.data||{});
+      await Promise.allSettled([
+       notifyAdmin(messages.admin,true),
+       notifyCustomer(user.id,messages.customer,true),
+      ]);
+      // Original Railway also forwarded the customer's receipt to admin.
+      // Fetch only the short-lived signed image hosted on OUR private bucket.
+      const reference=String(side==='buy'?saved.data.receipt_file_id:
+        saved.data.tx_proof||'').trim();
+      if(reference.startsWith('https://')){
+        try{
+          const link=new URL(reference);
+          const expected='/storage/v1/object/sign/usdt-receipts/'+user.id+'_';
+          if(link.origin===new URL(SUPABASE).origin&&
+             link.pathname.startsWith(expected)&&link.searchParams.has('token')){
+            const response=await fetch(link.href,{signal:AbortSignal.timeout(4500)});
+            const mime=(response.headers.get('content-type')||'').split(';')[0];
+            const image=response.ok&&['image/jpeg','image/png','image/webp'].includes(mime)
+              ?await response.blob():null;
+            if(image&&image.size>0&&image.size<7*1024*1024&&ADMIN_TOKEN){
+              await Promise.allSettled(ADMINS.map(async admin=>{
+                const body=new FormData();
+                body.append('chat_id',admin);
+                body.append('caption','🧾 رسید سفارش '+messages.code);
+                body.append('photo',image,'receipt.jpg');
+                const sent=await fetch('https://api.telegram.org/bot'+ADMIN_TOKEN+
+                  '/sendPhoto',{method:'POST',body,signal:AbortSignal.timeout(7000)});
+                if(!sent.ok)console.warn('Saraf original admin receipt send non-200');
+              }));
+            }
+          }
+        }catch{console.warn('Saraf original admin receipt temporarily unavailable');}
+      }
+    }
    }
    return out(origin,200,{
      order_id:item.order_id,order_code:item.order_code,
