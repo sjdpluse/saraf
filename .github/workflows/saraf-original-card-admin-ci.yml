@@ -1,0 +1,49 @@
+name: Original Saraf real order cards + admin operations CI (NO PRODUCTION WRITES)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-card-admin-ci.yml
+      - 'webapp/src/lib/originalOrderDelivery.js'
+      - 'webapp/src/lib/originalOrderCardPng.js'
+      - 'webapp/src/lib/api.js'
+      - 'webapp/src/pages/Buy.jsx'
+      - 'webapp/src/pages/Sell.jsx'
+      - 'webapp/src/pages/OriginalAdmin.jsx'
+      - 'webapp/src/pages/OriginalAdmin.css'
+      - 'supabase/functions/saraf-original-order-card/**'
+      - 'supabase/functions/saraf-original-admin/index.ts'
+      - 'serverless-poc/tests/original_order_card_delivery_parity.test.js'
+      - 'supabase/sql/saraf_original_card_delivery_outbox_STAGED.sql'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Assert full original bot behavior and order/card/admin security regression
+        run: node --test serverless-poc/tests/*.test.js
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck separate signed card edge AND original signed admin
+        run: |
+          deno check supabase/functions/saraf-original-order-card/index.ts
+          deno check supabase/functions/saraf-original-admin/index.ts
+          deno check supabase/functions/saraf-original-transactions/index.ts
+      - name: Build ORIGINAL Mini App with order receipt/card and admin workspace (NEVER PUBLISH)
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Assert no silent deployment, changed Telegram webhook or real money
+        run: echo "Read-only CI completed. No Supabase migrations, financial orders, customer messages or Telegram uploads."
