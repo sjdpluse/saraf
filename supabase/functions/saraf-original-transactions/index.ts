@@ -682,15 +682,41 @@ Deno.serve(async req=>{
    }
    const item=rpc.data as Json;
    if(!item?.duplicate){
-    await Promise.allSettled([
-     notifyAdmin('🆕 سفارش '+(side==='buy'?'خرید':'فروش')+' '+type+
-     '\nکد: '+item.order_code+'\nمقدار: '+a+
-     '\nکاربر: '+user.id+'\nشبکه: '+network+
-     '\nوضعیت: pending — بررسی دستی الزامی است.'),
-     notifyCustomer(user.id,'✅ درخواست '+(side==='buy'?'خرید':'فروش')+
-       ' '+type+' در صراف ثبت شد.\nکد سفارش: '+item.order_code+
-       '\nوضعیت: در انتظار بررسی مدیر.\nاین پیام تأیید پرداخت نیست.'),
-    ]);
+    // Read the ORIGINAL committed order; never trust the browser or reprice.
+    const saved=await db.from('usdt_orders').select(
+     'id,chat_id,asset,order_type,usdt_amount,total_afn,total_usd,usd_rate,network,exchange_name,phone,payment_method,receive_method,risk_level,supplier_payout_usd,saraf_profit_usd'
+    ).eq('id',item.order_id).eq('chat_id',user.id).maybeSingle();
+    const row=saved.error?null:saved.data;
+    const kind=side==='buy'?'خرید':'فروش';
+    const code=String(item.order_code||type+'-'+String(item.order_id).padStart(5,'0'));
+    const fmt=(v:unknown,d=2)=>Number(v||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+    const customer=row?(
+     '✅ سفارش '+kind+' '+type+' در صراف ثبت شد.\n\nکد سفارش: '+code+
+     '\nمقدار: '+fmt(row.usdt_amount)+' '+type+
+     '\nمبلغ: '+fmt(row.total_afn,1)+' افغانی'+
+     '\nنرخ دالر: '+fmt(row.usd_rate)+' افغانی'+
+     '\nصرافی: '+String(row.exchange_name||'-')+
+     '\nشبکه: '+String(row.network||'-')+
+     '\nوضعیت: در انتظار بررسی مدیر.\n\n'+
+     (side==='buy'?'پس از تأیید پرداخت، دارایی به آدرس ثبت‌شده ارسال می‌شود.':
+       'پس از بررسی و تأیید انتقال، پرداخت مطابق روش انتخابی انجام می‌شود.')+
+     '\n🆘 پشتیبانی: @SJDPLUS\n⚠️ ثبت سفارش تأیید پرداخت نیست.'
+    ):('✅ درخواست '+kind+' '+type+' در صراف ثبت شد.\nکد سفارش: '+code+'\nدر انتظار بررسی مدیر.');
+    const admin=row?(
+     '🆕 سفارش '+kind+' '+type+' — بررسی دستی\n\nکد: '+code+
+     '\nکاربر: '+user.id+'\nمقدار: '+fmt(row.usdt_amount)+' '+type+
+     '\nمبلغ: '+fmt(row.total_afn,1)+' افغانی'+
+     '\nنرخ دالر: '+fmt(row.usd_rate)+' افغانی'+
+     '\nمجموع: $'+fmt(row.total_usd)+
+     '\nصرافی: '+String(row.exchange_name||'-')+
+     '\nشبکه: '+String(row.network||'-')+
+     '\nروش پرداخت/دریافت: '+String(row.payment_method||row.receive_method||'-')+
+     '\nریسک: '+String(row.risk_level||'نامشخص')+
+     (side==='buy'?'\nمبلغ تأمین‌کننده: $'+fmt(row.supplier_payout_usd)+
+       '\nسود صراف: $'+fmt(row.saraf_profit_usd):'')+
+     '\nوضعیت: pending — تأیید و تسویه تنها به‌صورت دستی.'
+    ):('🆕 سفارش '+kind+' '+type+'\nکد: '+code+'\nکاربر: '+user.id+'\nوضعیت: pending');
+    await Promise.allSettled([notifyAdmin(admin),notifyCustomer(user.id,customer)]);
    }
    return out(origin,200,{
      order_id:item.order_id,order_code:item.order_code,
