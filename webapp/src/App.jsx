@@ -19,6 +19,8 @@ import OriginalNotifications from "./pages/OriginalNotifications";
 import Toast from "./components/Toast";
 import BottomNav from "./components/BottomNav";
 import { initTelegram, isInsideTelegram } from "./lib/telegram";
+import {api} from "./lib/api";
+import {resumeOriginalOrderCards} from "./lib/originalAutoOrderCard";
 import { SARAF_LOGO_URL, normalizeAsset } from "./lib/brand";
 
 export default function App() {
@@ -32,6 +34,16 @@ export default function App() {
 
   useEffect(() => {
     initTelegram();
+    // Resume an automatically queued post-commit customer/admin card without
+    // a second order, manual button, or extra payment. This is for browser
+    // interruption recovery; the server enforces ownership/idempotent send.
+    const retry=()=>{if(isInsideTelegram()){
+      void resumeOriginalOrderCards(row=>api.deliverOriginalOrderCard(row));
+    }};
+    const timer=window.setTimeout(retry,600);
+    const whenVisible=()=>{if(document.visibilityState==='visible')retry();};
+    window.addEventListener('online',retry);
+    document.addEventListener('visibilitychange',whenVisible);
     const params = new URLSearchParams(window.location.search);
     const action = params.get("action");
     const requestedAsset = normalizeAsset(params.get("asset"));
@@ -43,6 +55,11 @@ export default function App() {
     if (action === "justmarkets") setPage("justmarkets");
     if (action === "admin") setPage("admin");
     if (action === "notifications") setPage("notifications");
+    return ()=>{
+      clearTimeout(timer);
+      window.removeEventListener('online',retry);
+      document.removeEventListener('visibilitychange',whenVisible);
+    };
   }, []);
 
   function navigate(p) {
