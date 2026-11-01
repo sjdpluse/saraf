@@ -1,0 +1,52 @@
+name: Original Saraf issued-card live signed guard — READ ONLY (no messages)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-issued-card-live-readonly-smoke.yml
+permissions:
+  contents: read
+jobs:
+  signed-issuer-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Signed fictitious user cannot read an existing ORIGINAL order; new issuance endpoint live
+        run: |
+          node --input-type=module <<'NODE'
+          import crypto from 'node:crypto';
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          if(!token)throw Error('Original bot token not configured');
+          const fields=new URLSearchParams({
+            auth_date:String(Math.floor(Date.now()/1000)),
+            query_id:'CI_READ_ONLY',
+            user:JSON.stringify({id:9999999999999,first_name:'CI_FAKE_NON_CUSTOMER'}),
+          });
+          const canonical=[...fields.entries()].sort(([a],[b])=>a.localeCompare(b))
+            .map(([key,value])=>key+'='+value).join('\n');
+          const key=crypto.createHmac('sha256','WebAppData').update(token).digest();
+          const hash=crypto.createHmac('sha256',key).update(canonical).digest('hex');
+          fields.append('hash',hash);
+          const res=await fetch('https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1/saraf-original-transactions',{
+            method:'POST',headers:{
+              'Origin':'https://app8533795882.tgcloud.ai',
+              'Content-Type':'application/json',
+              'X-Telegram-Init-Data':fields.toString(),
+            },
+            body:JSON.stringify({action:'card.issued',input:{order_id:79}}),
+          });
+          const body=await res.json();
+          if(res.status!==404||body?.error!=='ORDER_NOT_FOUND')
+            throw Error('Live issued-card owner guard failed: HTTP '+res.status+
+              ', code '+String(body?.error));
+          console.log('SIGNED LIVE ISSUED-CARD ACTION OK: 404 owner isolation, no financial order, no Telegram/photo sends.');
+          NODE
