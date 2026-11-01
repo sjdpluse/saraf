@@ -512,7 +512,7 @@ Deno.serve(async req=>{
      'id,chat_id,asset,order_type,usdt_amount,usd_rate,total_afn,total_usd,fee_percent,exchange_name,network,wallet_address,status,risk_level,created_at'
    ).eq('id',orderId).eq('chat_id',user.id).maybeSingle();
    if(saved.error)deny('ORDER_UNAVAILABLE',503);
-   const order=saved.data;
+   const order=saved.data!;
    if(!order)deny('ORDER_NOT_FOUND',404);
    if(!['pending','confirmed','completed'].includes(order.status)||
       Date.now()-Date.parse(order.created_at)>7*86400000)
@@ -532,10 +532,10 @@ Deno.serve(async req=>{
    if(!profile.data?.first_name||!profile.data?.last_name||!profile.data?.phone)
      deny('BASIC_PROFILE_REQUIRED',403);
    let selfie_url:null|string=null;
-   if(profile.data.selfie_path){
+   if(profile.data!.selfie_path){
      const bucket=Deno.env.get('USDT_KYC_DOCS_BUCKET')||'usdt-kyc-docs';
      const signed=await db.storage.from(bucket).createSignedUrl(
-       String(profile.data.selfie_path),60);
+       String(profile.data!.selfie_path),60);
      if(!signed.error&&signed.data?.signedUrl)selfie_url=signed.data.signedUrl;
    }
    return out(origin,200,{
@@ -550,10 +550,10 @@ Deno.serve(async req=>{
        deposit_address:order.order_type==='sell'?wallet:null,
      },
      profile:{
-       first_name:profile.data.first_name,last_name:profile.data.last_name,
-       phone:profile.data.phone,kyc_status:profile.data.kyc_status,
-       trust_score:profile.data.trust_score,
-       successful_orders:profile.data.successful_orders,
+       first_name:profile.data!.first_name,last_name:profile.data!.last_name,
+       phone:profile.data!.phone,kyc_status:profile.data!.kyc_status,
+       trust_score:profile.data!.trust_score,
+       successful_orders:profile.data!.successful_orders,
      },
      selfie_url,
    });
