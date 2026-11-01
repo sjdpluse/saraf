@@ -50,7 +50,8 @@ test('card sent only after successful original financial order, with issued code
   assert.match(page,/requires_manual_review/);
  }
  assert.match(api,/verifiedCardSnapshot/);
- assert.match(api,/renderOriginalOrderCardPreview\(\{\.\.\.snapshot\.verified/);
+ assert.match(api,/originalFinanceCall\('card\.issued',\{order_id:Number\(order_id\)\}\)/);
+ assert.match(api,/renderOriginalOrderCardPreview\(issued\)/);
  assert.match(card,/realCode\?issuedCode:'PREVIEW'/);
  assert.match(bridge,/X-Telegram-Init-Data/);
  assert.match(bridge,/new FormData\(/);
