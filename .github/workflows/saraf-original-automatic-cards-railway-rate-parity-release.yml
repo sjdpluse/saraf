@@ -1,0 +1,114 @@
+name: ORIGINAL Saraf automatic post-submit cards + Railway local-rate parity — static-only release
+# Publish only React dist/ after the independently signed card + admin Edge
+# functions have been deployed. NEVER change original Telegram bot handlers,
+# its webhook, finance functions, users, database, or Railway services.
+# One-time release of the original signed issued-card recovery and Orders retry UX.
+# Signed card/report Edge functions were already separately deployed to Supabase.
+# One-time production static deployment succeeded: GitHub Actions 41332770286.
+# One-time guarded UI-only production publish. Supabase money/backend untouched.
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - .github/workflows/saraf-original-automatic-cards-railway-rate-parity-release.yml
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  release-original-ui-static-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 27
+    environment: saraf-original-production
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Confirm original bot identity and existing Telegram Serverless webhook
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${TGCLOUD_TOKEN:-}" == app8533795882:* ]] || {
+            echo "::error::Not the original BotFather tgcloud project."
+            exit 1
+          }
+          node --input-type=module <<'NODE'
+          const bot=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          if(!bot)throw Error('ORIGINAL_BOT_TOKEN_MISSING');
+          async function call(name){
+            const response=await fetch('https://api.telegram.org/bot'+bot+'/'+name);
+            const json=await response.json();
+            if(!response.ok||!json.ok)throw Error(name+' failed');
+            return json.result;
+          }
+          const me=await call('getMe'),webhook=await call('getWebhookInfo');
+          if(me.username!=='sarafiaf_bot')throw Error('WRONG_BOT');
+          if(webhook.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('ORIGINAL_WEBHOOK_MISMATCH');
+          if(webhook.allowed_updates?.length&&!webhook.allowed_updates.includes('message'))
+            throw Error('ORIGINAL_START_MESSAGES_DISABLED');
+          console.log('Original Saraf bot and existing Telegram Serverless webhook verified.');
+          NODE
+      - name: Verify original customers, markets, financial safety and cards/admin regressions
+        run: node --test serverless-poc/tests/*.test.js
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck SAME deployed signed finance, card, and admin Edge sources
+        run: |
+          deno check supabase/functions/saraf-original-transactions/index.ts
+          deno check supabase/functions/saraf-original-order-card/index.ts
+          deno check supabase/functions/saraf-original-admin/index.ts
+      - name: Build the ORIGINAL production Mini App, with existing UI and full transport
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Package precisely allowlisted ORIGINAL release (NEVER publish non-static modules)
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test -s serverless-poc/.release-original/dist/index.html
+          test -d serverless-poc/.release-original/dist/assets
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeOrder.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeRemittance.js
+      - name: Install pinned Telegram Serverless CLI in isolated release directory
+        working-directory: serverless-poc/.release-original
+        run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      - name: READ ONLY fetch current deployed revision before static-only update
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+      - name: Deploy ONLY original React dist assets, keep original handlers/webhook unchanged
+        working-directory: serverless-poc/.release-original
+        run: npx --no-install tgcloud push dist/
+      - name: Verify original webhook unchanged and original Mini App online
+        run: |
+          node --input-type=module <<'NODE'
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          const answer=await(await fetch('https://api.telegram.org/bot'+token+'/getWebhookInfo')).json();
+          if(!answer.ok||answer.result.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('Original Saraf webhook unexpectedly changed.');
+          if(answer.result.allowed_updates?.length&&!answer.result.allowed_updates.includes('message'))
+            throw Error('Original customer /start routing changed.');
+          const url='https://app8533795882.tgcloud.ai/';
+          let ok=false;
+          for(let i=0;i<4;i++){
+            const response=await fetch(url,{cache:'no-store'});
+            if(response.ok&&(await response.text()).toLowerCase().includes('<html')){ok=true;break;}
+            await new Promise(resolve=>setTimeout(resolve,2000));
+          }
+          if(!ok)throw Error('Original Mini App unavailable after static upload');
+          console.log('Saraf original Mini App assets published. No bot handlers, webhook, Supabase, or money state changed in this workflow.');
+          NODE
