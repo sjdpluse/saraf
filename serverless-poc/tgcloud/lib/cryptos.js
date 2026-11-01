@@ -31,13 +31,13 @@ export function parseBinance(data) {
   return result;
 }
 export async function getCryptoPrices(http = fetch) {
-  const cg = new URL('https://api.coingecko.com/api/v3/simple/price');
-  cg.searchParams.set('ids', Object.values(IDS).join(','));
-  cg.searchParams.set('vs_currencies', 'usd');
-  const bn = new URL('https://api.binance.com/api/v3/ticker/price');
-  bn.searchParams.set('symbols', JSON.stringify(Object.values(PAIRS)));
+  // Telegram Serverless isolates may not provide the browser URL constructor.
+  const cg = 'https://api.coingecko.com/api/v3/simple/price?ids='+
+    encodeURIComponent(Object.values(IDS).join(','))+'&vs_currencies=usd';
+  const bn = 'https://api.binance.com/api/v3/ticker/price?symbols='+
+    encodeURIComponent(JSON.stringify(Object.values(PAIRS)));
   let lastError = null;
-  for (const [url, parse, source] of [[cg.toString(), parseCoinGecko, 'CoinGecko'], [bn.toString(), parseBinance, 'Binance']]) {
+  for (const [url, parse, source] of [[cg, parseCoinGecko, 'CoinGecko'], [bn, parseBinance, 'Binance']]) {
     try {
       const response = await http(url);
       if (!response?.ok) throw new Error('HTTP ' + response?.status);
