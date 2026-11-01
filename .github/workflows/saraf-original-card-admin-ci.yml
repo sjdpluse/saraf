@@ -14,6 +14,8 @@ on:
       - 'webapp/src/pages/OriginalAdmin.css'
       - 'supabase/functions/saraf-original-order-card/**'
       - 'supabase/functions/saraf-original-admin/index.ts'
+      - 'supabase/functions/saraf-original-transactions/index.ts'
+      - 'serverless-poc/tests/original_customer_notifications.test.js'
       - 'serverless-poc/tests/original_order_card_delivery_parity.test.js'
       - 'supabase/sql/saraf_original_card_delivery_outbox_STAGED.sql'
   workflow_dispatch:
