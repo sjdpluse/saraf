@@ -1,11 +1,8 @@
 name: Original Saraf NEW order card Edge live auth/flag smoke — READ ONLY
 # Never submit customer orders, upload card images, or send Telegram messages.
+# Live restricted CORS and auth smoke passed in Actions run 41329285227.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-original-card-edge-live-smoke.yml
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
