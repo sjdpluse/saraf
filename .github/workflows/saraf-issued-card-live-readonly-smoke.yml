@@ -1,10 +1,7 @@
 name: Original Saraf issued-card live signed guard — READ ONLY (no messages)
+# Production signed fictitious-owner guard passed: Actions run 41332962507.
 on:
-  push:
-    branches:
-      - migration/telegram-native-serverless-poc
-    paths:
-      - .github/workflows/saraf-issued-card-live-readonly-smoke.yml
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
