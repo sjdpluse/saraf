@@ -15,6 +15,7 @@ import {
   MagnifyingGlass,
 } from "@phosphor-icons/react";
 import { api, ApiError } from "../lib/api";
+import {rememberOriginalOrderCard,dispatchOriginalOrderCard} from "../lib/originalAutoOrderCard";
 import { hapticSuccess, hapticError, openTelegramChat } from "../lib/telegram";
 import CopyRow from "../components/CopyRow";
 import OrderReview from "../components/OrderReview";
@@ -89,23 +90,19 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
   async function deliverCard(id,code){
     setCardDelivery('sending');
     setCardDeliveryReason('');
+    const job={order_id:Number(id),order_code:String(code),action:'buy',
+      asset:selectedAsset,amount:parseFloat(amount)};
     try{
-      const delivered=await api.deliverOriginalOrderCard({
-        order_id:id,order_code:code,action:'buy',
-        asset:selectedAsset,amount:parseFloat(amount),
-      });
-      const successful=delivered?.customer==='sent'&&
-        delivered?.admins?.every(a=>a.state==='sent');
-      setCardDelivery(successful?'sent':
-        delivered?.requires_manual_review?'uncertain':'failed');
+      const {state}=await dispatchOriginalOrderCard(
+        job,request=>api.deliverOriginalOrderCard(request));
+      setCardDelivery(state);
     }catch(err){
+      // The canonical financial order was already committed. Never repeat
+      // order.buy/order.sell to recover from a Telegram photo delivery error.
       setCardDeliveryReason(String(err?.code||err?.message||'CARD_DELIVERY_UNAVAILABLE').slice(0,100));
-      // An order is already committed; a notification error must NEVER
-      // re-submit it or hide the successful financial order.
       setCardDelivery('failed');
     }
   }
-
 
   const step = STEPS[stepIdx];
   const networks = stablecoinConfig?.[selectedAsset]?.buy_networks || [];
@@ -310,6 +307,13 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
     try {
       const res = await api.createBuyOrder({ asset: selectedAsset, amount: parseFloat(amount), payment_method: paymentMethod, exchange_name: finalExchange, network: finalNetwork, wallet_address: walletAddress.trim(), receipt_url: receiptUrl, in_person_code: paymentMethod === "in_person" ? inPersonCode : null });
       clearPreview();
+      // Queue the already-committed order FIRST, before any UI transition.
+      // If the user closes Telegram, the card is retried automatically
+      // on their next Mini App opening without a second confirmation tap.
+      rememberOriginalOrderCard({
+        order_id:Number(res.order_id),order_code:String(res.order_code),
+        action:'buy',asset:selectedAsset,amount:parseFloat(amount),
+      });
       setOrderId(res.order_id);
       setOrderCode(res.order_code);
       setStepIdx(8);
@@ -318,7 +322,7 @@ export default function Buy({ asset = "USDT", onSelectAsset, navigate, showError
       // canonical-data captions to the customer and authorized admins.
       // No retry of the financial RPC. The delivery service deduplicates
       // per order and recipient, including uncertain Telegram responses.
-      void deliverCard(res.order_id,res.order_code);
+      await deliverCard(res.order_id,res.order_code);
     } catch (err) {
       hapticError();
       if (err instanceof ApiError && err.code === "IDENTITY_VERIFICATION_REQUIRED") {
