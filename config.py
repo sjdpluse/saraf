@@ -135,6 +135,14 @@ THOUSAND_UNIT_CURRENCIES = {
     "inr",
 }
 
+# نمایش قیمت بر اساس واحد رایجِ بازار (نه لزوماً یک واحد ارز).
+# IRR در رابط صراف «تومان» است: برای نمایش مقدارهای خوانا، نرخ هر یک میلیون تومان.
+CURRENCY_DISPLAY_UNITS = {
+    "pkr": 1_000,
+    "inr": 1_000,
+    "irr": 1_000_000,
+}
+
 
 FETCH_INTERVAL_MINUTES = int(
     os.getenv(
