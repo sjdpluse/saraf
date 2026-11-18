@@ -1,0 +1,136 @@
+name: One-time Saraf LIVE Telegram Serverless currency-unit correction
+# Owner-approved one-time release. Never runs on ordinary application pushes.
+# Deploy ONLY the 8 already-tested bot display/rate/calculator modules.
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - '.github/workflows/saraf-one-time-currency-unit-live-release-20261118.yml'
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  publish-quote-only:
+    if: ${{ github.ref == 'refs/heads/migration/telegram-native-serverless-poc' && github.event.head_commit.message == 'release: deploy validated Saraf currency modules to Telegram Serverless' }}
+    name: Guarded production hotfix (no webhook, money, or Mini App changes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: saraf-original-production
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - name: Checkout exact approved migration branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Verify this release adds ONLY the reviewed one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = '26836c3a4d121c1638588fed33c086341024870c'
+          actual="$(git diff-tree --no-commit-id --name-only -r HEAD)"
+          test "$actual" = '.github/workflows/saraf-one-time-currency-unit-live-release-20261118.yml'
+          [[ "${TGCLOUD_TOKEN:-}" == app8533795882:* ]] || {
+            echo "::error::Wrong Telegram Serverless application or CLI token"; exit 1;
+          }
+          test -n "${SARAF_ORIGINAL_BOT_TOKEN:-}" || {
+            echo "::error::Original Telegram bot token unavailable"; exit 1;
+          }
+          echo 'Confirmed exact reviewed source revision, intended original BotFather app.'
+      - name: Confirm LIVE original bot and existing Telegram Serverless webhook
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          const api='https://api.telegram.org/bot'+token+'/';
+          async function get(method){
+            const response=await fetch(api+method,{cache:'no-store'});
+            const json=await response.json();
+            if(!response.ok || !json.ok)throw Error('BOT_API_'+method+'_UNAVAILABLE');
+            return json.result;
+          }
+          const who=await get('getMe');
+          const hook=await get('getWebhookInfo');
+          if(who.username!=='sarafiaf_bot')throw Error('WRONG_PRODUCTION_BOT');
+          if(hook.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('ORIGINAL_WEBHOOK_MISMATCH');
+          if(hook.allowed_updates?.length && !hook.allowed_updates.includes('message'))
+            throw Error('ORIGINAL_MESSAGES_DISABLED');
+          console.log('Verified production bot and unchanged Telegram Serverless webhook.');
+          NODE
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Verify all original bot regressions and exact quote units
+        run: |
+          set -euo pipefail
+          node --test serverless-poc/tests/*.test.js
+          node --check serverless-poc/tgcloud/lib/local_market_parser.js
+          node --check serverless-poc/tgcloud/lib/legacy_display.js
+          node --check serverless-poc/tgcloud/lib/legacy_live_rates.js
+          node --check serverless-poc/tgcloud/lib/legacy_rate_engine.js
+          node --check serverless-poc/tgcloud/lib/legacy_calculators.js
+          node --check serverless-poc/tgcloud/lib/legacy_calc.js
+          node --check serverless-poc/tgcloud/lib/legacy_compare.js
+          node --check serverless-poc/tgcloud/lib/reference_rates.js
+      - name: Build unchanged original Mini App ONLY to prepare safe module manifest
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Assemble allowlisted Telegram release without native financial state
+        run: |
+          set -euo pipefail
+          node scripts/prepare_saraf_original_release.mjs
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeOrder.js
+          test -s serverless-poc/.release-original/tgcloud/lib/local_market_parser.js
+      - name: Install pinned official Telegram Serverless CLI
+        working-directory: serverless-poc/.release-original
+        run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      - name: Fetch LIVE revision read-only before tiny targeted update
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+      - name: Publish ONLY quote parser, display, calculator and historical compare modules
+        working-directory: serverless-poc/.release-original
+        run: |
+          set -euo pipefail
+          npx --no-install tgcloud push \
+            tgcloud/lib/local_market_parser.js \
+            tgcloud/lib/legacy_display.js \
+            tgcloud/lib/legacy_live_rates.js \
+            tgcloud/lib/legacy_rate_engine.js \
+            tgcloud/lib/legacy_calculators.js \
+            tgcloud/lib/legacy_calc.js \
+            tgcloud/lib/legacy_compare.js \
+            tgcloud/lib/reference_rates.js
+      - name: Verify production webhook and original bot remain unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const base='https://api.telegram.org/bot'+process.env.SARAF_ORIGINAL_BOT_TOKEN+'/';
+          for (const [route, check] of [
+            ['getMe',x=>x.username==='sarafiaf_bot'],
+            ['getWebhookInfo',x=>x.url==='https://cloud.telegram.org/app8533795882/webhook'],
+          ]) {
+            const response=await fetch(base+route,{cache:'no-store'});
+            const json=await response.json();
+            if(!response.ok||!json.ok||!check(json.result))
+              throw Error('POST_RELEASE_'+route+'_FAILED');
+          }
+          console.log('LIVE Saraf Telegram Serverless currency quote modules updated; original bot and webhook verified.');
+          NODE
+          echo '### Published only original Saraf Telegram Serverless quote + calculator + market parser modules' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Target: @sarafiaf_bot / app8533795882' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No Mini App static assets, bot webhook, financial orders, or Supabase Edge functions changed.' >> "$GITHUB_STEP_SUMMARY"
