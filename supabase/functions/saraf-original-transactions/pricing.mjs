@@ -90,6 +90,15 @@ export function originalSellPricing(amount,usdRate){
   total_usd:pr(netUsd,'usd'),receivable_usd:pr(netUsd,'usd'),
  };
 }
+// Preserve the original no-deduction USDC SELL quote; the market-margin
+// change requested by the owner applies to USDT SELL only.
+export function originalSellPricingNoFee(amount,usdRate){
+ const a=dec(amount),rate=dec(usdRate);
+ if(a<=0||rate<=0)throw Error('INVALID_TRADE_VALUE');
+ return {asset:null,amount:num(a),usd_rate:pr(rate,'rate'),
+  total_afn:pr(mul(a,rate),'afn'),total_usd:pr(a,'usd'),
+  receivable_usd:pr(a,'usd'),fee_percent:0};
+}
 export function originalRemittancePricing(amount,usdRate,feePercent=0){
  const a=dec(amount),r=dec(usdRate),fee=dec(feePercent);
  if(a<=0||r<=0||fee>dec('100'))throw Error('INVALID_REMITTANCE_INPUT');
