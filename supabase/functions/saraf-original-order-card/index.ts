@@ -38,15 +38,25 @@ function captions(order:Record<string,unknown>,profile:Record<string,unknown>|nu
  const asset=order.asset==='USDC'?'USDC':'USDT';
  const code=asset+'-'+String(order.id).padStart(5,'0');
  const kind=order.order_type==='buy'?'خرید':'فروش';
- const sellCommission=order.order_type==='sell'&&Number(order.fee_percent)>0;
- const feeText=sellCommission
-  ?'کمیسیون صراف ('+Number(order.fee_percent).toLocaleString('en-US')+
-   '٪): '+cash(order.saraf_profit_afn,1)+' افغانی'
-  :null;
+ const marketMarginSell=order.order_type==='sell'&&
+  order.pricing_model==='local_margin_share_50_30_20_sell';
+ const legacyCommissionSell=order.order_type==='sell'&&
+  Number(order.fee_percent)>0;
+ const sellCommission=marketMarginSell||legacyCommissionSell;
+ // Derive from immutable persisted supplier + Saraf shares, NOT percentage
+ // or browser-supplied pixels.
+ const feeAmount=Number(order.saraf_profit_afn||0)+
+  (marketMarginSell?Number(order.supplier_profit_afn||0):0);
+ const feeText=marketMarginSell
+  ?'کارمزد صراف: '+cash(feeAmount,1)+' افغانی'
+  :legacyCommissionSell
+   ?'کمیسیون صراف ('+Number(order.fee_percent).toLocaleString('en-US')+
+    '٪): '+cash(feeAmount,1)+' افغانی'
+   :null;
  const base=['🪪 کارت دیجیتال سفارش صراف','کد: '+code,
    'نوع: '+kind+' '+asset,
    'مقدار: '+cash(order.usdt_amount)+' '+asset,
-   (sellCommission?'مبلغ قابل دریافت پس از کمیسیون: ':'مبلغ: ')+cash(order.total_afn)+' افغانی',
+   (sellCommission?'مبلغ قابل دریافت پس از کارمزد: ':'مبلغ: ')+cash(order.total_afn)+' افغانی',
    ...(feeText?[feeText]:[]),
    'نرخ: '+cash(order.usd_rate)+' افغانی',
    'شبکه: '+String(order.network||'-').slice(0,70),
@@ -156,7 +166,7 @@ Deno.serve(async req=>{
   // Never use browser-supplied chat ID/amount/status. Query the canonical
   // financial order and require its Telegram HMAC identity owner.
   const order=await db.from('usdt_orders').select(
-   'id,chat_id,asset,order_type,status,created_at,usdt_amount,total_afn,usd_rate,fee_percent,saraf_profit_afn,network,exchange_name,phone,payment_method,receive_method,risk_level,card_image_path'
+   'id,chat_id,asset,order_type,status,created_at,usdt_amount,total_afn,usd_rate,fee_percent,pricing_model,saraf_profit_afn,supplier_profit_afn,network,exchange_name,phone,payment_method,receive_method,risk_level,card_image_path'
   ).eq('id',id).eq('chat_id',user.id).maybeSingle();
   if(order.error)return json(origin,503,{error:'ORDER_LOOKUP_FAILED'});
   if(!order.data)return json(origin,404,{error:'ORDER_NOT_FOUND'});
