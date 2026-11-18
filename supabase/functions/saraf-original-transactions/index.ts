@@ -636,7 +636,7 @@ Deno.serve(async req=>{
    const side=String(input.action);
    if(!['buy','sell'].includes(side))deny('INVALID_ORDER_TYPE');
    // Old cached Mini Apps must not silently quote an undisclosed SELL fee.
-   if(side==='sell'&&input.pricing_version!=='sell_commission_v1')
+   if(side==='sell'&&type==='USDT'&&input.pricing_version!=='sell_commission_v1')
      deny('SELL_COMMISSION_UPDATE_REQUIRED',409);
    const rate=await originalRates(db);
    const localSell=rate.local?.sell;
@@ -644,7 +644,8 @@ Deno.serve(async req=>{
     ?localSell||rate.saraf_quote.sell:rate.saraf_quote.buy;
    const pricing:any=side==='buy'
     ?originalBuyPricing(String(a),String(usdRate))
-    :originalSellPricing(String(a),String(usdRate),sellCommissionPercent());
+    :originalSellPricing(String(a),String(usdRate),
+       type==='USDT'?sellCommissionPercent():'0');
    const values:Json={
     chat_id:user.id,order_type:side,asset:type,
     usdt_amount:a,usd_rate:pricing.usd_rate??usdRate,
