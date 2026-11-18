@@ -3,7 +3,7 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config import TRACKED_CURRENCIES, CURRENCY_FLAGS, THOUSAND_UNIT_CURRENCIES
+from config import TRACKED_CURRENCIES, CURRENCY_FLAGS, CURRENCY_DISPLAY_UNITS
 from keyboards import currency_list_keyboard, currency_quote_keyboard
 from persian_date import get_afghan_datetime_str
 from services import rate_engine
@@ -17,7 +17,7 @@ CURRENCY_CALC_CODE = "currency_calc_code"
 
 
 def _unit_amount(code: str) -> int:
-    return 1000 if code in THOUSAND_UNIT_CURRENCIES else 1
+    return CURRENCY_DISPLAY_UNITS.get(code, 1)
 
 
 def _scale(code: str, value: float) -> float:
