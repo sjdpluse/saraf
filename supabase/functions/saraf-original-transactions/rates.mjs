@@ -5,6 +5,8 @@ export const DEFAULT_SPREADS=Object.freeze({
  inr:1.5,try:1.5,cny:1.5,aud:1.2,cad:1.2,chf:1.2,sek:1.8,
 });
 const four=n=>Math.round(n*10000)/10000;
+const unitRate=(n,code)=>String(code).toLowerCase()==='irr'
+ ? Math.round(n*1e10)/1e10 : four(n);
 export function effectiveSpread(currency,storedSpreads={}){
  const name=String(currency||'').toLowerCase();
  const stored=storedSpreads[name],fallback=DEFAULT_SPREADS[name]??1.5;
@@ -19,7 +21,7 @@ export function applyOriginalSpread(basisRate,currency,storedSpreads={}){
  if(!Number.isFinite(rate)||rate<=0)throw Error('INVALID_BASIS_RATE');
  const pct=effectiveSpread(currency,storedSpreads);
  const half=pct/200;
- return {buy:four(rate*(1-half)),sell:four(rate*(1+half)),
+ return {buy:unitRate(rate*(1-half),currency),sell:unitRate(rate*(1+half),currency),
   spread_percent:pct};
 }
 export function selectOriginalBasis(code,referenceRates,localMarkets,storedSpreads={}){
@@ -37,15 +39,15 @@ export function selectOriginalBasis(code,referenceRates,localMarkets,storedSprea
     market_label:'سرای شهزاده (کابل)',
     buy:Number(local.buy),sell:Number(local.sell)}:null,
   saraf_quote:{buy:spread.buy,sell:spread.sell,basis,
-    basis_rate:four(rate)},
+    basis_rate:unitRate(rate,c)},
   spread_percent:spread.spread_percent};
 }
-export function historicalOriginalBasis(localRate,referenceRate){
+export function historicalOriginalBasis(localRate,referenceRate,code=''){ 
  const local=localRate;
  if(local&&Number(local.buy)>0&&Number(local.sell)>0)
-  return {rate:four((Number(local.buy)+Number(local.sell))/2),basis:'local'};
+  return {rate:unitRate((Number(local.buy)+Number(local.sell))/2,code),basis:'local'};
  if(Number(referenceRate)>0)
-  return {rate:four(Number(referenceRate)),basis:'reference'};
+  return {rate:unitRate(Number(referenceRate),code),basis:'reference'};
  return {rate:null,basis:'none'};
 }
 export function shouldOriginalSocialPost(usdQuote,lastState,thresholdPct){
