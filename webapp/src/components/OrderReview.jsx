@@ -18,6 +18,10 @@ export default function OrderReview({ action, asset, amount, quote, exchange, ne
   const baseAfn = Number(quote?.base_afn || 0);
   const fullFeeUsd = Math.max(0, dollarAmount - Number(amount || 0));
   const fullFeeAfn = Math.max(0, afn - baseAfn);
+  // For SELL the server-signed quote is authoritative; do not infer fee
+  // from the final fiat payout or from browser-submitted numbers.
+  const sellFeeUsd = Number(quote?.fee_usd ?? 0);
+  const sellFeeAfn = Number(quote?.fee_afn ?? 0);
   const resolvedPaymentProof = paymentProofLabel || (isBuy ? (paymentLabel === "پرداخت حضوری" ? "پرداخت حضوری — بدون رسید آنلاین" : "رسید پرداخت بارگذاری‌شده") : null);
 
   return (
@@ -55,7 +59,12 @@ export default function OrderReview({ action, asset, amount, quote, exchange, ne
         {!isBuy && proofLabel && <DetailRow label="اثبات تراکنش" value={proofLabel} mono />}
         {inPersonCode && <DetailRow label="کد مراجعهٔ حضوری" value={inPersonCode} mono />}
         <DetailRow label="نرخ دالر" value={`${Number(quote?.usd_rate || 0).toLocaleString()} افغانی`} mono />
-        {isBuy && <DetailRow label="کارمزد صراف" value={`$${fullFeeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}  •  ${fullFeeAfn.toLocaleString()} افغانی`} mono />}
+        {isBuy && <DetailRow label="کارمزد صراف" value={`${fullFeeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}  •  ${fullFeeAfn.toLocaleString()} افغانی`} mono />}
+        {!isBuy && <>
+          <DetailRow label="اصل مبلغ فروش" value={`${baseAfn.toLocaleString()} افغانی`} mono />
+          <DetailRow label={`کمیسیون صراف (${Number(quote?.fee_percent || 0)}٪)`}
+            value={`−${sellFeeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}  •  −${sellFeeAfn.toLocaleString()} افغانی`} mono />
+        </>}
       </div>
 
       <div className="card" style={{ padding: 14 }}>
