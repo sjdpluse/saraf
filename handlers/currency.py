@@ -172,12 +172,13 @@ async def currency_calc_callback(update: Update, context: ContextTypes.DEFAULT_T
     context.user_data[CURRENCY_CALC_CODE] = code
 
     date_str = get_afghan_datetime_str()
+    example_amount = "1000000" if code == "irr" else "100"
 
     await query.edit_message_text(
         f"{name} شما به افغانی چند می‌شود؟\n"
         f"{date_str}\n\n"
         f"لطفاً مقدار {name} که می‌خواهید به افغانی تبدیل کنید، را فقط بصورت عدد "
-        f"بنویسید. مثلاً (100)"
+        f"بنویسید. مثلاً ({example_amount})"
     )
 
 
@@ -213,6 +214,7 @@ async def handle_currency_calc_input(update: Update, context: ContextTypes.DEFAU
         return True
 
     lines = [f"{flag} *نتیجهٔ محاسبه — {amount:,.2f} {name}*", ""]
+    afn_decimals = 2 if code == "irr" else 1
 
     local = quote.get("local")
     if local:
@@ -220,8 +222,8 @@ async def handle_currency_calc_input(update: Update, context: ContextTypes.DEFAU
         buy_afn = amount * local["sell"]
         lines.append(f"🏛 *بر اساس نرخ {local['market_label']}*")
         lines.append(
-            f"اگر بفروشید: {sell_afn:,.1f} افغانی\n"
-            f"اگر بخرید: {buy_afn:,.1f} افغانی"
+            f"اگر بفروشید: {sell_afn:,.{afn_decimals}f} افغانی\n"
+            f"اگر بخرید: {buy_afn:,.{afn_decimals}f} افغانی"
         )
         lines.append(DIVIDER)
 
@@ -230,8 +232,8 @@ async def handle_currency_calc_input(update: Update, context: ContextTypes.DEFAU
     buy_afn = amount * saraf["sell"]
     lines.append("💱 *بر اساس نرخ صرافی‌های محلی*")
     lines.append(
-        f"اگر بفروشید: {sell_afn:,.1f} افغانی\n"
-        f"اگر بخرید: {buy_afn:,.1f} افغانی"
+        f"اگر بفروشید: {sell_afn:,.{afn_decimals}f} افغانی\n"
+        f"اگر بخرید: {buy_afn:,.{afn_decimals}f} افغانی"
     )
 
     await thinking_msg.edit_text("\n".join(lines), parse_mode="Markdown")
