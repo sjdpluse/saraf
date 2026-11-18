@@ -1,0 +1,71 @@
+name: Verify LIVE Saraf USDT sell commission release (read only)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - '.github/workflows/saraf-usdt-sell-fee-live-verify-20261118.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: >-
+      github.ref == 'refs/heads/migration/telegram-native-serverless-poc' &&
+      github.event.head_commit.message == 'verify: confirm live Saraf USDT sell fee and original webhook'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: saraf-original-production
+    env:
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - name: Verify public static Mini App JS and signed Edge route health only
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const host='https://app8533795882.tgcloud.ai/';
+          const edge='https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1/';
+          const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+          async function get(url){
+            let last;
+            for(let attempt=1;attempt<=4;attempt++){
+              try{
+                const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(12000)});
+                return response;
+              }catch(error){
+                last=error;
+                if(attempt<4)await pause(2000);
+              }
+            }
+            throw last||Error('SOURCE_UNAVAILABLE');
+          }
+          let assetVerified=false;
+          for(let attempt=0;attempt<4;attempt++){
+            const page=await get(host);
+            const html=await page.text();
+            if(!page.ok||!/<html[\s>]/i.test(html))throw Error('MINI_APP_INDEX_UNAVAILABLE');
+            const match=html.match(/src=["']([^"']*\/assets\/index-[A-Za-z0-9_-]+\.js)["']/);
+            if(!match)throw Error('MINI_APP_JS_ASSET_MISSING');
+            const script=await get(new URL(match[1],host).href);
+            if(!script.ok)throw Error('MINI_APP_ASSET_UNAVAILABLE');
+            const body=await script.text();
+            if(body.includes('sell_commission_v1')&&body.includes('مبلغ فروش قبل از کمیسیون')){
+              assetVerified=true;console.log('Verified live SELL commission disclosure in '+match[1]);
+              break;
+            }
+            await pause(1800);
+          }
+          if(!assetVerified)throw Error('LIVE_MINI_APP_BUNDLE_OLD');
+          for(const name of ['saraf-original-transactions','saraf-original-order-card']){
+            const response=await get(edge+name);
+            if(response.status!==405)throw Error('SIGNED_EDGE_ROUTE_UNAVAILABLE_'+name+'_'+response.status);
+            console.log('Verified '+name+' rejects read-only GET (405), no financial action executed');
+          }
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          if(!token)throw Error('ORIGINAL_BOT_IDENTITY_CANNOT_BE_VERIFIED');
+          const who=await(await get('https://api.telegram.org/bot'+token+'/getMe')).json();
+          const webhook=await(await get('https://api.telegram.org/bot'+token+'/getWebhookInfo')).json();
+          if(!who.ok||who.result.username!=='sarafiaf_bot'||
+             !webhook.ok||webhook.result.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('ORIGINAL_TELEGRAM_WEBHOOK_MISMATCH');
+          console.log('LIVE original bot identity and webhook unchanged.');
+          NODE
