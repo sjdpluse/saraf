@@ -5,6 +5,7 @@ import {getReferenceRates} from './reference_rates.js';
 import {getLocalMarketRates} from './local_market_service.js';
 import {selectOriginalBasis} from './legacy_rate_engine.js';
 import {VALID_CODES} from './currencies.js';
+import {currencyUnit} from './legacy_display.js';
 
 const URL='https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1/saraf-public-history?mode=spreads';
 export async function originalSpreads(http=fetch){
@@ -35,8 +36,7 @@ export async function originalLiveQuotes(codes=VALID_CODES){
  }
  return result;
 }
-export const originalCurrencyUnit=code=>
-  ['pkr','irr','inr'].includes(code)?1000:1;
+export const originalCurrencyUnit=currencyUnit;
 // Keep the historic export name for internal callers; source of truth is
 // the 1:1 original Railway-format presentation module.
 export {originalCurrencyText} from './legacy_display.js';

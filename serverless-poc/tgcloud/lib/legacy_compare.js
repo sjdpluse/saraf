@@ -7,6 +7,7 @@ import {getMetalPrice,metalBreakdown} from './metals.js';
 import {selectOriginalBasis,historicalOriginalBasis,applyOriginalSpread}
  from './legacy_rate_engine.js';
 import {codeLabel} from './legacy_menus.js';
+import {currencyUnit} from './legacy_display.js';
 
 const ENDPOINT='https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1/saraf-public-history';
 const PERIODS={1:'۲۴ ساعت گذشته',7:'هفتهٔ گذشته',30:'ماه گذشته',90:'سه ماه گذشته'};
@@ -46,12 +47,17 @@ export function formatOriginalCompare(target,days,historical,current){
  const saved=historical?.spread_percent==null?{}:
   {[target]:Number(historical.spread_percent)};
  const quote=selectOriginalBasis(target,current.reference,current.local||{},saved);
- const old=historicalOriginalBasis(historical?.old_local,historical?.reference_old);
- const name=codeLabel(target);
+ const old=historicalOriginalBasis(historical?.old_local,historical?.reference_old,target);
+ const qty=currencyUnit(target),name=codeLabel(target)+
+  (qty===1?'':' (هر '+qty.toLocaleString('en-US')+' واحد)');
  const basis=BASIS[quote.saraf_quote.basis]||quote.saraf_quote.basis;
- if(!(old.rate>0))return '📊 *'+name+'*\n\nخرید فعلی: *'+
-  fmt(quote.saraf_quote.buy)+'* | فروش فعلی: *'+
-  fmt(quote.saraf_quote.sell)+'* افغانی\n_(بر اساس '+basis+')_\n\n'+
+ const ratio=old.rate>0?old.rate/quote.saraf_quote.basis_rate:0;
+ // Older snapshots may contain source 1K prices misread as a one-unit price.
+ // Hide incompatible records rather than inventing a 99.9% price crash.
+ const validHistory=old.rate>0 && (qty===1 || (ratio>0.01&&ratio<100));
+ if(!validHistory)return '📊 *'+name+'*\n\nخرید فعلی: *'+
+  fmt(quote.saraf_quote.buy*qty)+'* | فروش فعلی: *'+
+  fmt(quote.saraf_quote.sell*qty)+'* افغانی\n_(بر اساس '+basis+')_\n\n'+
   'هنوز دادهٔ تاریخی کافی برای این بازهٔ زمانی ذخیره نشده است. ربات هر چند دقیقه یک بار نرخ‌ها را ثبت می‌کند؛ لطفاً کمی بعد دوباره امتحان کنید.';
  const oldQuote=applyOriginalSpread(old.rate,target,saved);
  const change=(quote.saraf_quote.basis_rate-old.rate)/old.rate*100;
@@ -62,10 +68,10 @@ export function formatOriginalCompare(target,days,historical,current){
   ' و نرخ گذشته بر اساس '+oldBasis+
   ' محاسبه شده (به‌دلیل نبود دادهٔ بازار محلی در آن زمان)._':'';
  return '📊 *'+name+'* — مقایسه با '+period+
-  '\n\n🕰 *'+period+'*\nخرید: '+fmt(oldQuote.buy)+
-  ' | فروش: '+fmt(oldQuote.sell)+' افغانی'+
-  '\n\n⏱ *اکنون*\nخرید: *'+fmt(quote.saraf_quote.buy)+
-  '* | فروش: *'+fmt(quote.saraf_quote.sell)+'* افغانی'+
+  '\n\n🕰 *'+period+'*\nخرید: '+fmt(oldQuote.buy*qty)+
+  ' | فروش: '+fmt(oldQuote.sell*qty)+' افغانی'+
+  '\n\n⏱ *اکنون*\nخرید: *'+fmt(quote.saraf_quote.buy*qty)+
+  '* | فروش: *'+fmt(quote.saraf_quote.sell*qty)+'* افغانی'+
   '\n\nتغییر: '+arrow+' *'+(change>=0?'+':'')+fmt(change,2)+'%*'+
   '\n_(بر اساس '+basis+')_'+note;
 }

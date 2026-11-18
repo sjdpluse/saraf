@@ -9,13 +9,17 @@ const SOURCES = [
   'https://api.exchangerate-api.com/v4/latest/USD',
 ];
 const round4 = value => Math.round((value + Number.EPSILON) * 10000) / 10000;
+// ISO IRR is rial; Saraf's Iranian currency label is toman (10 rials).
+// Keep sub-AFN precision: one million toman should never round to zero.
+const normalizeRate = (code, afnPerIsoUnit) => code === 'irr'
+  ? Math.round(afnPerIsoUnit * 10 * 1e10) / 1e10 : round4(afnPerIsoUnit);
 
 export function decodeAfnBase(data) {
   const source = data?.afn;
   if (!source || typeof source !== 'object') return null;
   const rates = {};
   for (const code of VALID_CODES) {
-    if (isPositive(source[code])) rates[code] = round4(1 / source[code]);
+    if (isPositive(source[code])) rates[code] = normalizeRate(code, 1 / source[code]);
   }
   return isPositive(rates.usd) ? rates : null;
 }
@@ -27,7 +31,7 @@ export function decodeUsdBase(data) {
   for (const code of VALID_CODES) {
     const n = source[code.toUpperCase()];
     if (code === 'usd') rates.usd = round4(afn);
-    else if (isPositive(n)) rates[code] = round4(afn / n);
+    else if (isPositive(n)) rates[code] = normalizeRate(code, afn / n);
   }
   return rates;
 }

@@ -44,17 +44,18 @@ export async function handleOriginalCalcReply(message) {
    const quotes=await originalLiveQuotes([args[0]]);
    const q=quotes[args[0]];
    if(!q)throw Error('نرخ ارز در دسترس نیست.');
-   const calc=originalCurrencyCalculation(amount,q);
+   const code=args[0],calc=originalCurrencyCalculation(amount,q,code);
+   const decimals=code==='irr'?2:1;
    result=codeLabel(args[0]).split(' ')[0]+' *نتیجهٔ محاسبه — '+money(amount)+
     ' '+codeLabel(args[0]).split(' ').slice(1).join(' ')+'*\n';
    if(calc.local) {
     result+='\n🏛 *بر اساس نرخ '+calc.local_market_label+'*\n'+
-     'اگر بفروشید: '+money(calc.local.sell_afn,1)+' افغانی\n'+
-     'اگر بخرید: '+money(calc.local.buy_afn,1)+' افغانی\n'+DIVIDER+'\n';
+     'اگر بفروشید: '+money(calc.local.sell_afn,decimals)+' افغانی\n'+
+     'اگر بخرید: '+money(calc.local.buy_afn,decimals)+' افغانی\n'+DIVIDER+'\n';
    }
    result+='\n💱 *بر اساس نرخ صرافی‌های محلی*\n'+
-    'اگر بفروشید: '+money(calc.saraf.sell_afn,1)+' افغانی\n'+
-    'اگر بخرید: '+money(calc.saraf.buy_afn,1)+' افغانی';
+    'اگر بفروشید: '+money(calc.saraf.sell_afn,decimals)+' افغانی\n'+
+    'اگر بخرید: '+money(calc.saraf.buy_afn,decimals)+' افغانی';
   } else {
    const mode=args[0],symbol=kind==='gold'?'XAU':'XAG';
    const karat=kind==='gold'?Number(args[1]):24;

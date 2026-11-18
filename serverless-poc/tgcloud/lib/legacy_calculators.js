@@ -6,16 +6,17 @@ const GOLD_KARATS = [24, 22, 21, 18];
 const round = (number, places) => Number(number.toFixed(places));
 const positive = n => typeof n === 'number' && Number.isFinite(n) && n > 0;
 
-export function originalCurrencyCalculation(amount, quote) {
+export function originalCurrencyCalculation(amount, quote, code='') {
   if (!positive(amount)) throw Error('INVALID_AMOUNT');
   const saraf = quote?.saraf_quote;
   if (!positive(saraf?.buy) || !positive(saraf?.sell))
     throw Error('SARAF_RATE_UNAVAILABLE');
+  const decimals = code === 'irr' ? 2 : 1;
   const pair = rates => ({
     // Original Python: selling foreign currency receives AFN at BUY rate;
     // buying foreign currency pays AFN at SELL rate.
-    sell_afn: round(amount * rates.buy, 1),
-    buy_afn: round(amount * rates.sell, 1),
+    sell_afn: round(amount * rates.buy, decimals),
+    buy_afn: round(amount * rates.sell, decimals),
   });
   const local = quote?.local;
   return {

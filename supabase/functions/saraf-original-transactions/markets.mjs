@@ -7,6 +7,9 @@ const urls=[
  'https://api.exchangerate-api.com/v4/latest/USD',
 ];
 const four=n=>Math.round(n*10000)/10000;
+// International ISO IRR is rial, but Saraf presents and calculates toman.
+const quoteUnitRate=(code,n)=>code==='irr'
+ ? Math.round(n*10*1e10)/1e10 : four(n);
 const one=n=>Math.round(n*10)/10;
 async function jsonFetch(url,http){
  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);
@@ -26,14 +29,14 @@ export async function fetchOriginalCurrencyRates(http=fetch){
     if(!base||typeof base!=='object')continue;
     for(const code of CODES){
       const unit=Number(base[code]);
-      if(Number.isFinite(unit)&&unit>0)rates[code]=four(1/unit);
+      if(Number.isFinite(unit)&&unit>0)rates[code]=quoteUnitRate(code,1/unit);
     }
    }else{
     const base=Number(data?.rates?.AFN);
     if(!Number.isFinite(base)||base<=0)continue;
     for(const code of CODES){
       const unit=Number(data.rates[code.toUpperCase()]);
-      if(Number.isFinite(unit)&&unit>0)rates[code]=four(base/unit);
+      if(Number.isFinite(unit)&&unit>0)rates[code]=quoteUnitRate(code,base/unit);
     }
    }
    if(rates.usd&&Object.keys(rates).length>=4)return rates;
@@ -81,9 +84,13 @@ export function parseOriginalLocalRates(html){
   if(cells.length<3)continue;
   const buy=number(cells[1][1]),sell=number(cells[2][1]);
   if(!(buy>0&&sell>0))continue;
-  const multiple=/هزار/.test(clean(cells[0][1]))?1000:1;
-  markets[market][code]={buy:Math.round(buy/multiple*1e6)/1e6,
-   sell:Math.round(sell/multiple*1e6)/1e6};
+  const label=clean(cells[0][1]);
+  const multiple=/\b1\s*k\b|\b1[,\s]?000\b|هزار/i.test(label)?1000:1;
+  // Fail closed on missing unit markers, never publish an inflated quote.
+  if(['pkr','inr','irr'].includes(code)&&multiple!==1000)continue;
+  const precision=code==='irr'?1e10:1e6;
+  markets[market][code]={buy:Math.round(buy/multiple*precision)/precision,
+   sell:Math.round(sell/multiple*precision)/precision};
  }
  return markets;
 }

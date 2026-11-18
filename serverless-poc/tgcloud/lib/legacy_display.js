@@ -10,7 +10,8 @@ export const fmt=(n,d=2)=>Number(n).toLocaleString('en-US',{
  minimumFractionDigits:d,maximumFractionDigits:d});
 export const currencyLabel=code=>CURRENCIES[code]
  ? CURRENCIES[code][0]+' '+CURRENCIES[code][1] : String(code).toUpperCase();
-export const currencyUnit=code=>['pkr','irr','inr'].includes(code)?1000:1;
+export const currencyUnit=code=>code==='irr'?1000000:['pkr','inr'].includes(code)?1000:1;
+const unitText=code=>currencyUnit(code)===1000000?'1,000,000':String(currencyUnit(code));
 
 // Port of the exact Gregorian-to-Afghan-Jalali algorithm from persian_date.py.
 // Explicit UTC+04:30 offset avoids Intl/timeZone/URL browser globals missing
@@ -53,8 +54,8 @@ export function originalCurrencyText(code,quote,{withDate=true,forAll=false,date
  if(!CURRENCIES[code]||!quote?.saraf_quote)throw Error('INVALID_CURRENCY_QUOTE');
  const name=CURRENCIES[code][1],flag=CURRENCIES[code][0];
  const lines=forAll?
-  [DIVIDER,flag+' *('+currencyUnit(code)+') '+name+'*','']:
-  ['آخرین بروزرسانی امروز؛',date,'',flag+' *('+currencyUnit(code)+') '+name+'*'];
+  [DIVIDER,flag+' *('+unitText(code)+') '+name+'*','']:
+  ['آخرین بروزرسانی امروز؛',date,'',flag+' *('+unitText(code)+') '+name+'*'];
  const local=quote.local;
  if(local&&Number(local.buy)>0&&Number(local.sell)>0){
   lines.push('🏛 *نرخ '+(local.market_label||'سرای شهزاده (کابل)')+'*',
