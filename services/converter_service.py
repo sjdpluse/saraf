@@ -49,6 +49,9 @@ async def convert(from_code: str, to_code: str, amount: float) -> float:
     if from_code == to_code:
         return round(amount, 6)
 
+    # برای کاربر IRR به معنای تومان است؛ API جهانی مقدار ریال را برمی‌گرداند.
+    # ۱ تومان = ۱۰ ریال، و این تبدیل باید در هر دو جهت انجام شود.
+    iso_amount = amount * 10 if from_code == "irr" else amount
     rates = await _get_rates_for_base(from_code)
     if not rates or to_code not in rates:
         raise RuntimeError(
@@ -56,7 +59,9 @@ async def convert(from_code: str, to_code: str, amount: float) -> float:
             "لطفاً کد ارزها را بررسی کنید یا کمی بعد دوباره تلاش کنید."
         )
 
-    result = amount * rates[to_code]
+    result = iso_amount * rates[to_code]
+    if to_code == "irr":
+        result /= 10
     return round(result, 6)
 
 
