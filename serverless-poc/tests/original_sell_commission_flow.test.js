@@ -35,7 +35,8 @@ test('server writes SELL net payout and profit atomically through existing quote
  const sell=source('webapp/src/pages/Sell.jsx');
  assert.match(index,/sellCommissionPercent\(\)/);
  assert.match(index,/SARAF_ORIGINAL_SELL_COMMISSION_PERCENT/);
- assert.match(index,/originalSellPricing\(String\(a\),String\(usdRate\),sellCommissionPercent\(\)\)/);
+ assert.match(index,/type==='USDT'\?sellCommissionPercent\(\):'0'/);
+ assert.match(index,/originalSellPricing\(String\(a\),String\(usdRate\),/);
  assert.match(index,/fee_percent:pricing\.fee_percent\?\?0/);
  assert.match(index,/values\.saraf_profit_usd=pricing\.saraf_profit_usd/);
  assert.match(index,/values\.saraf_profit_afn=pricing\.saraf_profit_afn/);
