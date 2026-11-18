@@ -30,7 +30,7 @@ test('SELL uses the same market-margin 50/30/20 customer fee as BUY, not a 2% fe
   assert.equal(s.saraf_profit_usd,b.saraf_profit_usd);
   assert.equal(s.customer_discount_usd,b.customer_discount_usd);
   assert.equal(s.fee_usd,fee);
-  assert.equal(s.fee_usd,b.customer_payable_usd-Number(amount));
+  assert.ok(Math.abs(s.fee_usd-(b.customer_payable_usd-Number(amount)))<1e-8);
   assert.equal(s.fee_percent,0);
   assert.equal(s.pricing_model,'local_margin_share_50_30_20_sell');
   assert.equal(s.total_usd,Number(amount)-fee);
