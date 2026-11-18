@@ -33,7 +33,7 @@ def _format_quote_block(code: str, name: str, quote: dict) -> str:
         "آخرین بروزرسانی امروز؛",
         date_str,
         "",
-        f"{flag} *({amount}) {name}*",
+        f"{flag} *({amount:,}) {name}*",
     ]
 
     # ۱) نرخ سرای شهزاده
@@ -73,7 +73,7 @@ def _format_quote_block_for_all(code: str, name: str, quote: dict) -> str:
 
     lines = [
         DIVIDER,
-        f"{flag} *({amount}) {name}*",
+        f"{flag} *({amount:,}) {name}*",
         "",
     ]
 
