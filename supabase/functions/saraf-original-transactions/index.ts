@@ -653,7 +653,7 @@ Deno.serve(async req=>{
     total_usd:side==='buy'?pricing.customer_payable_usd:pricing.total_usd,
     status:'active',expires_at:new Date(Date.now()+600000).toISOString(),
    };
-   if(side==='sell'){
+   if(side==='sell'&&type==='USDT'){
     values.pricing_model=pricing.pricing_model;
     values.saraf_profit_usd=pricing.saraf_profit_usd;
     values.saraf_profit_afn=pricing.saraf_profit_afn;
