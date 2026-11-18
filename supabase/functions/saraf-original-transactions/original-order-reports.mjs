@@ -23,11 +23,21 @@ export function buildOriginalOrderReports(order,profile={},support='@SJDPLUS'){
  const afn=val(order.total_afn),totalUsd=val(order.total_usd);
  // Only persisted financial order fields, never browser-supplied fees.
  const sellFeePercent=order.order_type==='sell'?val(order.fee_percent):0;
- const sellFeeUsd=val(order.saraf_profit_usd);
- const sellFeeAfn=val(order.saraf_profit_afn);
- const sellBreakdown=sellFeePercent>0
-  ?'مبلغ قبل از کمیسیون: '+fmt(afn+sellFeeAfn,1)+' افغانی\n'+
-   'کمیسیون صراف ('+fmt(sellFeePercent,2)+'٪): $'+fmt(sellFeeUsd)+
+ const marginSell=order.order_type==='sell'&&
+   order.pricing_model==='local_margin_share_50_30_20_sell';
+ // New market-margin orders persist supplier and Saraf shares. Earlier
+ // 2%-fee orders remain valid without retroactive price changes.
+ const sellFeeUsd=val(order.saraf_profit_usd)+
+   (marginSell?val(order.supplier_profit_usd):0);
+ const sellFeeAfn=val(order.saraf_profit_afn)+
+   (marginSell?val(order.supplier_profit_afn):0);
+ const showSellFee=order.order_type==='sell'&&
+   (marginSell?sellFeeUsd>0:sellFeePercent>0);
+ const sellFeeLabel=marginSell?'کارمزد صراف':
+   'کمیسیون صراف ('+fmt(sellFeePercent,2)+'٪)';
+ const sellBreakdown=showSellFee
+  ?'مبلغ پایه: '+fmt(afn+sellFeeAfn,1)+' افغانی\n'+
+   sellFeeLabel+': $'+fmt(sellFeeUsd)+
    ' | '+fmt(sellFeeAfn,1)+' افغانی\n'
   :'';
  if(!amount||!rate||!afn||!totalUsd)throw Error('ORIGINAL_ORDER_REPORT_AMOUNT_INVALID');
@@ -57,7 +67,7 @@ export function buildOriginalOrderReports(order,profile={},support='@SJDPLUS'){
  :header+'کد سفارش: <code>'+code+'</code>\n'+
   'دارایی: <b>'+asset+'</b>\nمقدار: <b>'+fmt(amount,2)+' '+asset+'</b>\n'+
   'نرخ: '+fmt(rate,2)+' افغانی\n'+
-  sellBreakdown+(sellFeePercent>0?'مبلغ قابل دریافت پس از کمیسیون: <b>':'مبلغ قابل دریافت: <b>')+fmt(afn,sellFeePercent>0?1:0)+' افغانی</b>\n'+
+  sellBreakdown+(showSellFee?'مبلغ نهایی قابل دریافت: <b>':'مبلغ قابل دریافت: <b>')+fmt(afn,showSellFee?1:0)+' افغانی</b>\n'+
   'صرافی: '+exchange+'\nشبکه: '+network+'\n'+
   'روش دریافت: '+method+codePlace+'\n'+
   (order.receive_method==='in_person'
@@ -95,9 +105,34 @@ export function buildOriginalOrderReports(order,profile={},support='@SJDPLUS'){
   (order.receipt_file_id?'\n🧾 رسید پرداخت مشتری: دریافت‌شده (فایل جداگانه)':'')+
   source
   :'🆕 <b>سفارش فروش '+asset+'</b>'+riskBanner+trust+common+
-  '\n💵 مبلغ قابل پرداخت به مشتری: <b>'+fmt(afn,sellFeePercent>0?1:0)+' افغانی</b>\n'+
-   (sellFeePercent>0?'📈 کمیسیون صراف: $'+fmt(sellFeeUsd)+
-     ' | '+fmt(sellFeeAfn,1)+' افغانی ('+fmt(sellFeePercent,2)+'٪)\n':'')+
+  '\n💵 مبلغ قابل پرداخت به مشتری: <b>'+fmt(afn,showSellFee?1:0)+' افغانی</b>\n'+
+   (showSellFee?'💵 '+sellFeeLabel+': 
+  'اثبات تراکنش: '+(order.tx_proof?
+   (String(order.tx_proof).startsWith('https://')?
+     'رسید بارگذاری‌شده (فایل جداگانه)':safe(order.tx_proof,450)):'-')+
+  '\nاطلاعات پرداخت مشتری: '+safe(order.bank_info,450)+source;
+ return {customer,admin,code};
+}
++fmt(sellFeeUsd)+
+     ' | '+fmt(sellFeeAfn,1)+' افغانی\n'+
+     (marginSell?'🏦 سهم تأمین‌کننده: 
+  'اثبات تراکنش: '+(order.tx_proof?
+   (String(order.tx_proof).startsWith('https://')?
+     'رسید بارگذاری‌شده (فایل جداگانه)':safe(order.tx_proof,450)):'-')+
+  '\nاطلاعات پرداخت مشتری: '+safe(order.bank_info,450)+source;
+ return {customer,admin,code};
+}
++fmt(order.supplier_profit_usd)+
+      ' | '+fmt(order.supplier_profit_afn,1)+' افغانی\n'+
+      '📈 سود خالص صراف: 
+  'اثبات تراکنش: '+(order.tx_proof?
+   (String(order.tx_proof).startsWith('https://')?
+     'رسید بارگذاری‌شده (فایل جداگانه)':safe(order.tx_proof,450)):'-')+
+  '\nاطلاعات پرداخت مشتری: '+safe(order.bank_info,450)+source;
+ return {customer,admin,code};
+}
++fmt(order.saraf_profit_usd)+
+      ' | '+fmt(order.saraf_profit_afn,1)+' افغانی\n':''):'')+
   'اثبات تراکنش: '+(order.tx_proof?
    (String(order.tx_proof).startsWith('https://')?
      'رسید بارگذاری‌شده (فایل جداگانه)':safe(order.tx_proof,450)):'-')+
