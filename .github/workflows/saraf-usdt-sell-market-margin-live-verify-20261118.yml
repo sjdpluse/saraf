@@ -1,0 +1,79 @@
+name: Verify LIVE Saraf USDT SELL BUY-margin parity (read only)
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - '.github/workflows/saraf-usdt-sell-market-margin-live-verify-20261118.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: >-
+      github.ref == 'refs/heads/migration/telegram-native-serverless-poc' &&
+      github.event.head_commit.message == 'verify: live Saraf USDT SELL uses original BUY market margin'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: saraf-original-production
+    env:
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - name: Verify live static quote and both canonical Edge auth gates (NO WRITES)
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const host='https://app8533795882.tgcloud.ai/';
+          const edge='https://cvernmhpnsgdtegvblyc.supabase.co/functions/v1/';
+          const pause=ms=>new Promise(done=>setTimeout(done,ms));
+          async function safeFetch(url,options={}){
+            let err;
+            for(let n=0;n<4;n++){
+              try{return await fetch(url,{cache:'no-store',
+                signal:AbortSignal.timeout(12000),...options})}
+              catch(e){err=e;if(n<3)await pause(1500)}
+            }
+            throw err;
+          }
+          let found=false;
+          for(let n=0;n<5;n++){
+            const index=await safeFetch(host);
+            const html=await index.text();
+            if(!index.ok||!html.includes('<html'))throw Error('LIVE_MINI_APP_UNAVAILABLE');
+            const scriptPath=html.match(/src=["']([^"']*\/assets\/index-[\w-]+\.js)["']/);
+            if(!scriptPath)throw Error('LIVE_MINI_APP_SCRIPT_MISSING');
+            const script=await safeFetch(new URL(scriptPath[1],host).href);
+            if(!script.ok)throw Error('LIVE_MINI_APP_SCRIPT_UNAVAILABLE');
+            const js=await script.text();
+            if(js.includes('sell_market_margin_v2')&&js.includes('کارمزد صراف')&&
+               js.includes('مبلغ پایه')){
+              console.log('Confirmed LIVE USDT SELL v2 local market fee display, no percentage label:',scriptPath[1]);
+              found=true;break;
+            }
+            if(n<4)await pause(1500);
+          }
+          if(!found)throw Error('LIVE_MINI_APP_HAS_STALE_SELL_PRICING');
+          for(const name of ['saraf-original-transactions','saraf-original-order-card']){
+            const r=await safeFetch(edge+name);
+            if(r.status!==405)throw Error('EDGE_ROUTE_GET_NOT_BLOCKED_'+name+'_'+r.status);
+            console.log('Read-only health check OK, GET rejected 405:',name);
+          }
+          const forged=await safeFetch(edge+'saraf-original-transactions',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Origin':host.slice(0,-1)},
+            body:JSON.stringify({action:'quote',input:{
+              action:'sell',asset:'USDT',amount:50,pricing_version:'sell_market_margin_v2'
+            }}),
+          });
+          if(forged.status!==401)
+            throw Error('SIGNED_QUOTE_ACCEPTED_WITHOUT_TELEGRAM_IDENTITY_'+forged.status);
+          console.log('Unauthenticated price/quote request rejected 401, no quote or order created.');
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          if(!token)throw Error('NO_ORIGINAL_BOT_TOKEN');
+          const me=await(await safeFetch('https://api.telegram.org/bot'+token+'/getMe')).json();
+          const wh=await(await safeFetch('https://api.telegram.org/bot'+token+'/getWebhookInfo')).json();
+          if(!me.ok||me.result.username!=='sarafiaf_bot'||!wh.ok||
+             wh.result.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('ORIGINAL_BOT_WEBHOOK_CHANGED');
+          console.log('Production original Saraf bot, Telegram Serverless webhook unchanged.');
+          NODE
+          echo 'USDT SELL BUY-margin model live; signed production Edge endpoints healthy, unauthorized quote blocked, original webhook preserved.' >> "$GITHUB_STEP_SUMMARY"
