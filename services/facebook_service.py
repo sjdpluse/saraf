@@ -9,7 +9,7 @@ import httpx
 from config import (
     TRACKED_CURRENCIES,
     CURRENCY_FLAGS,
-    THOUSAND_UNIT_CURRENCIES,
+    CURRENCY_DISPLAY_UNITS,
     FACEBOOK_PAGE_ID,
     FACEBOOK_PAGE_ACCESS_TOKEN,
     FACEBOOK_CHANGE_THRESHOLD_PERCENT,
@@ -28,7 +28,7 @@ WHATSAPP_CHANNEL_URL = "https://whatsapp.com/channel/0029VbDBaZqC1FuAw0kj2G07"
 
 
 def _unit_amount(code: str) -> int:
-    return 1000 if code in THOUSAND_UNIT_CURRENCIES else 1
+    return CURRENCY_DISPLAY_UNITS.get(code, 1)
 
 
 def _scale(code: str, value: float) -> float:
