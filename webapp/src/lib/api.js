@@ -187,7 +187,7 @@ export const api = {
   getQuote: async (action, amount, asset = "USDT") => {
     const selectedAsset = normalizeAsset(asset);
     const quote = await request("/usdt/quote", { method: "POST", body: { action, amount, asset: selectedAsset,
-      ...(action === "sell" ? { pricing_version: "sell_commission_v1" } : {}) } });
+      ...(action === "sell" ? { pricing_version: "sell_market_margin_v2" } : {}) } });
     latestQuotes.set(quoteKey(action, selectedAsset), { ...quote, asset: selectedAsset });
     return { ...quote, asset: selectedAsset };
   },
