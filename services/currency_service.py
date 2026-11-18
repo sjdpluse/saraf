@@ -25,6 +25,13 @@ EXCHANGERATE_API_URL = "https://api.exchangerate-api.com/v4/latest/USD"
 _TIMEOUT = 10.0
 
 
+def _normalize_iso_rate(code: str, afn_per_unit: float) -> float:
+    """IRR در API ریال است، اما در رابط صراف با نام تومان (۱۰ ریال) کار می‌کنیم."""
+    if code == "irr":
+        return round(afn_per_unit * 10, 10)
+    return round(afn_per_unit, 4)
+
+
 async def _fetch_json(url: str) -> Optional[dict]:
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
@@ -46,7 +53,7 @@ async def _from_afn_base(url: str) -> Optional[dict[str, float]]:
     for code in TRACKED_CURRENCIES:
         val = afn_rates.get(code)
         if val and val > 0:
-            result[code] = round(1 / val, 4)
+            result[code] = _normalize_iso_rate(code, 1 / val)
     return result if result else None
 
 
@@ -65,9 +72,9 @@ async def _from_exchangerate_api() -> Optional[dict[str, float]]:
     for code in TRACKED_CURRENCIES:
         unit_rate = rates.get(code.upper())
         if code == "usd":
-            result[code] = round(afn_per_usd, 4)
+            result[code] = _normalize_iso_rate(code, afn_per_usd)
         elif unit_rate and unit_rate > 0:
-            result[code] = round(afn_per_usd / unit_rate, 4)
+            result[code] = _normalize_iso_rate(code, afn_per_usd / unit_rate)
     return result if result else None
 
 
