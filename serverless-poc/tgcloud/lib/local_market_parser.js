@@ -43,7 +43,7 @@ export function parseLocalMarketHtml(html) {
   const result = Object.fromEntries(Object.values(MARKET).map(key => [key, {}]));
   for (const [, rowHtml] of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr\s*>/gi)) {
     const links = [...rowHtml.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi)];
-    let code, market, unit = 1;
+    let code, market;
     for (const [, attrs, body] of links) {
       const hrefMatch = attrs.match(/href\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i);
       const href = hrefMatch?.[1] || hrefMatch?.[2] || hrefMatch?.[3] || '';
@@ -51,14 +51,14 @@ export function parseLocalMarketHtml(html) {
       if (!url) continue;
       market = MARKET[url[1].toLowerCase()];
       code = url[2].toLowerCase();
-      if (THOUSAND_LABEL.test(plainText(body))) unit = 1000;
       break;
     }
     if (!market || !code || Object.hasOwn(result[market], code)) continue;
-    // Missing 1K marker means the upstream unit changed; do not publish 1000x bad prices.
-    if (THOUSAND_MARKET_CODES.has(code) && unit !== 1000) continue;
     const cells = [...rowHtml.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td\s*>/gi)];
     if (cells.length < 3) continue;
+    const unit = THOUSAND_LABEL.test(plainText(cells[0][1])) ? 1000 : 1;
+    // Missing 1K marker means the upstream unit changed; do not publish 1000x bad prices.
+    if (THOUSAND_MARKET_CODES.has(code) && unit !== 1000) continue;
     const buy = parseNumeric(plainText(cells[1][1]));
     const sell = parseNumeric(plainText(cells[2][1]));
     if (buy == null || sell == null) continue;
