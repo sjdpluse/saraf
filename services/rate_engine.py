@@ -27,6 +27,10 @@ from services import supabase_service as db
 logger = logging.getLogger(__name__)
 
 
+def _round_basis(code: str, value: float) -> float:
+    return round(value, 10 if code.lower() == "irr" else 4)
+
+
 async def get_full_quote(code: str) -> dict:
     """
     خروجی نمونه:
@@ -86,7 +90,7 @@ async def get_full_quote(code: str) -> dict:
             "buy": saraf_buy,
             "sell": saraf_sell,
             "basis": basis,
-            "basis_rate": round(basis_rate, 4),
+            "basis_rate": _round_basis(code, basis_rate),
         },
         "spread_percent": spread_pct,
     }
@@ -115,10 +119,10 @@ async def get_historical_basis_rate(code: str, when: datetime) -> tuple[Optional
     local_hist = db.get_closest_local_market_rate(primary, code, when)
     if local_hist:
         mid = (local_hist["buy"] + local_hist["sell"]) / 2
-        return round(mid, 4), "local"
+        return _round_basis(code, mid), "local"
 
     ref_hist = db.get_closest_currency_rate(code, when)
     if ref_hist is not None:
-        return round(ref_hist, 4), "reference"
+        return _round_basis(code, ref_hist), "reference"
 
     return None, "none"
