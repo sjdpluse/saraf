@@ -83,7 +83,7 @@ def _build_currency_block(code: str, name: str, quote: dict) -> str:
 
     lines = [
         DIVIDER,
-        f"{flag} ({amount}) {name}",
+        f"{flag} ({amount:,}) {name}",
         "",
     ]
 
