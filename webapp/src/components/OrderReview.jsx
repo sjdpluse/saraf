@@ -60,9 +60,9 @@ export default function OrderReview({ action, asset, amount, quote, exchange, ne
         {inPersonCode && <DetailRow label="کد مراجعهٔ حضوری" value={inPersonCode} mono />}
         <DetailRow label="نرخ دالر" value={`${Number(quote?.usd_rate || 0).toLocaleString()} افغانی`} mono />
         {isBuy && <DetailRow label="کارمزد صراف" value={`${fullFeeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}  •  ${fullFeeAfn.toLocaleString()} افغانی`} mono />}
-        {!isBuy && Number(quote?.fee_percent || 0) > 0 && <>
+        {!isBuy && sellFeeUsd > 0 && <>
           <DetailRow label="اصل مبلغ فروش" value={`${baseAfn.toLocaleString()} افغانی`} mono />
-          <DetailRow label={`کمیسیون صراف (${Number(quote?.fee_percent || 0)}٪)`}
+          <DetailRow label="کارمزد صراف"
             value={`−${sellFeeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}  •  −${sellFeeAfn.toLocaleString()} افغانی`} mono />
         </>}
       </div>
