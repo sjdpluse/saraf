@@ -1,0 +1,133 @@
+name: One-time Saraf USDT SELL BUY-margin live Mini App release
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - '.github/workflows/saraf-usdt-sell-market-margin-live-static-20261118.yml'
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: >-
+      github.ref == 'refs/heads/migration/telegram-native-serverless-poc' &&
+      github.event.head_commit.message == 'release: correct live USDT SELL fee to original BUY market margin'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: saraf-original-production
+    env:
+      TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+      SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Exact reviewed code and one-time release-only commit guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 'd46a203a12bb8bf9e6082f652baac6d41208f052'
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = '.github/workflows/saraf-usdt-sell-market-margin-live-static-20261118.yml'
+          [[ "${TGCLOUD_TOKEN:-}" == app8533795882:* ]] || { echo '::error::WRONG_TELEGRAM_APP'; exit 1; }
+          test -n "${SARAF_ORIGINAL_BOT_TOKEN:-}" || { echo '::error::MISSING_BOT_TOKEN'; exit 1; }
+      - name: Confirm original production bot, unchanged Serverless webhook
+        run: |
+          node --input-type=module <<'NODE'
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+          async function call(method){
+            let last;
+            for(let n=0;n<4;n++){
+              try{
+                const res=await fetch('https://api.telegram.org/bot'+token+'/'+method,
+                  {signal:AbortSignal.timeout(12000),cache:'no-store'});
+                const data=await res.json();
+                if(res.ok&&data.ok)return data.result;
+                throw Error('BOT_API_'+method+'_'+res.status);
+              }catch(error){last=error;if(n<3)await pause(2000)}
+            }
+            throw last;
+          }
+          const bot=await call('getMe'),hook=await call('getWebhookInfo');
+          if(bot.username!=='sarafiaf_bot'||
+             hook.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('WRONG_PRODUCTION_BOT_OR_WEBHOOK');
+          console.log('Original BotFather identity and webhook verified.');
+          NODE
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Verify 132 original bot/payment/market regressions, fee parity and UI contract
+        run: |
+          set -euo pipefail
+          node --test serverless-poc/tests/*.test.js
+          grep -q 'sell_market_margin_v2' webapp/src/lib/api.js
+          grep -q 'کارمزد صراف' webapp/src/pages/Sell.jsx
+          grep -q 'کارمزد صراف' webapp/src/components/OrderReview.jsx
+          grep -q 'local_margin_share_50_30_20_sell' supabase/functions/saraf-original-transactions/pricing.mjs
+      - name: Compile only original React Mini App, no changes to Telegram bot modules
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Package exact original app allowlist, not financial endpoints
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeOrder.js
+          test -s serverless-poc/.release-original/dist/index.html
+      - name: Install pinned Telegram Serverless CLI
+        working-directory: serverless-poc/.release-original
+        run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      - name: Fetch live app revision read-only before scoped publish
+        working-directory: serverless-poc/.release-original
+        run: |
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+      - name: Publish ONLY static React dist to app8533795882
+        working-directory: serverless-poc/.release-original
+        run: npx --no-install tgcloud push dist/
+      - name: Verify LIVE v2 code, new fee wording and unchanged Telegram webhook
+        run: |
+          node --input-type=module <<'NODE'
+          const host='https://app8533795882.tgcloud.ai/';
+          const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+          async function fetchIt(url){
+            let last;
+            for(let attempt=0;attempt<4;attempt++){
+              try{
+                return await fetch(url,{signal:AbortSignal.timeout(12000),cache:'no-store'});
+              }catch(error){last=error;if(attempt<3)await delay(1500)}
+            }
+            throw last;
+          }
+          let live=false;
+          for(let n=0;n<5;n++){
+            const response=await fetchIt(host);
+            const html=await response.text();
+            if(!response.ok||!html.includes('<html'))throw Error('MINI_APP_HOST_INVALID');
+            const match=html.match(/src=["']([^"']*\/assets\/index-[A-Za-z0-9_-]+\.js)["']/);
+            if(!match)throw Error('MINI_APP_ASSET_NOT_LISTED');
+            const asset=await fetchIt(new URL(match[1],host).href);
+            if(!asset.ok)throw Error('MINI_APP_BUNDLE_UNAVAILABLE');
+            const script=await asset.text();
+            if(script.includes('sell_market_margin_v2')&&script.includes('کارمزد صراف')){
+              live=true;
+              console.log('Verified new BUY-equivalent SELL fee asset live:',match[1]);break;
+            }
+            if(n<4)await delay(1500);
+          }
+          if(!live)throw Error('LIVE_ASSET_NOT_UPDATED');
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          const hook=await(await fetchIt('https://api.telegram.org/bot'+token+'/getWebhookInfo')).json();
+          if(!hook.ok||hook.result.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('ORIGINAL_WEBHOOK_CHANGED');
+          console.log('Production Mini App live, original bot webhook unchanged.');
+          NODE
+          echo 'Original Telegram Serverless Mini App updated with BUY-parity USDT SELL market-margin fee. No Telegram bot modules changed.' >> "$GITHUB_STEP_SUMMARY"
