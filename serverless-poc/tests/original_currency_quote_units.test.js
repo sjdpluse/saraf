@@ -89,7 +89,7 @@ test('international ISO IRR (rial) is changed into toman in both Serverless and 
       "const isPositive=n=>typeof n==='number'&&Number.isFinite(n)&&n>0;");
   const {decodeAfnBase,decodeUsdBase,convertUsingAfnRates}=
     await import('data:text/javascript;base64,'+Buffer.from(isolated).toString('base64'));
-  const afn={afn:{usd:1/66,pkr:1/.234,irr:1/.000025}};
+  const afn={afn:{usd:1/66,eur:1/73,pkr:1/.234,irr:1/.000025}};
   assert.equal(decodeAfnBase(afn).irr,.00025);
   const usd={rates:{AFN:66,IRR:2_640_000,PKR:66/.234}};
   assert.equal(decodeUsdBase(usd).irr,.00025);
