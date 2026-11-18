@@ -57,7 +57,7 @@ export function buildOriginalOrderReports(order,profile={},support='@SJDPLUS'){
  :header+'کد سفارش: <code>'+code+'</code>\n'+
   'دارایی: <b>'+asset+'</b>\nمقدار: <b>'+fmt(amount,2)+' '+asset+'</b>\n'+
   'نرخ: '+fmt(rate,2)+' افغانی\n'+
-  sellBreakdown+'مبلغ قابل دریافت پس از کمیسیون: <b>'+fmt(afn,1)+' افغانی</b>\n'+
+  sellBreakdown+(sellFeePercent>0?'مبلغ قابل دریافت پس از کمیسیون: <b>':'مبلغ قابل دریافت: <b>')+fmt(afn,sellFeePercent>0?1:0)+' افغانی</b>\n'+
   'صرافی: '+exchange+'\nشبکه: '+network+'\n'+
   'روش دریافت: '+method+codePlace+'\n'+
   (order.receive_method==='in_person'
@@ -95,7 +95,7 @@ export function buildOriginalOrderReports(order,profile={},support='@SJDPLUS'){
   (order.receipt_file_id?'\n🧾 رسید پرداخت مشتری: دریافت‌شده (فایل جداگانه)':'')+
   source
   :'🆕 <b>سفارش فروش '+asset+'</b>'+riskBanner+trust+common+
-  '\n💵 مبلغ قابل پرداخت به مشتری: <b>'+fmt(afn,1)+' افغانی</b>\n'+
+  '\n💵 مبلغ قابل پرداخت به مشتری: <b>'+fmt(afn,sellFeePercent>0?1:0)+' افغانی</b>\n'+
    (sellFeePercent>0?'📈 کمیسیون صراف: $'+fmt(sellFeeUsd)+
      ' | '+fmt(sellFeeAfn,1)+' افغانی ('+fmt(sellFeePercent,2)+'٪)\n':'')+
   'اثبات تراکنش: '+(order.tx_proof?
