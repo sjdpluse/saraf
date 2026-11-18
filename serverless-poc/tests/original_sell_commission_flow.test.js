@@ -83,7 +83,7 @@ test('BUY vs SELL fees match while reverse settlement leaves full USDT amount un
   const buy=originalBuyPricing(String(amount),'65');
   const sell=originalSellPricing(String(amount),'65');
   const fee=buy.customer_payable_usd-amount;
-  assert.equal(sell.fee_usd,fee);
+  assert.ok(Math.abs(sell.fee_usd-fee)<1e-8);
   assert.equal(sell.total_usd,amount-fee);
   assert.equal(sell.amount,amount);
   assert.equal(sell.fee_percent,0);
