@@ -44,6 +44,11 @@ HREF_RE = re.compile(
     r"/exchange-rates/(sarai-shahzada|khorasan-market|da-afg-bank)/([A-Za-z]{3})-AFN"
 )
 
+# سایت sarafi.af ارزهای PKR، INR و IRR (تومان) را با نشان 1K قیمت‌گذاری می‌کند.
+# اگر نشان 1K از صفحه حذف شود، این نرخ‌ها را به‌جای انتشار قیمت 1000 برابر اشتباه رد می‌کنیم.
+_THOUSAND_SOURCE_CODES = frozenset({"pkr", "inr", "irr"})
+_THOUSAND_LABEL_RE = re.compile(r"(?:\b1\s*k\b|\b1[,\s]?000\b|۱[٬,\s]?۰۰۰|هزار)", re.IGNORECASE)
+
 _MARKET_KEY = {
     "sarai-shahzada": "sarai_shahzada",
     "khorasan-market": "khorasan_market",
@@ -99,14 +104,23 @@ def _parse_html(html: str) -> dict:
         if buy is None or sell is None or buy <= 0 or sell <= 0:
             continue
 
-        # ارزهایی مثل تومان/کلدار/ین که به‌صورت «هزار واحد» نمایش داده می‌شوند
-        # را به نرخ «هر ۱ واحد» عادی‌سازی می‌کنیم (هم‌راستا با currency_service)
-        if "هزار" in a_tag.get_text():
+        # سایت واحد ۱۰۰۰ را اغلب با «1K» (نه «هزار») در سلول ارز نشان می‌دهد.
+        # نرخ IRR این سایت عملاً «تومان» است؛ مقدار درونی هر یک تومان خواهد بود.
+        label = cells[0].get_text(" ", strip=True)
+        per_thousand = bool(_THOUSAND_LABEL_RE.search(label))
+        if code in _THOUSAND_SOURCE_CODES and not per_thousand:
+            logger.warning("نشان واحد 1K برای %s در %s یافت نشد؛ نرخ رد شد.", code, market_key)
+            continue
+        if per_thousand:
             buy /= 1000
             sell /= 1000
 
         if code not in result[market_key]:
-            result[market_key][code] = {"buy": round(buy, 6), "sell": round(sell, 6)}
+            precision = 10 if code == "irr" else 6
+            result[market_key][code] = {
+                "buy": round(buy, precision),
+                "sell": round(sell, precision),
+            }
 
     return result
 
