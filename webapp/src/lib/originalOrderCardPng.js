@@ -188,8 +188,9 @@ export async function renderOriginalOrderCardPreview(source){
  const x=96,y=436,w=383,g=22,h=114;
  stat(ctx,x,y,w,h,'مقدار '+asset,money(order.usdt_amount,0)+' '+asset,
   {size:30,color:accent});
- stat(ctx,x+w+g,y,w,h,!isBuy&&Number(order.fee_percent)>0
-   ?'مبلغ پس از کمیسیون':'مبلغ کل',money(order.total_afn,0)+' AFN');
+ stat(ctx,x+w+g,y,w,h,!isBuy&&(Number(order.fee_percent)>0||
+    order.pricing_model==='local_margin_share_50_30_20_sell')
+   ?'مبلغ پس از کارمزد':'مبلغ کل',money(order.total_afn,0)+' AFN');
  stat(ctx,x,y+h+g,w,h,'صرافی / شبکه',
   order.exchange_name+' / '+order.network,{size:19});
  stat(ctx,x+w+g,y+h+g,w,h,'نرخ هر دالر',
