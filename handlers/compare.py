@@ -4,7 +4,7 @@ from typing import Optional
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from config import TRACKED_CURRENCIES, CURRENCY_FLAGS
+from config import TRACKED_CURRENCIES, CURRENCY_FLAGS, CURRENCY_DISPLAY_UNITS
 from keyboards import compare_target_keyboard, compare_period_keyboard
 from services import gold_service, currency_service, rate_engine, spread_service
 from services import supabase_service as db
@@ -62,16 +62,27 @@ def _arrow(change: float) -> str:
 
 
 async def _build_currency_comparison(code: str, days: int, when) -> str:
+    amount = CURRENCY_DISPLAY_UNITS.get(code, 1)
     label = _label(code)
+    if amount != 1:
+        label += f" (هر {amount:,} {TRACKED_CURRENCIES.get(code, code)})"
     period_text = PERIOD_LABELS.get(days, f"{days} روز پیش")
 
     quote = await rate_engine.get_full_quote(code)
-    current_buy = quote["saraf_quote"]["buy"]
-    current_sell = quote["saraf_quote"]["sell"]
+    current_buy = quote["saraf_quote"]["buy"] * amount
+    current_sell = quote["saraf_quote"]["sell"] * amount
     current_basis = quote["saraf_quote"]["basis"]
     current_basis_rate = quote["saraf_quote"]["basis_rate"]
 
     old_basis_rate, old_basis = await rate_engine.get_historical_basis_rate(code, when)
+
+    # داده‌های تاریخی پیش از اصلاح parser با واحد ۱۰۰۰ برابر اشتباه ذخیره شده‌اند.
+    # به‌جای نمایش «سقوط» ساختگی ۹۹.۹٪، این رکوردهای ناسازگار را کنار می‌گذاریم.
+    if code in CURRENCY_DISPLAY_UNITS and old_basis_rate is not None and current_basis_rate > 0:
+        ratio = old_basis_rate / current_basis_rate
+        if ratio >= 100 or ratio <= 0.01:
+            logger.warning("نرخ تاریخی %s با واحد فعلی سازگار نیست (ratio=%.2f).", code, ratio)
+            old_basis_rate = None
 
     if old_basis_rate is None:
         return (
@@ -83,6 +94,8 @@ async def _build_currency_comparison(code: str, days: int, when) -> str:
         )
 
     old_buy, old_sell = spread_service.apply_spread(old_basis_rate, code)
+    old_buy *= amount
+    old_sell *= amount
     change = _pct_change(old_basis_rate, current_basis_rate)
     arrow = _arrow(change)
 
