@@ -51,30 +51,53 @@ export function originalBuyPricing(amount,usdRate){
   total_afn:pr(mul(customerPayable,rate),'afn'),
  };
 }
-// An explicit SELL commission is withheld from the fiat proceeds, never
-// from the customer's transferred USDT/USDC. The default 2% matches the
-// existing BUY customer-facing effective premium for regular sized trades.
-// The canonical Edge may override it via SARAF_ORIGINAL_SELL_COMMISSION_PERCENT.
-export function originalSellPricing(amount,usdRate,feePercent='2'){
- const a=dec(amount),rate=dec(usdRate),percent=dec(feePercent);
- if(a<=0||rate<=0||percent>dec('10'))throw Error('INVALID_TRADE_VALUE');
- const grossAfn=mul(a,rate);
- const feeUsd=mul(a,percentage(percent));
- const feeAfn=mul(feeUsd,rate);
- // The displayed fiat numbers must balance to one AFN decimal exactly.
- const roundedGrossAfn=quant(grossAfn,Q.afn);
- const roundedFeeAfn=quant(feeAfn,Q.afn);
+// SELL uses the SAME market-margin formula as BUY. The customer's
+// deduction is the 50% supplier share + 30% Saraf share of the larger
+// of a $2 minimum market margin and 2.5% of the traded notional;
+// the remaining 20% is the customer discount. This is NOT a separate
+// flat 2% commission. The seller transfers their FULL USDT amount.
+export function originalSellPricing(amount,usdRate){
+ const a=dec(amount),rate=dec(usdRate);
+ if(a<=0||rate<=0)throw Error('INVALID_TRADE_VALUE');
+ const margin=max(dec('2'),mul(a,dec('0.025')));
+ const supplier=mul(margin,dec('0.5'));
+ const saraf=mul(margin,dec('0.3'));
+ const discount=mul(margin,dec('0.2'));
+ const feeUsd=supplier+saraf;
+ if(feeUsd>=a)throw Error('INVALID_TRADE_VALUE');
+ const grossAfn=quant(mul(a,rate),Q.afn);
+ const feeAfn=quant(mul(feeUsd,rate),Q.afn);
+ // Rounded components add up to the actual customer deduction.
+ const supplierAfn=quant(mul(supplier,rate),Q.afn);
+ const sarafAfn=feeAfn-supplierAfn;
  const netUsd=a-feeUsd;
  return {
   asset:null,amount:num(a),usd_rate:pr(rate,'rate'),
-  pricing_model:'sell_saraf_commission_v1',
-  fee_percent:pr(percent,'percent'),
-  gross_usd:pr(a,'usd'),base_afn:pr(roundedGrossAfn,'afn'),
-  fee_usd:pr(feeUsd,'usd'),fee_afn:pr(roundedFeeAfn,'afn'),
-  saraf_profit_usd:pr(feeUsd,'usd'),saraf_profit_afn:pr(roundedFeeAfn,'afn'),
-  total_afn:pr(roundedGrossAfn-roundedFeeAfn,'afn'),
+  pricing_model:'local_margin_share_50_30_20_sell',
+  // Kept at zero for the old quote/order schema. A dollar margin is
+  // explicitly NOT a percentage fee.
+  fee_percent:0,
+  gross_usd:pr(a,'usd'),base_afn:pr(grossAfn,'afn'),
+  market_margin_usd:pr(margin,'usd'),
+  supplier_profit_usd:pr(supplier,'usd'),
+  saraf_profit_usd:pr(saraf,'usd'),
+  customer_discount_usd:pr(discount,'usd'),
+  supplier_profit_afn:pr(supplierAfn,'afn'),
+  saraf_profit_afn:pr(sarafAfn,'afn'),
+  customer_discount_afn:pr(mul(discount,rate),'afn'),
+  fee_usd:pr(feeUsd,'usd'),fee_afn:pr(feeAfn,'afn'),
+  total_afn:pr(grossAfn-feeAfn,'afn'),
   total_usd:pr(netUsd,'usd'),receivable_usd:pr(netUsd,'usd'),
  };
+}
+// Preserve the original no-deduction USDC SELL quote; the market-margin
+// change requested by the owner applies to USDT SELL only.
+export function originalSellPricingNoFee(amount,usdRate){
+ const a=dec(amount),rate=dec(usdRate);
+ if(a<=0||rate<=0)throw Error('INVALID_TRADE_VALUE');
+ return {asset:null,amount:num(a),usd_rate:pr(rate,'rate'),
+  total_afn:pr(mul(a,rate),'afn'),total_usd:pr(a,'usd'),
+  receivable_usd:pr(a,'usd'),fee_percent:0};
 }
 export function originalRemittancePricing(amount,usdRate,feePercent=0){
  const a=dec(amount),r=dec(usdRate),fee=dec(feePercent);
