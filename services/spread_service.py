@@ -77,7 +77,9 @@ def apply_spread(reference_rate: float, currency: str) -> tuple[float, float]:
     half = spread_pct / 2 / 100
     buy = reference_rate * (1 - half)
     sell = reference_rate * (1 + half)
-    return round(buy, 4), round(sell, 4)
+    # نرخ یک تومان کسری از یک افغانی است؛ گردکردن به ۴ رقم، نرخ را خراب می‌کند.
+    precision = 10 if currency.lower() == "irr" else 4
+    return round(buy, precision), round(sell, precision)
 
 
 def get_all_effective_spreads(currencies: list[str]) -> dict[str, float]:
