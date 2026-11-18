@@ -14,7 +14,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish-quote-only:
-    if: ${{ github.ref == 'refs/heads/migration/telegram-native-serverless-poc' && github.event.head_commit.message == 'release: deploy validated Saraf currency modules to Telegram Serverless' }}
+    if: >-
+      github.ref == 'refs/heads/migration/telegram-native-serverless-poc' &&
+      github.event.head_commit.message == 'release: deploy validated Saraf currency modules to Telegram Serverless'
     name: Guarded production hotfix (no webhook, money, or Mini App changes)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -32,7 +34,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = '26836c3a4d121c1638588fed33c086341024870c'
+          test "$(git rev-parse HEAD^)" = '91fbb048b3387489e77733d788e128f54cad546e'
           actual="$(git diff-tree --no-commit-id --name-only -r HEAD)"
           test "$actual" = '.github/workflows/saraf-one-time-currency-unit-live-release-20261118.yml'
           [[ "${TGCLOUD_TOKEN:-}" == app8533795882:* ]] || {
