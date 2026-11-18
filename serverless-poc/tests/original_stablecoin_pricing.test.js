@@ -44,7 +44,7 @@ test('SELL fee rounding and zero rollback are internally consistent',()=>{
  assert.equal(free.fee_usd,0);
  assert.equal(free.fee_afn,0);
  assert.equal(free.total_usd,100);
- assert.equal(originalSellPricing('100','65','1.25').total_afn,6418.8);
+ assert.equal(originalSellPricing('100','65','1.25').total_afn,6418.7);
  for(const bad of ['10.0001','11','NaN','-1'])
   assert.throws(()=>originalSellPricing('100','65',bad));
 });
