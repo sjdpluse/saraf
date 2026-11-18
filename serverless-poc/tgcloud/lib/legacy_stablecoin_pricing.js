@@ -51,12 +51,30 @@ export function originalBuyPricing(amount,usdRate){
   total_afn:pr(mul(customerPayable,rate),'afn'),
  };
 }
-export function originalSellPricing(amount,usdRate){
- const a=dec(amount),rate=dec(usdRate);
- if(a<=0||rate<=0)throw Error('INVALID_TRADE_VALUE');
- return {asset:null,amount:num(a),usd_rate:pr(rate,'rate'),
-  total_afn:pr(mul(a,rate),'afn'),total_usd:pr(a,'usd'),
-  receivable_usd:pr(a,'usd')};
+// An explicit SELL commission is withheld from the fiat proceeds, never
+// from the customer's transferred USDT/USDC. The default 2% matches the
+// existing BUY customer-facing effective premium for regular sized trades.
+// The canonical Edge may override it via SARAF_ORIGINAL_SELL_COMMISSION_PERCENT.
+export function originalSellPricing(amount,usdRate,feePercent='2'){
+ const a=dec(amount),rate=dec(usdRate),percent=dec(feePercent);
+ if(a<=0||rate<=0||percent>dec('10'))throw Error('INVALID_TRADE_VALUE');
+ const grossAfn=mul(a,rate);
+ const feeUsd=mul(a,percentage(percent));
+ const feeAfn=mul(feeUsd,rate);
+ // The displayed fiat numbers must balance to one AFN decimal exactly.
+ const roundedGrossAfn=quant(grossAfn,Q.afn);
+ const roundedFeeAfn=quant(feeAfn,Q.afn);
+ const netUsd=a-feeUsd;
+ return {
+  asset:null,amount:num(a),usd_rate:pr(rate,'rate'),
+  pricing_model:'sell_saraf_commission_v1',
+  fee_percent:pr(percent,'percent'),
+  gross_usd:pr(a,'usd'),base_afn:pr(roundedGrossAfn,'afn'),
+  fee_usd:pr(feeUsd,'usd'),fee_afn:pr(roundedFeeAfn,'afn'),
+  saraf_profit_usd:pr(feeUsd,'usd'),saraf_profit_afn:pr(roundedFeeAfn,'afn'),
+  total_afn:pr(roundedGrossAfn-roundedFeeAfn,'afn'),
+  total_usd:pr(netUsd,'usd'),receivable_usd:pr(netUsd,'usd'),
+ };
 }
 export function originalRemittancePricing(amount,usdRate,feePercent=0){
  const a=dec(amount),r=dec(usdRate),fee=dec(feePercent);

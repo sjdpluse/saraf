@@ -111,6 +111,13 @@ function remittancePercent(){
    deny('REMITTANCE_FEE_NOT_CONFIGURED',503);
  return rate;
 }
+// The signed Edge owns the SELL commission; never accept a browser fee.
+function sellCommissionPercent(){
+ const raw=Deno.env.get('SARAF_ORIGINAL_SELL_COMMISSION_PERCENT')??'2';
+ if(!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,4})?$/.test(raw)||
+    Number(raw)>10)deny('SELL_COMMISSION_CONFIG_INVALID',503);
+ return raw;
+}
 function remittanceLimit(name:string,defaultValue:number){
  const value=Number(Deno.env.get(name)||String(defaultValue));
  if(!Number.isFinite(value)||value<=0||value>1000000)
@@ -628,20 +635,29 @@ Deno.serve(async req=>{
    const type=asset(input.asset),a=amount(input.amount);
    const side=String(input.action);
    if(!['buy','sell'].includes(side))deny('INVALID_ORDER_TYPE');
+   // Old cached Mini Apps must not silently quote an undisclosed SELL fee.
+   if(side==='sell'&&type==='USDT'&&input.pricing_version!=='sell_commission_v1')
+     deny('SELL_COMMISSION_UPDATE_REQUIRED',409);
    const rate=await originalRates(db);
    const localSell=rate.local?.sell;
    const usdRate=side==='buy'
     ?localSell||rate.saraf_quote.sell:rate.saraf_quote.buy;
    const pricing:any=side==='buy'
     ?originalBuyPricing(String(a),String(usdRate))
-    :originalSellPricing(String(a),String(usdRate));
+    :originalSellPricing(String(a),String(usdRate),
+       type==='USDT'?sellCommissionPercent():'0');
    const values:Json={
     chat_id:user.id,order_type:side,asset:type,
     usdt_amount:a,usd_rate:pricing.usd_rate??usdRate,
-    fee_percent:0,total_afn:pricing.total_afn,
+    fee_percent:pricing.fee_percent??0,total_afn:pricing.total_afn,
     total_usd:side==='buy'?pricing.customer_payable_usd:pricing.total_usd,
     status:'active',expires_at:new Date(Date.now()+600000).toISOString(),
    };
+   if(side==='sell'&&type==='USDT'){
+    values.pricing_model=pricing.pricing_model;
+    values.saraf_profit_usd=pricing.saraf_profit_usd;
+    values.saraf_profit_afn=pricing.saraf_profit_afn;
+   }
    if(side==='buy'){
     values.pricing_model='local_margin_share_50_30_20';
     for(const name of ['market_margin_usd','supplier_profit_usd',
@@ -656,12 +672,13 @@ Deno.serve(async req=>{
    if(stored.error || !stored.data)deny('QUOTE_STORE_FAILED',503);
    return out(origin,200,safeQuote({
     ...pricing,asset:type,amount:a,
-    usd_rate:values.usd_rate,fee_percent:0,
-    fee_afn:0,original_fee_percent:0,
+    usd_rate:values.usd_rate,fee_percent:values.fee_percent,
+    fee_afn:pricing.fee_afn??0,
+    original_fee_percent:values.fee_percent,
     basis:side==='buy'&&localSell?'local_sell':rate.saraf_quote.basis,
     total_usd:values.total_usd,
     payable_usd:side==='buy'?values.total_usd:undefined,
-    pricing_model:side==='buy'?'local_margin_share_50_30_20':undefined,
+    pricing_model:values.pricing_model,
     quote_id:stored.data!.id,expires_at:stored.data!.expires_at,
    }));
   }
@@ -742,7 +759,7 @@ Deno.serve(async req=>{
     // user profile. No current market repricing, browser-supplied fields,
     // invented bank accounts or automatic financial approvals.
     const saved=await db.from('usdt_orders').select(
-     'id,chat_id,username,full_name,phone,asset,order_type,usdt_amount,usd_rate,total_afn,total_usd,network,exchange_name,wallet_address,status,source,payment_method,receive_method,in_person_code,bank_info,tx_proof,receipt_file_id,risk_level,risk_reasons,supplier_profit_usd,supplier_profit_afn,supplier_payout_usd,supplier_payout_afn,saraf_profit_usd,saraf_profit_afn'
+     'id,chat_id,username,full_name,phone,asset,order_type,usdt_amount,usd_rate,fee_percent,total_afn,total_usd,network,exchange_name,wallet_address,status,source,payment_method,receive_method,in_person_code,bank_info,tx_proof,receipt_file_id,risk_level,risk_reasons,supplier_profit_usd,supplier_profit_afn,supplier_payout_usd,supplier_payout_afn,saraf_profit_usd,saraf_profit_afn'
     ).eq('id',item.order_id).eq('chat_id',user.id).maybeSingle();
     const profile=await db.from('user_profiles').select(
       'first_name,last_name,phone,kyc_status,trust_score,successful_orders'
