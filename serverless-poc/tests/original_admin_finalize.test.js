@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 const read=path=>readFileSync(new URL('../../'+path,import.meta.url),'utf8');
 const sql=read('supabase/sql/saraf_original_admin_commands_STAGED.sql');
 const edge=read('supabase/functions/saraf-original-admin/index.ts');
-const ui=read('webapp/src/pages/OriginalAdmin.jsx');
+const ui=read('webapp/src/pages/AdminOrderDetail.jsx');
 const bridge=read('webapp/src/lib/originalAdminBridge.js');
 
 test('original admin complete requires proof, confirmed status and atomic trust history',()=>{
@@ -33,9 +33,10 @@ test('signed original admin confirmation, rejection and settlement are separate'
  assert.match(edge,/details.length>2000/);
  assert.match(edge,/verifyOriginalProof\(BOT,attestation,actor.id,orderId\)/);
  assert.match(edge,/row\?\.duplicate\?true:await notifyOriginalFinalized/);
- assert.match(ui,/await showConfirm\('آیا مبلغ\/رمزارز واقعاً/);
- assert.match(ui,/completion_tx_details:details/);
- assert.match(ui,/rejectOrder\(order\.id\)/);
- assert.match(ui,/completeOrder\(order\.id\)/);
+ assert.match(ui,/if \(!await showConfirm\(prompt/);
+ assert.match(ui,/آیا مبلغ\/رمزارز واقعاً/);
+ assert.match(ui,/input\.completion_tx_details = text/);
+ assert.match(ui,/submit\('order\.reject'\)/);
+ assert.match(ui,/submit\('order\.complete'\)/);
  assert.match(bridge,/'order.reject','order.complete','orders.confirmed'/);
 });

@@ -1,6 +1,9 @@
 import {useEffect,useState} from 'react';
-import {originalAdminCommand,uploadOriginalAdminCompletionProof} from '../lib/originalAdminBridge';
+import {originalAdminCommand} from '../lib/originalAdminBridge';
 import {showConfirm} from '../lib/telegram';
+import {ArrowRight, CaretDown, SlidersHorizontal, Vault} from '@phosphor-icons/react';
+import AdminOrderDesk from './AdminOrderDesk';
+import {orderNumber} from '../lib/adminOrders';
 import './OriginalAdmin.css';
 
 const CODES=['usd','eur','gbp','pkr','irr','aed','inr','sar',
@@ -8,17 +11,29 @@ const CODES=['usd','eur','gbp','pkr','irr','aed','inr','sar',
 const cash=n=>Number(n||0).toLocaleString('en-US',{
  maximumFractionDigits:2,
 });
+const sections = {
+ orders:'سفارش‌های مشتریان', 'remittances.pending':'حواله‌های در جریان',
+ 'kyc.pending':'احراز هویت', stats:'کاربران', spreads:'اسپرد ارزها',
+ broadcast:'پیام همگانی', post:'نشر در شبکه‌های اجتماعی',
+};
+const links = {remittances:'remittances.pending', kyc:'kyc.pending', setspread:'spreads'};
+function initialAdminPage(){
+ const params=new URLSearchParams(location.search);
+ const cmd=params.get('admin');
+ const section=Object.hasOwn(links,cmd) ? links[cmd] : Object.hasOwn(sections,cmd) ? cmd : 'orders';
+ return {section, queue:cmd==='complete'?'confirmed':'pending',
+  id:section==='orders'?orderNumber(params.get('order_id')||''):null};
+}
 export default function OriginalAdmin({navigate}){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState('');
  const [result,setResult]=useState(null);
- const [section,setSection]=useState('dashboard');
+ const [initial]=useState(initialAdminPage);
+ const [section,setSection]=useState(initial.section);
+ const [working,setWorking]=useState(false);
  const [code,setCode]=useState('usd');
  const [pct,setPct]=useState('0.6');
- const [orderId,setOrderId]=useState('');
- const [completionProof,setCompletionProof]=useState('');
- const [completionMedia,setCompletionMedia]=useState({});
- const [uploadingProofId,setUploadingProofId]=useState(null);
+ const [orderId,setOrderId]=useState(initial.id);
  const [pickupCodes,setPickupCodes]=useState({});
  const [broadcastMessage,setBroadcastMessage]=useState('');
  const [broadcastKey,setBroadcastKey]=useState('');
@@ -37,66 +52,23 @@ export default function OriginalAdmin({navigate}){
  }
  useEffect(()=>{
   const params=new URLSearchParams(location.search);
-  const command=params.get('admin')||'';
-  const requested=['dashboard','stats','spreads','pending','setspread','confirm','broadcast','kyc','complete','remittances','post']
-   .includes(command)?command:'dashboard';
-  const next=requested==='remittances'?'remittances.pending':requested==='complete'?'orders.confirmed':requested==='kyc'?'kyc.pending':requested==='broadcast'?'broadcast':requested==='pending'?'orders.pending':
-   requested==='confirm'?'orders.pending':requested==='setspread'?'spreads':requested;
-  setSection(next);
-  if(next==='dashboard'||next==='stats'||next==='spreads'||next==='orders.pending'||
-    next==='orders.confirmed'||next==='kyc.pending'||
-    next==='remittances.pending')load(next);
+  if (['stats','spreads','kyc.pending','remittances.pending'].includes(initial.section))
+   load(initial.section);
   const prefillCode=params.get('currency');
   if(prefillCode&&CODES.includes(prefillCode))setCode(prefillCode);
   const amount=params.get('percent');
   if(amount&&/^\d{1,2}(?:\.\d{1,2})?$/.test(amount))setPct(amount);
   const prefill=params.get('broadcast');
   if(prefill&&prefill.length<=1024)setBroadcastMessage(prefill);
-  const id=params.get('order_id');
-  if(id&&/^[1-9]\d{0,12}$/.test(id))setOrderId(id);
  },[]);
- async function confirmOrder(id){
-  const n=Number(id);
-  if(!Number.isSafeInteger(n)||n<1){setError('شماره سفارش معتبر نیست.');return;}
-  if(!await showConfirm('سفارش USDT-'+String(n).padStart(5,'0')+
-    ' را مطابق دستور اصلی /usdtconfirm تأیید می‌کنید؟'))return;
-  await load('order.confirm',{order_id:n});
+ function selectSection(next){
+  setError('');setResult(null);setOrderId(null);setSection(next);
+  if (['stats','spreads','kyc.pending','remittances.pending'].includes(next)) load(next);
  }
- async function rejectOrder(id){
-  const n=Number(id);
-  if(!Number.isSafeInteger(n)||n<1){setError('شماره سفارش معتبر نیست.');return;}
-  if(!await showConfirm('این سفارش مطابق ربات اصلی رد و لغو شود؟'))return;
-  await load('order.reject',{order_id:n});
- }
- async function uploadCompletionMedia(id,file){
-  const n=Number(id);
-  if(!Number.isSafeInteger(n)||n<1||!file)return;
-  setUploadingProofId(n);setError('');
-  // A stale attestation must never be reused when replacing a file.
-  setCompletionMedia(prev=>({...prev,[n]:null}));
-  try{
-   const proof=await uploadOriginalAdminCompletionProof(n,file);
-   setCompletionMedia(prev=>({...prev,[n]:{
-    token:proof.proof_token,expiresAt:Date.now()+590000,
-    fileType:proof.file_type,
-   }}));
-  }catch(err){
-   setError(err?.message||'آپلود مدرک تراکنش انجام نشد.');
-  }finally{setUploadingProofId(null);}
- }
- async function completeOrder(id){
-  const n=Number(id),details=completionProof.trim();
-  if(!Number.isSafeInteger(n)||n<1){setError('شماره سفارش معتبر نیست.');return;}
-  const proof=completionMedia[n];
-  const proof_token=proof?.expiresAt>Date.now()?proof.token:null;
-  if(details.length>2000||(details.length>0&&details.length<4)||
-      (details.length<4&&!proof_token)){
-   setError('برای تکمیل سفارش، Tx Hash واقعی (۴ تا ۲۰۰۰ حرف) یا عکس/PDF ثبت‌شده لازم است.');return;
-  }
-  if(!await showConfirm('آیا مبلغ/رمزارز واقعاً به مشتری ارسال شده و مدرک تراکنش صحیح است؟ این عمل سفارش را تکمیل می‌کند.'))return;
-  await load('order.complete',{order_id:n,completion_tx_details:details,
-    ...(proof_token?{proof_token}:{}),
-  });
+ function back(){
+  if(orderId) setOrderId(null);
+  else if(section!=='orders') selectSection('orders');
+  else navigate('menu');
  }
  async function transitionRemittance(order,transition){
   const id=Number(order?.id);
@@ -173,22 +145,22 @@ export default function OriginalAdmin({navigate}){
   if(!await showConfirm('اسپرد '+code.toUpperCase()+' روی '+num+'٪ ذخیره شود؟'))return;
   await load('spread.set',{currency:code,spread_percent:num});
  }
- return <main className="app-shell" style={{padding:'20px 18px 100px',direction:'rtl'}}>
-  <header style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-   <h1 style={{fontSize:21}}>مدیریت صراف</h1>
-   <button type="button" onClick={()=>navigate('menu')}>بازگشت</button>
+ return <main className="app-shell saraf-desk" dir="rtl">
+  <header className="desk-header">
+   <div className="desk-brand"><span className="desk-emblem"><Vault size={26}/></span><h1>مدیریت صراف</h1></div>
+   <div className="desk-header-tools">
+    <label className="desk-tool-picker"><SlidersHorizontal size={18}/><span>بخش‌ها</span><CaretDown size={12}/>
+     <select aria-label="بخش‌های مدیریت" disabled={busy||working} value={section} onChange={e=>selectSection(e.target.value)}>
+      {Object.entries(sections).map(([key,title])=><option key={key} value={key}>{title}</option>)}
+     </select>
+    </label>
+    <button type="button" className="desk-exit back-btn" disabled={busy||working} onClick={back} aria-label="بازگشت از مدیریت"><ArrowRight size={20}/></button>
+   </div>
   </header>
-  <p className="notice">پنل عملیاتی صراف با دسترسی اختصاصی مدیر. سفارش‌ها و ارقام از دیتابیس اصلی دریافت می‌شوند؛ ثبت، تأیید و تسویه تنها از مسیر امن سرور انجام می‌شود.</p>
-  <nav className="saraf-admin-nav" aria-label="بخش‌های مدیریت">
-   <button className={section==='dashboard'?'active':''} disabled={busy} onClick={()=>{setSection('dashboard');load('dashboard');}}>📊 داشبورد</button>
-   <button disabled={busy} onClick={()=>{setSection('stats');load('stats');}}>📈 کاربران</button>
-   <button disabled={busy} onClick={()=>{setSection('spreads');load('spreads');}}>📐 اسپردها</button>
-   <button disabled={busy} onClick={()=>{setSection('orders.pending');load('orders.pending');}}>📋 سفارش‌های در انتظار</button>
-   <button disabled={busy} onClick={()=>{setSection('orders.confirmed');load('orders.confirmed');}}>📦 سفارش‌های تأییدشده</button>
-   <button disabled={busy} onClick={()=>{setSection('remittances.pending');load('remittances.pending');}}>💸 حواله‌های در جریان</button>
-   <button disabled={busy} onClick={()=>{setSection('kyc.pending');load('kyc.pending');}}>🪪 احراز هویت</button>
-   <button disabled={busy} onClick={()=>setSection('post')}>📢 نشر پست فیسبوک/اینستاگرام</button>
-  </nav>
+  {section==='orders'&&<AdminOrderDesk initialQueue={initial.queue} orderId={orderId} setWorking={setWorking}
+    openOrder={id=>{setOrderId(id);window.scrollTo(0,0);}}/>}
+  {section!=='orders'&&<div className="desk-aux">
+   <h2>{sections[section]}</h2>
   {section==='post'&&<section className="notice">
    <h2>📢 نشر پست اصلی صراف در فیسبوک و اینستاگرام</h2>
    <p>همان تصویر و کپشن نرخ لحظه‌یی نسخهٔ اصلی. نشر تنها پس از تأیید مدیر و آماده‌بودن اتصال Meta انجام می‌شود؛ تغییر در پرداخت مشتریان ندارد.</p>
@@ -208,104 +180,6 @@ export default function OriginalAdmin({navigate}){
   </section>}
   {busy&&<p role="status">در حال بررسی ...</p>}
   {error&&<p role="alert" style={{color:'#b42318'}}>{error}</p>}
-  {result?.action==='dashboard'&&<section className="saraf-admin-dashboard">
-    <header className="saraf-admin-section-head">
-      <h2>📊 نمای کلی فعالیت صراف</h2>
-      <button type="button" onClick={()=>load('dashboard')} disabled={busy}>🔄 تازه‌سازی</button>
-    </header>
-    <div className="saraf-admin-kpis">
-      {[
-        ['👥 کاربران فعال',result.active_users],
-        ['🆕 سفارش‌های ۲۴ ساعت',result.new_orders_24h],
-        ['⏳ سفارش‌های در انتظار',result.pending_orders],
-        ['✅ تأییدشده و آماده تکمیل',result.confirmed_orders],
-        ['📦 معاملات تکمیل‌شده',result.completed_orders],
-        ['🪪 اسناد در انتظار KYC',result.pending_kyc],
-        ['💸 حواله‌های در جریان',result.pending_remittances],
-      ].map(([label,value])=><div className="saraf-admin-kpi" key={label}>
-        <span>{label}</span><strong className="num">{cash(value)}</strong>
-      </div>)}
-    </div>
-    <div className="saraf-admin-section-head">
-      <h3>آخرین سفارش‌ها</h3>
-      <button type="button" disabled={busy} onClick={()=>{
-        setSection('orders.pending');load('orders.pending');
-      }}>مشاهده سفارش‌های در انتظار</button>
-    </div>
-    <div className="saraf-admin-list">
-      {(result.recent_orders||[]).map(order=>
-        <article className="saraf-admin-order" key={order.id}>
-          <div><strong>{order.asset}-{String(order.id).padStart(5,'0')}</strong>
-            <span>{order.order_type==='buy'?'خرید':'فروش'} | {cash(order.usdt_amount)} {order.asset}</span>
-          </div>
-          <div><span className={'saraf-admin-state '+order.status}>{order.status}</span>
-            <span className="num">{cash(order.total_afn)} افغانی</span>
-          </div>
-          <button type="button" disabled={busy} onClick={()=>load('orders.detail',{order_id:order.id})}>جزییات</button>
-        </article>)}
-      {!result.recent_orders?.length&&<p className="notice">هنوز سفارشی ثبت نشده است.</p>}
-    </div>
-    <p className="saraf-admin-fineprint">مبالغ صرفاً مربوط به سفارش‌های ثبت‌شده‌اند؛ تا تأیید و تسویه واقعی، درآمد قطعی محسوب نمی‌شوند.</p>
-   </section>}
-   {result?.action==='orders.detail'&&<section className="saraf-admin-details">
-    <div className="saraf-admin-section-head"><h2>جزییات سفارش از پایگاه دادهٔ اصلی</h2>
-     <button disabled={busy} onClick={()=>load(section==='orders.confirmed'?'orders.confirmed':section==='orders.pending'?'orders.pending':'dashboard')}>بازگشت</button>
-    </div>
-    {result.order&&<div className="saraf-admin-detail-grid">
-     {[
-      ['کد سفارش',String(result.order.asset)+'-'+String(result.order.id).padStart(5,'0')],
-      ['نوع',result.order.order_type==='buy'?'خرید':'فروش'],
-      ['وضعیت',result.order.status],
-      ['مشتری',result.profile?[result.profile.first_name,result.profile.last_name].filter(Boolean).join(' '):result.order.full_name],
-      ['شناسه تلگرام',result.order.chat_id],
-      ['تلفن',result.profile?.phone||result.order.phone],
-      ['مقدار',cash(result.order.usdt_amount)+' '+result.order.asset],
-      ['مبلغ',cash(result.order.total_afn)+' افغانی'],
-      ['نرخ',cash(result.order.usd_rate)+' افغانی'],
-      ['مبلغ دالری',cash(result.order.total_usd)+' USD'],
-      ['شبکه',result.order.network],
-      ['صرافی / کیف پول',result.order.exchange_name],
-      ['روش پرداخت',result.order.payment_method||result.order.receive_method],
-      ['آدرس مقصد',result.order.wallet_address],
-      ['اطلاعات دریافت',result.order.bank_info],
-      ['ریسک',result.order.risk_level],
-      ['دلایل ریسک',result.order.risk_reasons],
-      ['وضعیت KYC',result.profile?.kyc_status],
-      ['Trust Score',result.profile?.trust_score],
-      ['معاملات موفق مشتری',result.profile?.successful_orders],
-      ['تاریخ ثبت',result.order.created_at?new Date(result.order.created_at).toLocaleString('fa-AF',{timeZone:'Asia/Kabul'}):null],
-     ].filter(([,value])=>value!==null&&value!==undefined&&value!=='').map(([label,value])=>
-      <div className="saraf-admin-detail" key={label}>
-       <span>{label}</span><strong dir={/آدرس|شناسه|نرخ|مبلغ/.test(label)?'ltr':'auto'}>{String(value)}</strong>
-      </div>)}
-    </div>}
-    {result.card_url&&<a className="saraf-admin-card-link" href={result.card_url} target="_blank"
-      rel="noopener noreferrer" referrerPolicy="no-referrer">🪪 مشاهده کارت ثبت‌شده (لینک خصوصی ۹۰ ثانیه)</a>}
-    <div className="saraf-admin-delivery-status">
-      <h3>🪪 گزارش ارسال کارت دیجیتال مشتری و مدیر</h3>
-      {result.card_delivery?.length?result.card_delivery.map((record,index)=>{
-        const status={
-          sent:'✅ ارسال‌شده',failed:'❌ ناموفق',
-          uncertain:'⚠️ وضعیت نامشخص — بررسی دستی',
-          sending:'⏳ در حال ارسال یا نامشخص',
-        }[record.state]||'ثبت نشده';
-        return <div className="saraf-admin-delivery-row" key={index}>
-          <span>{record.recipient==='customer'?'👤 کارت مشتری':'🛡 کارت مدیر'}</span>
-          <b>{status}</b>
-          <small>تلاش: {cash(record.attempt_count)}
-           {record.sent_at?' | ارسال: '+new Date(record.sent_at).toLocaleString('fa-AF',{timeZone:'Asia/Kabul'}):''}</small>
-        </div>;
-      }):<p>برای این سفارش سابقهٔ ارسال کارت ثبت نشده است. سفارش‌های قدیمی Railway ممکن است سابقهٔ ارسال در جدول جدید نداشته باشند.</p>}
-      <p className="saraf-admin-fineprint">در وضعیت نامشخص، برای جلوگیری از ارسال تکراری ابتدا ارسال واقعی پیام در تلگرام بررسی شود.</p>
-    </div>
-    {result.order?.status==='pending'&&<div className="saraf-admin-actions">
-      <button disabled={busy} type="button" onClick={()=>confirmOrder(result.order.id)}>✅ تأیید سفارش</button>
-      <button disabled={busy} type="button" onClick={()=>rejectOrder(result.order.id)}>❌ رد سفارش</button>
-    </div>}
-    {result.order?.status==='confirmed'&&<p className="notice">
-      برای تکمیل این سفارش، به بخش «سفارش‌های تأییدشده» رفته و مدرک واقعی تراکنش را بارگذاری کنید.
-    </p>}
-   </section>}
   {result?.action==='stats'&&<section className="notice">
    📈 تعداد کاربران فعال ربات: <b>{cash(result.active_users)}</b>
   </section>}
@@ -317,24 +191,6 @@ export default function OriginalAdmin({navigate}){
       <b>{currency.toUpperCase()}</b> — {cash(value)}٪
      </div>)}
    </div>
-  </section>}
-  {result?.action==='orders.pending'&&<section>
-    <h2 style={{fontSize:17}}>سفارش‌های در انتظار</h2>
-    {!result.orders?.length&&<p>سفارش در انتظاری وجود ندارد.</p>}
-    {(result.orders||[]).map(order=>
-     <article className="notice" key={order.id} style={{marginBottom:10}}>
-       <b>{order.asset||'USDT'}-{String(order.id).padStart(5,'0')}</b>
-       <p>{order.order_type==='buy'?'خرید':'فروش'} | {cash(order.usdt_amount)} {order.asset}
-       {' | '}{cash(order.total_afn)} افغانی</p>
-       <p>شبکه: {order.network||'—'} | صرافی: {order.exchange_name||'—'}
-        {' | '}ریسک: {order.risk_level||'نامشخص'}</p>
-       <button type="button" disabled={busy}
-        onClick={()=>load('orders.detail',{order_id:order.id})}>🔎 جزییات سفارش</button>
-       <button type="button" disabled={busy}
-        onClick={()=>confirmOrder(order.id)}>تأیید سفارش</button>
-       <button type="button" disabled={busy} style={{marginRight:8}}
-        onClick={()=>rejectOrder(order.id)}>❌ رد سفارش</button>
-     </article>)}
   </section>}
   {result?.action==='remittances.pending'&&<section>
    <h2 style={{fontSize:17}}>حواله‌ها — بررسی کریپتو، مدرک هویت و پرداخت نقدی</h2>
@@ -388,56 +244,6 @@ export default function OriginalAdmin({navigate}){
      setSection('remittances.pending');load('remittances.pending');
    }}>بازگشت به حواله‌ها</button></div>
   </div>}
-  {result?.action==='orders.confirmed'&&<section>
-   <h2 style={{fontSize:17}}>سفارش‌های تأییدشده و در انتظار تکمیل واقعی</h2>
-   <p className="notice">تا زمان ارسال واقعی وجه/رمزارز، سفارش را تکمیل نکنید. مانند ربات اصلی، Tx Hash یا تصویر/PDF Transaction Details لازم است. فایل از طریق ربات اصلی تلگرام به‌صورت امن ثبت می‌شود.</p>
-   <textarea aria-label="Transaction Details / Tx Hash واقعی" rows={3}
-    value={completionProof} maxLength={2000}
-    onChange={e=>setCompletionProof(e.target.value)}
-    placeholder="Tx Hash / Transaction Details واقعی پس از ارسال وجه به مشتری" />
-   {!result.orders?.length&&<p>سفارش تأییدشده‌ای در انتظار تکمیل نیست.</p>}
-   {(result.orders||[]).map(order=>
-    <article className="notice" key={order.id} style={{marginTop:10}}>
-     <b>{order.asset||'USDT'}-{String(order.id).padStart(5,'0')}</b>
-     <p>{order.order_type==='buy'?'خرید':'فروش'} | {cash(order.usdt_amount)}
-       {' '}{order.asset} | {cash(order.total_afn)} افغانی</p>
-     <button type="button" disabled={busy}
-       onClick={()=>load('orders.detail',{order_id:order.id})}>🔎 جزییات و اطلاعات مشتری</button>
-     <div style={{margin:'8px 0'}}>
-      <label htmlFor={'completion-media-'+order.id}>تصویر یا PDF واقعی Transaction Details</label>
-      <input id={'completion-media-'+order.id} type="file"
-       accept="image/jpeg,image/png,image/webp,application/pdf"
-       disabled={busy||uploadingProofId===order.id}
-       onChange={event=>{
-        const file=event.target.files?.[0];event.target.value='';
-        if(file)uploadCompletionMedia(order.id,file);
-       }} />
-      {uploadingProofId===order.id&&<p role="status">در حال ثبت امن فایل در تلگرام...</p>}
-      {completionMedia[order.id]?.expiresAt>Date.now()&&
-       <p className="notice">✅ مدرک این سفارش در ربات اصلی ثبت شد؛ اعتبار تأییدیه ۱۰ دقیقه است.</p>}
-     </div>
-     <button type="button" disabled={busy||uploadingProofId===order.id||
-       !(completionProof.trim().length>=4||
-         completionMedia[order.id]?.expiresAt>Date.now())}
-      onClick={()=>completeOrder(order.id)}>📦 تکمیل با مدرک تراکنش</button>
-    </article>)}
-   <button type="button" disabled={busy} style={{marginTop:12}}
-    onClick={()=>load('orders.confirmed')}>🔄 بازخوانی</button>
-  </section>}
-  {result?.action==='order.reject'&&<div className="notice">
-   ❌ سفارش {cash(result.result?.order_id)} رد و لغو شد.
-   {result.result?.customer_notified===false&&' اطلاع‌رسانی به مشتری موفق نشد.'}
-   <div><button type="button" disabled={busy}
-    onClick={()=>{setSection('orders.pending');load('orders.pending');}}>
-    بازگشت به سفارش‌های در انتظار</button></div>
-  </div>}
-  {result?.action==='order.complete'&&<div className="notice">
-   ✅ سفارش {cash(result.result?.order_id)} با مدرک تراکنش ثبت‌شده تکمیل شد.
-   {result.result?.customer_notified===false&&' اطلاع‌رسانی به مشتری موفق نشد.'}
-   <div><button type="button" disabled={busy}
-     onClick={()=>{setSection('orders.confirmed');load('orders.confirmed');}}>
-     بازگشت به سفارش‌های تأییدشده</button></div>
-  </div>}
   {result?.action==='kyc.pending'&&<section>
    <h2 style={{fontSize:17}}>اسناد در انتظار بررسی هویت</h2>
    <p className="notice">فقط مدیر مجاز می‌تواند تصویر خصوصی تذکره و سلفی را با لینک موقت ۹۰ثانیه‌ای مشاهده کند. پیش از تأیید، هر دو سند را بررسی کنید.</p>
@@ -483,16 +289,11 @@ export default function OriginalAdmin({navigate}){
      بازگشت به بررسی اسناد
    </button></div>
   </div>}
-  {result?.action==='order.confirm'&&<p className="notice">
-    ✅ سفارش {cash(result.result?.order_id)} تأیید شد.
-    {result.result?.customer_notified===false&&
-      ' پیام اطلاع‌رسانی به کاربر ارسال نشد؛ وضعیت سفارش را بررسی کنید.'}
-  </p>}
   {result?.action==='spread.set'&&<p className="notice">
     ✅ اسپرد {result.result?.currency?.toUpperCase()} روی
     {' '}{cash(result.result?.spread_percent)}٪ ثبت شد.
   </p>}
-  <section style={{margin:'24px 0',display:'grid',gap:10}}>
+  {section==='broadcast'&&<section>
    <h2 style={{fontSize:17}}>ارسال پیام همگانی (/broadcast)</h2>
    <form style={{display:'grid',gap:10}} onSubmit={createBroadcast}>
     <textarea aria-label="متن پیام همگانی" rows={4}
@@ -524,8 +325,8 @@ export default function OriginalAdmin({navigate}){
      {' | '}نامعلوم: {cash(result.result?.deliveries?.uncertain)}
      {' | '}انصراف‌داده: {cash(result.result?.deliveries?.skipped)}
    </div>}
-  </section>
-  <form onSubmit={saveSpread} style={{display:'grid',gap:10,marginTop:22}}>
+  </section>}
+  {section==='spreads'&&<form onSubmit={saveSpread} style={{display:'grid',gap:10,marginTop:22}}>
    <h2 style={{fontSize:17}}>تنظیم اسپرد (/setspread)</h2>
    <select value={code} onChange={event=>setCode(event.target.value)}>
      {CODES.map(c=><option key={c} value={c}>{c.toUpperCase()}</option>)}
@@ -533,17 +334,9 @@ export default function OriginalAdmin({navigate}){
    <input aria-label="درصد اسپرد" type="number" min="0" max="20"
     step="0.1" value={pct} onChange={event=>setPct(event.target.value)}/>
    <button disabled={busy} type="submit">ثبت اسپرد</button>
-  </form>
-  <section style={{marginTop:20}}>
-   <h2 style={{fontSize:17}}>تأیید سفارش (/usdtconfirm)</h2>
-   <input aria-label="شماره سفارش" type="number" min="1"
-     value={orderId} onChange={e=>setOrderId(e.target.value)}/>
-   <button type="button" disabled={busy} onClick={()=>confirmOrder(orderId)}>
-    تأیید شماره سفارش
-   </button>
-  </section>
-  <p className="notice" style={{marginTop:24}}>
-   برای امنیت، ارسال همگانی بدون فعال‌سازی مجزای سرور و بررسی دستی انجام نمی‌شود.
-  </p>
+  </form>}
+  {error&&!busy&&['stats','spreads','kyc.pending','remittances.pending'].includes(section)&&
+    <button type="button" onClick={()=>load(section)}>بازخوانی بخش</button>}
+  </div>}
  </main>;
 }

@@ -8,7 +8,7 @@ export async function originalAdminCommand(action,input={}){
  if(!ENABLED)throw new Error('دستورات مدیریت هنوز در سرور جدید فعال نشده‌اند.');
  const initData=getInitData();
  if(!initData)throw new Error('پنل مدیریت را از ربات اصلی صراف باز کنید.');
- const allowed=['access','stats','spreads','orders.pending','spread.set',
+ const allowed=['dashboard','orders.detail','access','stats','spreads','orders.pending','spread.set',
  'order.confirm','order.reject','order.complete','orders.confirmed',
  'broadcast.create','broadcast.status','social.post.create','social.post.status',
  'kyc.pending','kyc.review',
@@ -24,14 +24,21 @@ export async function originalAdminCommand(action,input={}){
   let json;
   try{json=await response.json();}catch{throw new Error('پاسخ سرور معتبر نیست.');}
   if(!response.ok||json?.error){
+    if(response.status===401)throw new Error('نشست تلگرام پایان یافته است. مینی‌اپ را از ربات صراف دوباره باز کنید.');
+    if(json?.error==='INVALID_COMPLETION_PROOF')throw new Error('اعتبار مدرک پایان یافته است. فایل را دوباره بارگذاری کنید.');
     if(response.status===403)throw new Error('این بخش فقط برای مدیران تأییدشدهٔ صراف است.');
-    if(response.status===503)throw new Error('خدمات مدیریتی هنوز فعال نشده‌اند.');
+    if(json?.error==='ORIGINAL_ADMIN_WRITES_DISABLED')throw new Error('ثبت تغییرات توسط مدیر در سرور غیرفعال است.');
+    if(response.status===503)throw new Error('خدمات مدیریت فعلاً در دسترس نیست. دوباره بررسی کنید.');
     if(json?.error==='INVALID_ORDER_TRANSITION')
-      throw new Error('وضعیت این سفارش برای تأیید مناسب نیست.');
+      throw new Error('وضعیت سفارش تغییر کرده است. پیش از اقدام دوباره، جزئیات را تازه کنید.');
     if(json?.error==='ORDER_NOT_FOUND')throw new Error('سفارش پیدا نشد.');
     throw new Error('عملیات انجام نشد. لطفاً دوباره بررسی کنید.');
   }
   return json;
+ }catch(error){
+  if(error.name==='AbortError'||error instanceof TypeError)
+   throw new Error('پاسخ سرور دریافت نشد. پیش از اقدام دوباره، وضعیت را تازه کنید.');
+  throw error;
  }finally{clearTimeout(timer);}
 }
 
