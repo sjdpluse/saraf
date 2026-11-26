@@ -1,0 +1,124 @@
+name: Publish reviewed Saraf admin order desk to Telegram Serverless
+on:
+  push:
+    branches:
+      - migration/telegram-native-serverless-poc
+    paths:
+      - '.github/workflows/saraf-admin-desk-live-static-20261126.yml'
+permissions:
+  contents: read
+concurrency:
+  group: saraf-original-financial-bot-cutover
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: >-
+      github.ref == 'refs/heads/migration/telegram-native-serverless-poc' &&
+      github.event.before == 'fb5219f1e7db8609bc08562a02a22fe1b194784e' &&
+      github.event.head_commit.message == 'release: publish reviewed Saraf admin order desk to Telegram'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: saraf-original-production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Exact reviewed code and one-time release-only commit guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 'fb5219f1e7db8609bc08562a02a22fe1b194784e'
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = '.github/workflows/saraf-admin-desk-live-static-20261126.yml'
+      - name: Confirm original production bot and Telegram webhook
+        env:
+          SARAF_ORIGINAL_BOT_TOKEN: ${{ secrets.SARAF_ORIGINAL_BOT_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const token=process.env.SARAF_ORIGINAL_BOT_TOKEN;
+          const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+          async function call(method){
+            let last;
+            for(let n=0;n<4;n++){
+              try{
+                const res=await fetch('https://api.telegram.org/bot'+token+'/'+method,
+                  {signal:AbortSignal.timeout(12000),cache:'no-store'});
+                const data=await res.json();
+                if(res.ok&&data.ok)return data.result;
+                throw Error('BOT_API_'+method+'_'+res.status);
+              }catch(error){last=error;if(n<3)await pause(2000)}
+            }
+            throw last;
+          }
+          const bot=await call('getMe'),hook=await call('getWebhookInfo');
+          if(bot.username!=='sarafiaf_bot'||
+             hook.url!=='https://cloud.telegram.org/app8533795882/webhook')
+            throw Error('WRONG_PRODUCTION_BOT_OR_WEBHOOK');
+          console.log('Original BotFather identity and webhook verified.');
+          NODE
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Run Serverless and Mini App regression tests
+        run: node --test serverless-poc/tests/*.test.js webapp/tests/*.test.js
+      - name: Compile only original React Mini App, no changes to Telegram bot modules
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build:telegram-original-full
+      - name: Package exact original app allowlist, not financial endpoints
+        run: |
+          node scripts/prepare_saraf_original_release.mjs
+          test ! -e serverless-poc/.release-original/tgcloud/schema.js
+          test ! -e serverless-poc/.release-original/tgcloud/endpoints/createNativeOrder.js
+          test -s serverless-poc/.release-original/dist/index.html
+      - name: Install pinned Telegram Serverless CLI
+        working-directory: serverless-poc/.release-original
+        run: npm install --no-save --ignore-scripts @tgcloud/cli@0.2.0
+      - name: Sync the original app revision and publish reviewed static files
+        working-directory: serverless-poc/.release-original
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.TGCLOUD_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "${TGCLOUD_TOKEN:-}" == app8533795882:* ]] || { echo "::error::Wrong original app"; exit 1; }
+          npx --no-install tgcloud fetch
+          npx --no-install tgcloud status
+          diff -qr ../dist dist
+          npx --no-install tgcloud push dist/
+      - name: Verify live HTML references and compare both deployed bundles byte for byte
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFile} from 'node:fs/promises';
+          import {createHash} from 'node:crypto';
+          const root='serverless-poc/dist';
+          const host='https://app8533795882.tgcloud.ai';
+          const html=await readFile(root+'/index.html','utf8');
+          const assets=[...html.matchAll(/(?:src|href)="(\/assets\/index-[a-zA-Z0-9_-]+\.(?:js|css))"/g)].map(m=>m[1]);
+          if(assets.length!==2 || !assets.some(p=>p.endsWith('.js')) || !assets.some(p=>p.endsWith('.css')))
+            throw Error('Missing compiled JS or CSS');
+          const digest=data=>createHash('sha256').update(data).digest('hex');
+          const expected=await Promise.all(assets.map(async path=>digest(await readFile(root+path))));
+          async function get(path){
+            const response=await fetch(host+path,{cache:'no-store',signal:AbortSignal.timeout(15000)});
+            if(!response.ok)throw Error('HTTP '+response.status);
+            return response;
+          }
+          for(let attempt=0;attempt<10;attempt++){
+            try{
+              const live=await(await get('/?release='+process.env.GITHUB_RUN_ID+'-'+attempt)).text();
+              if(!assets.every(path=>live.includes('"'+path+'"')))throw Error('Waiting for new HTML');
+              for(const [i,path] of assets.entries()){
+                const bytes=Buffer.from(await(await get(path)).arrayBuffer());
+                if(digest(bytes)!==expected[i])throw Error('Live asset digest mismatch');
+              }
+              console.log('Verified both reviewed assets on '+host,assets);
+              break;
+            }catch(error){
+              if(attempt===9)throw error;
+              await new Promise(resolve=>setTimeout(resolve,4000));
+            }
+          }
+          NODE
