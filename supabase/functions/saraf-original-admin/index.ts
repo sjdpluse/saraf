@@ -5,6 +5,7 @@
 // Default OFF: read and write must be enabled separately after E2E.
 import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
 import { verifyTelegramInitData } from './telegram-auth.mjs';
+import {readOrderPage,receiptObject} from './order-desk.mjs';
 import {uploadOriginalAdminProof} from './proof-upload.mjs';
 import {verifyOriginalProof} from './proof.mjs';
 
@@ -233,7 +234,7 @@ Deno.serve(async(req:Request)=>{
    if(!Number.isSafeInteger(id)||id<=0)
      return answer(origin,400,{error:'INVALID_ORDER_ID'});
    const r=await db.from('usdt_orders').select(
-     'id,chat_id,username,full_name,phone,order_type,asset,usdt_amount,usd_rate,total_afn,total_usd,fee_percent,status,created_at,confirmed_at,completed_at,cancelled_at,network,exchange_name,wallet_address,payment_method,receive_method,bank_info,in_person_code,risk_level,risk_reasons,card_image_path,pricing_model,market_margin_usd,supplier_profit_usd,saraf_profit_usd,customer_discount_usd,supplier_payout_usd,saraf_profit_afn,supplier_profit_afn,supplier_payout_afn'
+     'id,chat_id,username,full_name,phone,order_type,asset,usdt_amount,usd_rate,total_afn,total_usd,fee_percent,status,created_at,confirmed_at,completed_at,cancelled_at,network,exchange_name,wallet_address,payment_method,receive_method,bank_info,in_person_code,risk_level,risk_reasons,receipt_file_id,tx_proof,completion_tx_details,card_image_path,pricing_model,market_margin_usd,supplier_profit_usd,saraf_profit_usd,customer_discount_usd,supplier_payout_usd,saraf_profit_afn,supplier_profit_afn,supplier_payout_afn'
    ).eq('id',id).maybeSingle();
    if(r.error)return answer(origin,503,{error:'ORDER_DETAIL_UNAVAILABLE'});
    if(!r.data)return answer(origin,404,{error:'ORDER_NOT_FOUND'});
@@ -253,9 +254,14 @@ Deno.serve(async(req:Request)=>{
    if(delivery.error)return answer(origin,503,{error:'CARD_DELIVERY_STATUS_UNAVAILABLE'});
    // Only an original signed administrator may read per-order delivery results.
    // Never reveal recipient IDs, external Telegram tokens, or private KYC paths.
-   const {card_image_path:discard,...order}=r.data;
+   const {card_image_path:discard,receipt_file_id,tx_proof,...order}=r.data;
+   const reference=String(order.order_type==='buy'?receipt_file_id||'':tx_proof||'').trim();
+   const object=receiptObject(reference,URL,order.chat_id);
+   const receipt=object?await db.storage.from('usdt-receipts').createSignedUrl(object,90):null;
+   const tx_text=order.order_type==='sell'&&reference&&!/^https?:/i.test(reference)?reference:null;
    return answer(origin,200,{
-     order,profile:profile.data||null,card_url,
+     order,profile:profile.data||null,card_url,receipt_url:receipt?.data?.signedUrl||null,
+     tx_text,has_customer_proof:Boolean(reference),
      card_delivery:delivery.data||[],
    });
   }
@@ -275,6 +281,10 @@ Deno.serve(async(req:Request)=>{
      settings[row.currency]=Number(row.spread_percent);
    }
    return answer(origin,200,{spreads:settings});
+  }
+  if((action==='orders.pending'||action==='orders.confirmed')&&input.view==='desk'){
+   const page=await readOrderPage(db,action==='orders.pending'?'pending':'confirmed',input);
+   return answer(origin,page.status,page.body);
   }
   if(action==='orders.pending'){
    const r=await db.from('usdt_orders')
